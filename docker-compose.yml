@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:7
+    container_name: ekspedisi-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: ekspedisi_tracker
+
+volumes:
+  mongo-data:

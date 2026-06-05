@@ -1,0 +1,148 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/models/transaction.dart';
+
+enum ScanType { datang, keluar, diterima }
+
+enum TujuanType { gudang, penerima }
+
+class ScanItem {
+  final String noResi;
+  final Transaction transaction;
+  final bool isValid;
+  final String? errorMessage;
+
+  ScanItem({
+    required this.noResi,
+    required this.transaction,
+    this.isValid = true,
+    this.errorMessage,
+  });
+}
+
+class ScanKeluarState {
+  final List<ScanItem> scannedItems;
+  final String? driverUserId;
+  final String? driverName;
+  final String? driverPhone;
+  final TujuanType tujuanType;
+  final String? gudangTujuanId;
+  final String? gudangTujuanNama;
+  final String catatan;
+  final bool driverLocked;
+
+  ScanKeluarState({
+    this.scannedItems = const [],
+    this.driverUserId,
+    this.driverName,
+    this.driverPhone,
+    this.tujuanType = TujuanType.gudang,
+    this.gudangTujuanId,
+    this.gudangTujuanNama,
+    this.catatan = '',
+    this.driverLocked = false,
+  });
+
+  ScanKeluarState copyWith({
+    List<ScanItem>? scannedItems,
+    String? driverUserId,
+    String? driverName,
+    String? driverPhone,
+    TujuanType? tujuanType,
+    String? gudangTujuanId,
+    String? gudangTujuanNama,
+    String? catatan,
+    bool? driverLocked,
+  }) => ScanKeluarState(
+    scannedItems: scannedItems ?? this.scannedItems,
+    driverUserId: driverUserId ?? this.driverUserId,
+    driverName: driverName ?? this.driverName,
+    driverPhone: driverPhone ?? this.driverPhone,
+    tujuanType: tujuanType ?? this.tujuanType,
+    gudangTujuanId: gudangTujuanId ?? this.gudangTujuanId,
+    gudangTujuanNama: gudangTujuanNama ?? this.gudangTujuanNama,
+    catatan: catatan ?? this.catatan,
+    driverLocked: driverLocked ?? this.driverLocked,
+  );
+
+  int get validCount => scannedItems.where((i) => i.isValid).length;
+}
+
+final scanDatangProvider = StateNotifierProvider<ScanDatangNotifier, List<ScanItem>>((ref) => ScanDatangNotifier());
+final scanKeluarProvider = StateNotifierProvider<ScanKeluarNotifier, ScanKeluarState>((ref) => ScanKeluarNotifier());
+
+class ScanDatangNotifier extends StateNotifier<List<ScanItem>> {
+  ScanDatangNotifier() : super([]);
+
+  void addItem(ScanItem item) {
+    final exists = state.any((i) => i.noResi == item.noResi);
+    if (!exists) {
+      state = [...state, item];
+    }
+  }
+
+  void removeItem(String noResi) {
+    state = state.where((i) => i.noResi != noResi).toList();
+  }
+
+  void clear() => state = [];
+}
+
+class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
+  ScanKeluarNotifier() : super(ScanKeluarState());
+
+  void addItem(ScanItem item) {
+    if (!item.isValid) {
+      state = state.copyWith(scannedItems: [...state.scannedItems, item]);
+      return;
+    }
+    final exists = state.scannedItems.any((i) => i.noResi == item.noResi);
+    if (!exists) {
+      state = state.copyWith(
+        scannedItems: [...state.scannedItems, item],
+        driverLocked: state.scannedItems.isNotEmpty ? true : false,
+      );
+    }
+  }
+
+  void removeItem(String noResi) {
+    final newList = state.scannedItems.where((i) => i.noResi != noResi).toList();
+    final stillHasValid = newList.any((i) => i.isValid);
+    final validCount = newList.where((i) => i.isValid).length;
+    state = state.copyWith(
+      scannedItems: newList,
+      driverLocked: validCount > 1,
+      driverUserId: stillHasValid ? state.driverUserId : null,
+      driverName: stillHasValid ? state.driverName : null,
+      driverPhone: stillHasValid ? state.driverPhone : null,
+      gudangTujuanId: stillHasValid ? state.gudangTujuanId : null,
+      gudangTujuanNama: stillHasValid ? state.gudangTujuanNama : null,
+      catatan: stillHasValid ? state.catatan : '',
+    );
+  }
+
+  void setDriver(String userId, String name, String phone) {
+    state = state.copyWith(driverUserId: userId, driverName: name, driverPhone: phone);
+  }
+
+  void setDriverManual(String name, String phone) {
+    state = state.copyWith(driverUserId: null, driverName: name, driverPhone: phone);
+  }
+
+  void setTujuanType(TujuanType type) {
+    state = state.copyWith(tujuanType: type);
+  }
+
+  void setGudangTujuan(String id, String name) {
+    state = state.copyWith(gudangTujuanId: id, gudangTujuanNama: name);
+  }
+
+  void setGudangTujuanManual(String name) {
+    state = state.copyWith(gudangTujuanId: null, gudangTujuanNama: name);
+  }
+
+  void setCatatan(String catatan) {
+    state = state.copyWith(catatan: catatan);
+  }
+
+  void clear() => state = ScanKeluarState();
+}

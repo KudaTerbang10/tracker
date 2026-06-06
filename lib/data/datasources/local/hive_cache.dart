@@ -6,6 +6,7 @@ class HiveCache {
   static const String _metaKey = '__meta__';
 
   static Future<void> init() async {
+    await Hive.initFlutter();
     await Hive.openBox(_driverBox);
     await Hive.openBox(_gudangBox);
   }

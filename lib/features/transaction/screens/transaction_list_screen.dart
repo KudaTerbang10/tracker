@@ -7,6 +7,8 @@ import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
+import '../../../shared/utils/label_printer.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 
@@ -71,6 +73,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                   itemBuilder: (_, i) {
                     final tx = list[i];
                     final konterName = _konterName(tx);
+                    final isDriver = ref.read(authProvider).user?.isDriver ?? false;
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
@@ -78,6 +81,25 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Flexible(child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis)),
+                            if (!isDriver) ...[
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () => LabelPrinter.printBarcodeLabel(
+                                  data: tx.noResi,
+                                  pengirim: tx.pengirim,
+                                  penerima: tx.penerima,
+                                  paket: tx.paket,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 4),
                             ResiCopyButton(resi: tx.noResi),
                           ],
@@ -124,6 +146,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
   void _showDetail(Transaction tx) {
     final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final showDriver = _isDeliveredToRecipient(tx) && tx.namaDriver != null;
+    final isDriver = ref.read(authProvider).user?.isDriver ?? false;
 
     showModalBottomSheet(
       context: context,
@@ -163,6 +186,25 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                         ),
                         const SizedBox(width: 4),
                         ResiCopyButton(resi: tx.noResi),
+                        if (!isDriver) ...[
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () => LabelPrinter.printBarcodeLabel(
+                              data: tx.noResi,
+                              pengirim: tx.pengirim,
+                              penerima: tx.penerima,
+                              paket: tx.paket,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

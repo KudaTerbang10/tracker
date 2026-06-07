@@ -4,7 +4,7 @@ const Transaction = require('../models/Transaction');
 const auth = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 const generateResi = require('../utils/resiGenerator');
-const { validateTransition } = require('../utils/statusValidator');
+const { canRoleSetStatus } = require('../utils/statusValidator');
 
 const router = express.Router();
 
@@ -86,13 +86,17 @@ router.post('/batch-status', auth, async (req, res) => {
         continue;
       }
 
-      const validation = validateTransition(tx.status_saat_ini, req.user.role);
-      if (!validation || validation.next !== status_baru) {
-        results.push({ no_resi, status: 'error', error: `Status ${tx.status_saat_ini} tidak bisa diubah ke ${status_baru} oleh ${req.user.role}` });
+      if (!canRoleSetStatus(req.user.role, status_baru)) {
+        results.push({ no_resi, status: 'error', error: `Role ${req.user.role} tidak memiliki akses untuk status ${status_baru}` });
         continue;
       }
 
-      if ((status_baru === 'keluar_gudang' || status_baru === 'keluar_konter') && validation.scanType === 'keluar') {
+      if (tx.status_saat_ini === status_baru) {
+        results.push({ no_resi, status: 'error', error: `Barang ${no_resi} sudah discan sebagai ${status_baru} sebelumnya` });
+        continue;
+      }
+
+      if (status_baru === 'keluar_gudang' || status_baru === 'keluar_konter') {
         const hasDriver = driver || (nama_driver_manual && nama_driver_manual.trim().length > 0);
         const hasTujuan = (tipe_tujuan === 'penerima') || (tipe_tujuan === 'gudang' && (gudangTujuan || (gudang_nama_manual && gudang_nama_manual.trim().length > 0)));
         if (!hasDriver || !tipe_tujuan || !hasTujuan) {

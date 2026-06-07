@@ -7,6 +7,7 @@ import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/datasources/local/hive_cache.dart';
 import '../../../data/repositories/sync_repository.dart';
 import '../../../data/models/user.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final _usersProvider = FutureProvider.autoDispose<List<User>>((ref) async {
   final res = await ApiService().get(ApiConstants.users);
@@ -26,12 +27,30 @@ final _gudangsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>(
   return HiveCache.getGudangs();
 });
 
-class UserManagementScreen extends ConsumerWidget {
+class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserManagementScreen> createState() => _UserManagementScreenState();
+}
+
+class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
+  String _filter = 'all';
+
+  static const _filters = [
+    {'key': 'all', 'label': 'Semua'},
+    {'key': 'admin_konter', 'label': 'Admin Konter'},
+    {'key': 'staff_gudang', 'label': 'Staff Gudang'},
+    {'key': 'driver', 'label': 'Driver'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(_usersProvider);
+    final kontersAsync = ref.watch(_kontersProvider);
+    final gudangsAsync = ref.watch(_gudangsProvider);
+    final konters = kontersAsync.maybeWhen(data: (v) => v, orElse: () => <Map<String, dynamic>>[]);
+    final gudangs = gudangsAsync.maybeWhen(data: (v) => v, orElse: () => <Map<String, dynamic>>[]);
 
     return Scaffold(
       appBar: AppBar(
@@ -42,33 +61,99 @@ class UserManagementScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
         onPressed: () => _showForm(context, ref),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (users) => ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: users.length,
-          itemBuilder: (_, i) {
-            final u = users[i];
-            final lokasiText = u.lokasi?['nama']?.toString();
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: _roleColor(u.role).withValues(alpha: 0.15),
-                  child: Icon(_roleIcon(u.role), color: _roleColor(u.role)),
-                ),
-                title: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: Text('${u.email}\n${u.roleLabel}${lokasiText != null ? ' • $lokasiText' : ''}'),
-                isThreeLine: lokasiText != null,
-                trailing: null,
-                onTap: () => _showForm(context, ref, user: u),
-              ),
-            );
-          },
+      body: Column(
+        children: [
+          _buildFilterTabs(),
+          Expanded(
+            child: async.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
+              data: (users) {
+                final filtered = _filter == 'all'
+                    ? users
+                    : users.where((u) => u.role == _filter).toList();
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('Tidak ada akun'));
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final u = filtered[i];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _roleColor(u.role).withValues(alpha: 0.15),
+                          child: Icon(_roleIcon(u.role), color: _roleColor(u.role)),
+                        ),
+                        title: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                        subtitle: Text('${u.email}\n${_roleWithLocation(u, konters, gudangs)}'),
+                        isThreeLine: true,
+                        trailing: null,
+                        onTap: () => _showForm(context, ref, user: u),
+                        onLongPress: () => _confirmDelete(context, ref, u),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterTabs() {
+    return SizedBox(
+      height: 50,
+      child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _filters.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                () {
+                  final f = _filters[i];
+                  final selected = _filter == f['key'];
+                  return ChoiceChip(
+                    label: Text(f['label']!),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _filter = f['key']!),
+                  );
+                }(),
+              ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _roleWithLocation(User u, List<Map<String, dynamic>> konters, List<Map<String, dynamic>> gudangs) {
+    String? name;
+    if (u.isAdminKonter && u.konterId != null) {
+      final match = konters.firstWhere(
+        (k) => (k['_id']?.toString() ?? k['konter_id']?.toString()) == u.konterId,
+        orElse: () => const {},
+      );
+      name = match.isNotEmpty ? match['name']?.toString() : null;
+    } else if (u.isStaffGudang && u.gudangId != null) {
+      final match = gudangs.firstWhere(
+        (g) => (g['_id']?.toString() ?? g['gudang_id']?.toString()) == u.gudangId,
+        orElse: () => const {},
+      );
+      name = match.isNotEmpty ? match['name']?.toString() : null;
+    }
+    name ??= u.lokasi?['nama']?.toString();
+    if (name != null && name.isNotEmpty) {
+      return '${u.roleLabel} - $name';
+    }
+    return u.roleLabel;
   }
 
   Color _roleColor(String role) {
@@ -174,6 +259,59 @@ class UserManagementScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, User user) {
+    final currentUser = ref.read(authProvider).user;
+    if (currentUser?.id == user.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat menghapus akun sendiri')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Akun'),
+        content: Text('Yakin hapus akun "${user.name}" (${user.email})?\n\nAkun akan dinonaktifkan.'),
+        actions: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                onPressed: () => _deleteUser(ctx, ref, user),
+                child: const Text('HAPUS'),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteUser(BuildContext ctx, WidgetRef ref, User user) async {
+    final navigator = Navigator.of(ctx);
+    final messenger = ScaffoldMessenger.of(ctx);
+    try {
+      await ApiService().delete('${ApiConstants.users}/${user.id}');
+      navigator.pop();
+      ref.invalidate(_usersProvider);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Akun "${user.name}" berhasil dihapus')),
+      );
+    } catch (e) {
+      final msg = e is DioException
+          ? (e.response?.data?['message'] as String? ?? 'Gagal menghapus')
+          : 'Gagal menghapus';
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
+    }
   }
 
   Widget _konterDropdown(WidgetRef ref, String? selectedId, void Function(String?) onChanged) {

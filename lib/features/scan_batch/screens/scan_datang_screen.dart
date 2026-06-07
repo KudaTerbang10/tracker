@@ -213,6 +213,17 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
   }
 
   Future<void> _processResi(String code) async {
+    final alreadyScanned =
+        ref.read(scanDatangProvider).any((i) => i.noResi == code);
+    if (alreadyScanned) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Resi $code sudah discan sebelumnya')),
+        );
+      }
+      return;
+    }
+
     try {
       final res = await ApiService().get('${ApiConstants.track}/$code');
       final tx = Transaction.fromJson(res.data as Map<String, dynamic>);
@@ -221,22 +232,8 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
       String? error;
       final role = ref.read(authProvider).user?.role ?? '';
 
-      if (role == 'staff_gudang') {
-        if ((tx.statusSaatIni == 'keluar_gudang' ||
-                tx.statusSaatIni == 'keluar_konter') &&
-            tx.tujuanSelanjutnya?['tipe'] == 'gudang') {
-          isValid = true;
-        } else {
-          error =
-              'Status "${StatusList.label(tx.statusSaatIni)}" tidak bisa diproses sebagai barang datang gudang';
-        }
-      } else if (role == 'admin_konter') {
-        if (tx.statusSaatIni == 'keluar_konter') {
-          isValid = true;
-        } else {
-          error =
-              'Status "${StatusList.label(tx.statusSaatIni)}" tidak bisa diproses sebagai barang datang konter';
-        }
+      if (role == 'staff_gudang' || role == 'admin_konter') {
+        isValid = true;
       } else {
         error = 'Role tidak memiliki akses scan datang';
       }
@@ -280,14 +277,21 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
         title: const Text('Konfirmasi'),
         content: Text('Konfirmasi ${validItems.length} barang diterima?'),
         actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-            child: const Text('KONFIRMASI'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('BATAL'),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                child: const Text('KONFIRMASI'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('BATAL'),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,27 +1,11 @@
-const STATUS_TRANSITIONS = {
-  admin_konter: {
-    new: { next: 'diterima_konter', scanType: 'create' },
-    diterima_konter: { next: 'keluar_konter', scanType: 'keluar' },
-  },
-  staff_gudang: {
-    keluar_konter: { next: 'diterima_gudang', scanType: 'datang' },
-    diterima_gudang: { next: 'keluar_gudang', scanType: 'keluar' },
-    keluar_gudang: { next: 'diterima_gudang', scanType: 'datang' },
-  },
-  driver: {
-    proses_kirim: { next: 'diterima', scanType: 'diterima' },
-  },
+const ROLE_SCAN_PERMISSIONS = {
+  admin_konter: ['diterima_konter', 'keluar_konter'],
+  staff_gudang: ['diterima_gudang', 'keluar_gudang'],
+  driver: ['diterima'],
 };
 
-function validateTransition(currentStatus, role) {
-  const roleTransitions = STATUS_TRANSITIONS[role];
-  if (!roleTransitions) return null;
-
-  const key = currentStatus || 'new';
-  const transition = roleTransitions[key];
-  if (!transition) return null;
-
-  return transition;
+function canRoleSetStatus(role, targetStatus) {
+  return ROLE_SCAN_PERMISSIONS[role]?.includes(targetStatus) ?? false;
 }
 
 function getScanTypeForRole(role) {
@@ -31,4 +15,4 @@ function getScanTypeForRole(role) {
   return null;
 }
 
-module.exports = { validateTransition, STATUS_TRANSITIONS, getScanTypeForRole };
+module.exports = { canRoleSetStatus, ROLE_SCAN_PERMISSIONS, getScanTypeForRole };

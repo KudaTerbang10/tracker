@@ -181,16 +181,6 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       final res = await ApiService().get('${ApiConstants.track}/$code');
       final tx = Transaction.fromJson(res.data as Map<String, dynamic>);
 
-      if (tx.statusSaatIni != 'proses_kirim') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Status "${StatusList.label(tx.statusSaatIni)}" tidak bisa diubah ke diterima. Hanya status "Proses Kirim" yang bisa.'),
-            backgroundColor: AppTheme.error,
-          ));
-        }
-        return;
-      }
-
       setState(() => _tx = tx);
     } catch (e) {
       if (mounted) {

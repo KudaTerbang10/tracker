@@ -74,6 +74,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                     final tx = list[i];
                     final konterName = _konterName(tx);
                     final isDriver = ref.read(authProvider).user?.isDriver ?? false;
+                    final isAdminKonter = ref.read(authProvider).user?.isAdminKonter ?? false;
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
@@ -122,7 +123,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                         isThreeLine: true,
                         trailing: StatusBadge(status: tx.statusSaatIni),
                         onTap: () => _showDetail(tx),
-                        onLongPress: isDriver ? null : () => _confirmDelete(tx),
+                        onLongPress: isAdminKonter ? () => _confirmDelete(tx) : null,
                       ),
                     );
                   },

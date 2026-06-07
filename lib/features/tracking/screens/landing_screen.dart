@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/barcode_scanner_dialog.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -39,6 +40,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     labelText: 'Masukkan No. Resi',
                     hintText: 'contoh: JKP-20260604-0001',
                     prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.qr_code_scanner),
+                      onPressed: _scanBarcode,
+                    ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   textCapitalization: TextCapitalization.characters,
@@ -65,6 +70,14 @@ class _LandingScreenState extends State<LandingScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _scanBarcode() async {
+    final code = await BarcodeScannerDialog.show(context);
+    if (code != null && code.isNotEmpty) {
+      _resiC.text = code.toUpperCase();
+      _track();
+    }
   }
 
   void _track() {

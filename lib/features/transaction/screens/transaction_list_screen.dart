@@ -122,6 +122,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                         isThreeLine: true,
                         trailing: StatusBadge(status: tx.statusSaatIni),
                         onTap: () => _showDetail(tx),
+                        onLongPress: isDriver ? null : () => _confirmDelete(tx),
                       ),
                     );
                   },
@@ -132,6 +133,40 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _confirmDelete(Transaction tx) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Transaksi?'),
+        content: Text('Transaksi dengan No. Resi ${tx.noResi} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(transactionRepositoryProvider).delete(tx.id);
+      if (!mounted) return;
+      ref.invalidate(_listProvider(_page));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Transaksi ${tx.noResi} berhasil dihapus')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghapus: $e')),
+      );
+    }
   }
 
   String _konterName(Transaction tx) {

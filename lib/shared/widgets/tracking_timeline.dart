@@ -76,10 +76,10 @@ class TrackingTimeline extends StatelessWidget {
 
     switch (log.status) {
       case 'diterima_konter':
-        main = 'Paket diterima di konter${loc.isNotEmpty ? ' $loc' : ''}';
+        main = 'Paket diterima di ${loc.isNotEmpty ? loc : 'konter'}';
         break;
       case 'diterima_gudang':
-        main = 'Paket diterima di gudang${loc.isNotEmpty ? ' $loc' : ''}';
+        main = 'Paket diterima di ${loc.isNotEmpty ? loc : 'gudang'}';
         break;
       case 'keluar_konter':
         final tujuan = log.tujuan?['nama'] as String? ?? '';

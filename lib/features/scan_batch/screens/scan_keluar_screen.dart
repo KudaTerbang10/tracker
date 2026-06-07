@@ -443,6 +443,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
             child: const Text('KONFIRMASI'),
           ),
           TextButton(

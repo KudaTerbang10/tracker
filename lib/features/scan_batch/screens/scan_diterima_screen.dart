@@ -134,11 +134,15 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                 )
               : Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () { setState(() { _tx = null; _namaC.clear(); _catatanC.clear(); }); },
-                        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                        child: const Text('BATAL'),
+                    GestureDetector(
+                      onLongPress: () { setState(() { _tx = null; _namaC.clear(); _catatanC.clear(); }); },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.close, color: Colors.red.shade700, size: 24),
                       ),
                     ),
                     const SizedBox(width: 12),

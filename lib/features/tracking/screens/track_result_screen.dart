@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -227,49 +228,59 @@ class _InfoCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: AppTheme.primary.withValues(alpha: 0.12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 16, color: AppTheme.primary),
-                    const SizedBox(width: 6),
-                    Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ],
-                ),
-                if (phone.isNotEmpty)
+                Icon(icon, size: 16, color: AppTheme.primary),
+                const SizedBox(width: 6),
+                Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.phone, size: 14, color: AppTheme.primary),
-                      const SizedBox(width: 4),
-                      Text(phone, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      const Icon(Icons.person, size: 18, color: Colors.black87),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ),
                     ],
                   ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.person, size: 18, color: Colors.black87),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
-                    ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(address, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
                   ],
-                ),
-                if (address.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(address, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],
-              ],
+              ),
             ),
           ),
+          if (phone.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: AppTheme.primary.withValues(alpha: 0.12),
+              child: Row(
+                children: [
+                  Icon(Icons.phone, size: 14, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(phone, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: phone));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                      );
+                    },
+                    child: Icon(Icons.copy, size: 16, color: AppTheme.primary),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

@@ -12,6 +12,7 @@ import '../features/transaction/screens/create_transaction_screen.dart';
 import '../features/transaction/screens/transaction_list_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/admin/screens/user_management_screen.dart';
+import '../features/driver/screens/driver_tab_screen.dart';
 
 class _AuthListenable extends ChangeNotifier {
   _AuthListenable(Ref ref) {
@@ -51,6 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(path: 'transaksi-baru', builder: (_, __) => const CreateTransactionScreen()),
         GoRoute(path: 'daftar-transaksi', builder: (_, __) => const TransactionListScreen()),
         GoRoute(path: 'users', builder: (_, __) => const UserManagementScreen()),
+        GoRoute(path: 'driver-tab', builder: (_, __) => const DriverTabScreen()),
       ]),
     ],
   );

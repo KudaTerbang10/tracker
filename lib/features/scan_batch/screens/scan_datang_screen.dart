@@ -135,11 +135,18 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                             '${item.transaction.pengirimName} → ${item.transaction.penerimaName}\n${item.isValid ? 'Siap diproses' : item.errorMessage ?? 'Tidak valid'}',
                           ),
                           isThreeLine: true,
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: () => ref
+                          trailing: GestureDetector(
+                            onLongPress: () => ref
                                 .read(scanDatangProvider.notifier)
                                 .removeItem(item.noResi),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(Icons.close, size: 16, color: Colors.red.shade700),
+                            ),
                           ),
                         ),
                       );
@@ -154,18 +161,20 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
           child: Row(
             children: [
               if (items.isNotEmpty)
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _submitting
-                        ? null
-                        : () => ref.read(scanDatangProvider.notifier).clear(),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
+                GestureDetector(
+                  onLongPress: _submitting
+                      ? null
+                      : () => ref.read(scanDatangProvider.notifier).clear(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('BATAL'),
+                    child: Icon(Icons.close, color: Colors.red.shade700, size: 20),
                   ),
                 ),
-              if (items.isNotEmpty) const SizedBox(width: 12),
+              if (items.isNotEmpty) const SizedBox(width: 8),
               Expanded(
                 flex: items.isNotEmpty ? 1 : 1,
                 child: ElevatedButton.icon(
@@ -180,9 +189,9 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                 ),
               ),
               if (validCount > 0) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: ElevatedButton(
                     onPressed: _submitting
                         ? null
@@ -201,7 +210,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : Text('KONFIRMASI [$validCount]'),
+                        : const Text('KONFIRMASI'),
                   ),
                 ),
               ],

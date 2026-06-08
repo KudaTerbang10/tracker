@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiConstants {
   /// Override manual: isi dengan 'http://192.168.1.x:5000/api' jika pakai device fisik
-  static String customBaseUrl = '';
+  static String customBaseUrl = 'http://192.168.88.246:5000/api';
 
   /// Otomatis pilih URL sesuai platform.
   /// Bisa dioverride dengan mengisi [customBaseUrl] sebelumnya.

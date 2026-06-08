@@ -76,10 +76,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
           if (role == 'driver') ...[
             _menuCard(Icons.check_circle, 'Scan Barang Diterima', () => context.go('/dashboard/scan-diterima'), color: Colors.green.shade700),
+            const SizedBox(height: 8),
+            _menuCard(Icons.list_alt, 'Daftar Transaksi Driver', () => context.go('/dashboard/driver-tab'), color: Colors.blue.shade700),
           ],
 
-          const SizedBox(height: 16),
-          _menuCard(Icons.list_alt, 'Daftar Transaksi', () => context.go('/dashboard/daftar-transaksi'), color: Colors.grey.shade700),
+          if (role != 'driver') ...[
+            const SizedBox(height: 16),
+            _menuCard(Icons.list_alt, 'Daftar Transaksi', () => context.go('/dashboard/daftar-transaksi'), color: Colors.grey.shade700),
+          ],
           const SizedBox(height: 16),
 
           Card(

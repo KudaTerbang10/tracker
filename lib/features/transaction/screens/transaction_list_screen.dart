@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -386,6 +387,16 @@ class _InfoCard extends StatelessWidget {
                       const Icon(Icons.phone, size: 14, color: AppTheme.primary),
                       const SizedBox(width: 4),
                       Text(phone, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: phone));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                          );
+                        },
+                        child: Icon(Icons.copy, size: 14, color: AppTheme.primary),
+                      ),
                     ],
                   ),
               ],

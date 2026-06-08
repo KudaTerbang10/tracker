@@ -191,7 +191,6 @@ class _ScannerDialogContentState extends State<_ScannerDialogContent> with Singl
             textAlign: TextAlign.center,
             decoration: const InputDecoration(
               labelText: 'No. Resi',
-              hintText: 'Contoh: JKP-20260605-0001',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.qr_code),
             ),
@@ -406,7 +405,6 @@ class _BulkScannerContentState extends State<_BulkScannerContent> with SingleTic
             textAlign: TextAlign.center,
             decoration: const InputDecoration(
               labelText: 'No. Resi',
-              hintText: 'Contoh: JKP-20260605-0001',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.qr_code),
             ),

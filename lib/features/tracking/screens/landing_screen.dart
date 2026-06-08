@@ -38,7 +38,6 @@ class _LandingScreenState extends State<LandingScreen> {
                   controller: _resiC,
                   decoration: InputDecoration(
                     labelText: 'Masukkan No. Resi',
-                    hintText: 'contoh: JKP-20260604-0001',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.qr_code_scanner),

@@ -251,9 +251,16 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                             '${item.transaction.pengirimName} → ${item.transaction.penerimaName}\n${item.isValid ? 'Siap diproses' : item.errorMessage ?? 'Tidak valid'}',
                           ),
                           isThreeLine: true,
-                          trailing: IconButton(
-                            icon: const Icon(Icons.close, size: 20),
-                            onPressed: () => notifier.removeItem(item.noResi),
+                          trailing: GestureDetector(
+                            onLongPress: () => notifier.removeItem(item.noResi),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(Icons.close, size: 16, color: Colors.red.shade700),
+                            ),
                           ),
                         ),
                       );
@@ -268,21 +275,23 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
           child: Row(
             children: [
               if (state.scannedItems.isNotEmpty)
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      notifier.clear();
-                      _resetFields();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
+                GestureDetector(
+                  onLongPress: () {
+                    notifier.clear();
+                    _resetFields();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('BATAL'),
+                    child: Icon(Icons.close, color: Colors.red.shade700, size: 20),
                   ),
                 ),
-              if (state.scannedItems.isNotEmpty) const SizedBox(width: 12),
+              if (state.scannedItems.isNotEmpty) const SizedBox(width: 8),
               Expanded(
-                flex: state.scannedItems.isNotEmpty ? 2 : 1,
+                flex: state.scannedItems.isNotEmpty ? 1 : 1,
                 child: ElevatedButton.icon(
                   onPressed: _scan,
                   icon: const Icon(Icons.qr_code_scanner),
@@ -295,9 +304,9 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 ),
               ),
               if (validCount > 0) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: ElevatedButton(
                     onPressed: _submitting
                         ? null
@@ -316,7 +325,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : Text('KONFIRMASI [$validCount]'),
+                        : const Text('KONFIRMASI'),
                   ),
                 ),
               ],

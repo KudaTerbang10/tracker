@@ -8,7 +8,7 @@ class Transaction {
   final Map<String, dynamic> pengirim;
   final Map<String, dynamic> penerima;
   final Map<String, dynamic> paket;
-  final Map<String, dynamic> adminKonter;
+  final Map<String, dynamic> createdBy;
   final String statusSaatIni;
   final String? namaDriver;
   final String? kontakDriver;
@@ -27,7 +27,7 @@ class Transaction {
     required this.pengirim,
     required this.penerima,
     required this.paket,
-    required this.adminKonter,
+    required this.createdBy,
     required this.statusSaatIni,
     this.namaDriver,
     this.kontakDriver,
@@ -47,7 +47,7 @@ class Transaction {
     pengirim: Map<String, dynamic>.from(json['pengirim'] as Map),
     penerima: Map<String, dynamic>.from(json['penerima'] as Map),
     paket: Map<String, dynamic>.from(json['paket'] as Map),
-    adminKonter: Map<String, dynamic>.from(json['admin_konter'] as Map),
+    createdBy: Map<String, dynamic>.from(json['created_by'] as Map),
     statusSaatIni: json['status_saat_ini'] as String,
     namaDriver: json['nama_driver'] as String?,
     kontakDriver: json['kontak_driver'] as String?,

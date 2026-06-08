@@ -75,7 +75,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                     final tx = list[i];
                     final konterName = _konterName(tx);
                     final isDriver = ref.read(authProvider).user?.isDriver ?? false;
-                    final isAdminKonter = ref.read(authProvider).user?.isAdminKonter ?? false;
+                    final canDelete = (ref.read(authProvider).user?.isAdminKonter ?? false) || (ref.read(authProvider).user?.isStaffGudang ?? false);
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
@@ -125,7 +125,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                         isThreeLine: true,
                         trailing: StatusBadge(status: tx.statusSaatIni),
                         onTap: () => _showDetail(tx),
-                        onLongPress: isAdminKonter ? () => _confirmDelete(tx) : null,
+                        onLongPress: canDelete ? () => _confirmDelete(tx) : null,
                       ),
                     );
                   },
@@ -174,9 +174,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
 
   String _konterName(Transaction tx) {
     if (tx.statusSaatIni == 'diterima_konter' || tx.statusSaatIni == 'keluar_konter') {
-      final name = tx.adminKonter['konter_name']?.toString() ?? '';
+      final name = tx.createdBy['konter_name']?.toString() ?? '';
       if (name.isNotEmpty) return name;
-      return tx.adminKonter['name']?.toString() ?? '';
+      return tx.createdBy['gudang_name']?.toString() ?? tx.createdBy['name']?.toString() ?? '';
     }
     return '';
   }

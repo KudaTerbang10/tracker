@@ -52,11 +52,14 @@ const transactionSchema = new mongoose.Schema({
     biaya_kirim: { type: Number, required: true },
   },
 
-  admin_konter: {
+  created_by: {
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
-    konter_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Konter', required: true },
+    role: { type: String, required: true },
+    konter_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Konter', default: null },
     konter_name: { type: String, default: '' },
+    gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
+    gudang_name: { type: String, default: '' },
   },
 
   status_saat_ini: {

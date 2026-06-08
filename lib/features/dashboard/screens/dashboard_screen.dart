@@ -69,6 +69,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
 
           if (role == 'staff_gudang') ...[
+            _menuCard(Icons.add_box, 'Input Transaksi Baru', () => context.go('/dashboard/transaksi-baru'), color: Colors.orange.shade700),
+            const SizedBox(height: 8),
             _menuCard(Icons.qr_code_scanner, 'Scan Barang Datang', () => context.go('/dashboard/scan-datang'), color: Colors.teal.shade700),
             const SizedBox(height: 8),
             _menuCard(Icons.qr_code_scanner, 'Scan Barang Keluar', () => context.go('/dashboard/scan-keluar'), color: Colors.indigo.shade700),

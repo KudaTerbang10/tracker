@@ -8,21 +8,52 @@ const { canRoleSetStatus } = require('../utils/statusValidator');
 
 const router = express.Router();
 
-router.post('/', auth, rbac('admin_konter'), async (req, res) => {
+router.post('/', auth, rbac('admin_konter', 'staff_gudang'), async (req, res) => {
   try {
     const { pengirim, penerima, paket, catatan } = req.body;
     if (!pengirim || !penerima || !paket) {
       return res.status(400).json({ message: 'Data pengirim, penerima, dan paket wajib diisi' });
     }
 
-    const konter = await (require('../models/Konter')).findById(req.user.konter_id);
-    if (!konter) return res.status(400).json({ message: 'Konter tidak ditemukan' });
+    let kodeGerai;
+    let createdBy;
+    let lokasi;
 
-    const no_resi = await generateResi(konter.kode_singkat);
+    if (req.user.role === 'staff_gudang') {
+      const gudang = await (require('../models/Gudang')).findById(req.user.gudang_id);
+      if (!gudang) return res.status(400).json({ message: 'Gudang tidak ditemukan' });
+      kodeGerai = gudang.kode;
+      createdBy = {
+        user_id: req.user._id,
+        name: req.user.name,
+        role: 'staff_gudang',
+        konter_id: null,
+        konter_name: '',
+        gudang_id: req.user.gudang_id,
+        gudang_name: gudang.name,
+      };
+      lokasi = { nama: gudang.name, tipe: 'gudang' };
+    } else {
+      const konter = await (require('../models/Konter')).findById(req.user.konter_id);
+      if (!konter) return res.status(400).json({ message: 'Konter tidak ditemukan' });
+      kodeGerai = konter.kode_singkat;
+      createdBy = {
+        user_id: req.user._id,
+        name: req.user.name,
+        role: 'admin_konter',
+        konter_id: req.user.konter_id,
+        konter_name: konter.name,
+        gudang_id: null,
+        gudang_name: '',
+      };
+      lokasi = { nama: konter.name, tipe: 'konter' };
+    }
+
+    const no_resi = await generateResi(kodeGerai);
 
     const transaction = new Transaction({
       no_resi,
-      kode_gerai: konter.kode_singkat,
+      kode_gerai: kodeGerai,
       barcode_data: no_resi,
       pengirim,
       penerima,
@@ -31,18 +62,13 @@ router.post('/', auth, rbac('admin_konter'), async (req, res) => {
         jumlah_koli: paket.jumlah_koli,
         biaya_kirim: paket.biaya_kirim,
       },
-      admin_konter: {
-        user_id: req.user._id,
-        name: req.user.name,
-        konter_id: req.user.konter_id,
-        konter_name: konter.name,
-      },
-      status_saat_ini: 'diterima_konter',
+      created_by: createdBy,
+      status_saat_ini: req.user.role === 'staff_gudang' ? 'diterima_gudang' : 'diterima_konter',
       tracking_logs: [{
-        status: 'diterima_konter',
-        deskripsi: `Paket diterima di ${konter.name}`,
-        pelaku: { user_id: req.user._id, name: req.user.name, role: 'admin_konter' },
-        lokasi: { nama: konter.name, tipe: 'konter' },
+        status: req.user.role === 'staff_gudang' ? 'diterima_gudang' : 'diterima_konter',
+        deskripsi: `Paket diterima di ${lokasi.nama}`,
+        pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
+        lokasi,
         timestamp: new Date(),
       }],
     });
@@ -203,19 +229,25 @@ router.get('/', auth, async (req, res) => {
     const filter = {};
 
     if (req.user.role === 'admin_konter') {
-      filter['admin_konter.konter_id'] = req.user.konter_id;
+      filter['created_by.konter_id'] = req.user.konter_id;
       const allowed = ['diterima_konter', 'keluar_konter'];
       filter.status_saat_ini = (status && allowed.includes(status)) ? status : { $in: allowed };
     } else if (req.user.role === 'staff_gudang') {
       const gudangId = req.user.gudang_id;
-      const allowed = ['diterima_gudang', 'keluar_gudang'];
-      filter.status_saat_ini = (status && allowed.includes(status)) ? status : { $in: allowed };
-      filter.$expr = {
-        $eq: [
-          { $arrayElemAt: ['$tracking_logs.lokasi.gudang_id', -1] },
-          new mongoose.Types.ObjectId(gudangId),
-        ],
-      };
+      const allowedGudang = ['diterima_gudang', 'keluar_gudang'];
+      const statusFilter = (status && allowedGudang.includes(status)) ? status : { $in: allowedGudang };
+      filter.$or = [
+        {
+          status_saat_ini: statusFilter,
+          $expr: {
+            $eq: [
+              { $arrayElemAt: ['$tracking_logs.lokasi.gudang_id', -1] },
+              new mongoose.Types.ObjectId(gudangId),
+            ],
+          },
+        },
+        { 'created_by.user_id': req.user._id },
+      ];
     } else if (req.user.role === 'driver') {
       filter.driver_user_id = req.user._id;
       if (status) filter.status_saat_ini = status;
@@ -245,7 +277,39 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
+    // Map old admin_konter to created_by for backward compatibility
+    for (const tx of data) {
+      if (tx.admin_konter && !tx.created_by) {
+        tx.created_by = {
+          user_id: tx.admin_konter.user_id,
+          name: tx.admin_konter.name,
+          role: 'admin_konter',
+          konter_id: tx.admin_konter.konter_id,
+          konter_name: tx.admin_konter.konter_name || '',
+          gudang_id: null,
+          gudang_name: '',
+        };
+      }
+      delete tx.admin_konter;
+    }
+
     res.json({ data, total, page: parseInt(page), totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/:id', auth, rbac('admin_konter', 'staff_gudang'), async (req, res) => {
+  try {
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    if (tx.created_by?.user_id?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Anda hanya bisa menghapus transaksi yang dibuat sendiri' });
+    }
+
+    await Transaction.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Transaksi berhasil dihapus' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

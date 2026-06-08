@@ -35,7 +35,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     final notifier = ref.read(scanKeluarProvider.notifier);
     final validCount = state.validCount;
     final role = ref.read(authProvider).user?.role ?? '';
-    final isGudangRole = role == 'staff_gudang' || role == 'admin_konter';
+    final isGudangRole = role == 'staff_gudang' || role == 'admin_konter' || role == 'admin_cabang';
 
     return Scaffold(
       appBar: AppBar(
@@ -96,14 +96,14 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                   Row(
                     children: [
                       FilterChip(
-                        label: const Text('Ke Gudang'),
-                        selected: state.tujuanType == TujuanType.gudang,
+                        label: const Text('Ke Cabang Lain'),
+                        selected: state.tujuanType == TujuanType.cabang,
                         onSelected: (v) {
                           if (!state.driverLocked)
-                            notifier.setTujuanType(TujuanType.gudang);
+                            notifier.setTujuanType(TujuanType.cabang);
                         },
                       ),
-                      if (role == 'staff_gudang') ...[
+                      if (role == 'staff_gudang' || role == 'admin_cabang') ...[
                         const SizedBox(width: 8),
                         FilterChip(
                           label: const Text('Langsung ke Penerima'),
@@ -116,17 +116,17 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                       ],
                     ],
                   ),
-                  if (state.tujuanType == TujuanType.gudang) ...[
+                  if (state.tujuanType == TujuanType.cabang) ...[
                     const SizedBox(height: 12),
-                    _GudangAutocompleteField(
-                      excludeGudangId: ref.read(authProvider).user?.gudangId,
-                      onSelected: (g) => notifier.setGudangTujuan(
-                        g['gudang_id'].toString(),
-                        g['name'].toString(),
+                    _CabangAutocompleteField(
+                      excludeCabangId: ref.read(authProvider).user?.cabangId,
+                      onSelected: (c) => notifier.setCabangTujuan(
+                        c['cabang_id'].toString(),
+                        c['name'].toString(),
                       ),
                       onManualChanged: (name) {
                         if (name.trim().isNotEmpty) {
-                          notifier.setGudangTujuanManual(name.trim());
+                          notifier.setCabangTujuanManual(name.trim());
                         }
                       },
                     ),
@@ -360,7 +360,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       String? error;
       final role = ref.read(authProvider).user?.role ?? '';
 
-      if (role == 'staff_gudang' || role == 'admin_konter') {
+      if (role == 'staff_gudang' || role == 'admin_konter' || role == 'admin_cabang') {
         isValid = true;
       } else {
         error = 'Role tidak memiliki akses scan keluar';
@@ -413,27 +413,15 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       );
       return;
     }
-    if (state.tujuanType == TujuanType.gudang) {
-      final hasGudang =
-          (state.gudangTujuanId != null && state.gudangTujuanId!.isNotEmpty) ||
-          (state.gudangTujuanNama != null &&
-              state.gudangTujuanNama!.isNotEmpty);
-      if (!hasGudang) {
+    if (state.tujuanType == TujuanType.cabang) {
+      final hasCabang =
+          (state.cabangTujuanId != null && state.cabangTujuanId!.isNotEmpty) ||
+          (state.cabangTujuanNama != null &&
+              state.cabangTujuanNama!.isNotEmpty);
+      if (!hasCabang) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Gudang tujuan wajib diisi'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-        return;
-      }
-      final userGudangId = ref.read(authProvider).user?.gudangId;
-      if (role == 'staff_gudang' &&
-          userGudangId != null &&
-          state.gudangTujuanId == userGudangId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tidak dapat mengirim ke gudang sendiri'),
+            content: Text('Cabang tujuan wajib diisi'),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -482,15 +470,17 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
         noResiList: validItems.map((i) => i.noResi).toList(),
         statusBaru: statusBaru,
         driverUserId: state.driverUserId,
-        tipeTujuan: state.tujuanType == TujuanType.gudang
+        tipeTujuan: state.tujuanType == TujuanType.cabang
             ? 'gudang'
             : 'penerima',
-        gudangTujuanId: state.gudangTujuanId,
+        gudangTujuanId: state.tujuanType == TujuanType.cabang
+            ? state.cabangTujuanId
+            : null,
         namaDriverManual: state.driverUserId == null ? state.driverName : null,
         gudangNamaManual:
-            (state.tujuanType == TujuanType.gudang &&
-                state.gudangTujuanId == null)
-            ? state.gudangTujuanNama
+            (state.tujuanType == TujuanType.cabang &&
+                state.cabangTujuanId == null)
+            ? state.cabangTujuanNama
             : null,
         catatan: state.catatan,
       );
@@ -632,30 +622,47 @@ class _DriverAutocompleteFieldState extends State<_DriverAutocompleteField> {
   }
 }
 
-class _GudangAutocompleteField extends StatefulWidget {
+class _CabangAutocompleteField extends StatefulWidget {
   final void Function(Map<String, dynamic>) onSelected;
   final void Function(String) onManualChanged;
-  final String? excludeGudangId;
-  const _GudangAutocompleteField({
+  final String? excludeCabangId;
+  const _CabangAutocompleteField({
     required this.onSelected,
     required this.onManualChanged,
-    this.excludeGudangId,
+    this.excludeCabangId,
   });
 
   @override
-  State<_GudangAutocompleteField> createState() =>
-      _GudangAutocompleteFieldState();
+  State<_CabangAutocompleteField> createState() =>
+      _CabangAutocompleteFieldState();
 }
 
-class _GudangAutocompleteFieldState extends State<_GudangAutocompleteField> {
+class _CabangAutocompleteFieldState extends State<_CabangAutocompleteField> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  List<Map<String, dynamic>> _cabangs = [];
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
     _focusNode = FocusNode();
+    _loadCabangs();
+  }
+
+  Future<void> _loadCabangs() async {
+    try {
+      final res = await ApiService().get('/cabangs');
+      final data = res.data['data'] as List<dynamic>;
+      if (mounted) {
+        setState(() {
+          final all = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _cabangs = widget.excludeCabangId != null
+              ? all.where((c) => c['cabang_id']?.toString() != widget.excludeCabangId).toList()
+              : all;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -672,19 +679,19 @@ class _GudangAutocompleteFieldState extends State<_GudangAutocompleteField> {
       focusNode: _focusNode,
       optionsBuilder: (text) {
         if (text.text.isEmpty) return const Iterable.empty();
-        final all = HiveCache.getGudangs(query: text.text);
-        if (widget.excludeGudangId == null) return all;
-        return all.where(
-          (g) => g['gudang_id']?.toString() != widget.excludeGudangId,
+        final q = text.text.toLowerCase();
+        return _cabangs.where(
+          (c) => (c['name']?.toString() ?? '').toLowerCase().contains(q) ||
+              (c['kode']?.toString() ?? '').toLowerCase().contains(q),
         );
       },
-      displayStringForOption: (g) => '${g['kode']} - ${g['name']}',
-      onSelected: (g) {
-        _controller.text = g['name'].toString();
+      displayStringForOption: (c) => '${c['kode']} - ${c['name']}',
+      onSelected: (c) {
+        _controller.text = c['name'].toString();
         _controller.selection = TextSelection.collapsed(
           offset: _controller.text.length,
         );
-        widget.onSelected(g);
+        widget.onSelected(c);
         _focusNode.unfocus();
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -692,9 +699,9 @@ class _GudangAutocompleteFieldState extends State<_GudangAutocompleteField> {
           controller: controller,
           focusNode: focusNode,
           decoration: const InputDecoration(
-            labelText: 'Gudang Tujuan *',
+            labelText: 'Cabang Tujuan *',
             hintText: 'Ketik untuk cari...',
-            prefixIcon: Icon(Icons.warehouse),
+            prefixIcon: Icon(Icons.business),
             border: OutlineInputBorder(),
             isDense: true,
           ),
@@ -720,17 +727,17 @@ class _GudangAutocompleteFieldState extends State<_GudangAutocompleteField> {
                 padding: EdgeInsets.zero,
                 itemCount: options.length,
                 itemBuilder: (_, i) {
-                  final g = options.elementAt(i);
+                  final c = options.elementAt(i);
                   return ListTile(
                     dense: true,
-                    title: Text('${g['kode']} - ${g['name']}'),
-                    subtitle: Text(g['address']?.toString() ?? ''),
+                    title: Text('${c['kode']} - ${c['name']}'),
+                    subtitle: Text(c['address']?.toString() ?? ''),
                     onTap: () {
-                      _controller.text = g['name'].toString();
+                      _controller.text = c['name'].toString();
                       _controller.selection = TextSelection.collapsed(
                         offset: _controller.text.length,
                       );
-                      onSelectedCb(g);
+                      onSelectedCb(c);
                       _focusNode.unfocus();
                     },
                   );

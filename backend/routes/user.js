@@ -20,11 +20,11 @@ router.get('/', auth, rbac('super_admin'), async (req, res) => {
 
 router.post('/', auth, rbac('super_admin'), async (req, res) => {
   try {
-    const { name, email, password, phone, role, konter_id, gudang_id } = req.body;
+    const { name, email, password, phone, role, konter_id, gudang_id, cabang_id } = req.body;
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: 'Email sudah terdaftar' });
 
-    const user = new User({ name, email, password, phone, role, konter_id, gudang_id });
+    const user = new User({ name, email, password, phone, role, konter_id, gudang_id, cabang_id });
     await user.save();
     res.status(201).json(user);
   } catch (error) {
@@ -34,7 +34,7 @@ router.post('/', auth, rbac('super_admin'), async (req, res) => {
 
 router.put('/:id', auth, rbac('super_admin'), async (req, res) => {
   try {
-    const { name, email, phone, role, konter_id, gudang_id, is_active } = req.body;
+    const { name, email, phone, role, konter_id, gudang_id, cabang_id, is_active } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (email !== undefined) update.email = email;
@@ -42,6 +42,7 @@ router.put('/:id', auth, rbac('super_admin'), async (req, res) => {
     if (role !== undefined) update.role = role;
     if (konter_id !== undefined) update.konter_id = konter_id;
     if (gudang_id !== undefined) update.gudang_id = gudang_id;
+    if (cabang_id !== undefined) update.cabang_id = cabang_id;
     if (is_active !== undefined) update.is_active = is_active;
 
     const user = await User.findByIdAndUpdate(req.params.id, update, { new: true }).lean();

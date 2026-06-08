@@ -14,9 +14,10 @@ const trackingLogSchema = new mongoose.Schema({
   },
   lokasi: {
     nama: { type: String, default: '' },
-    tipe: { type: String, enum: ['konter', 'gudang', ''], default: '' },
+    tipe: { type: String, enum: ['konter', 'gudang', 'cabang', ''], default: '' },
     konter_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Konter', default: null },
     gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
+    cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
   },
   driver_ditugaskan: {
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -60,6 +61,8 @@ const transactionSchema = new mongoose.Schema({
     konter_name: { type: String, default: '' },
     gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
     gudang_name: { type: String, default: '' },
+    cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
+    cabang_name: { type: String, default: '' },
   },
 
   status_saat_ini: {

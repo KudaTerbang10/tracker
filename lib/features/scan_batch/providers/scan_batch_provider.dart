@@ -3,7 +3,7 @@ import '../../../data/models/transaction.dart';
 
 enum ScanType { datang, keluar, diterima }
 
-enum TujuanType { gudang, penerima }
+enum TujuanType { cabang, penerima }
 
 class ScanItem {
   final String noResi;
@@ -25,8 +25,8 @@ class ScanKeluarState {
   final String? driverName;
   final String? driverPhone;
   final TujuanType tujuanType;
-  final String? gudangTujuanId;
-  final String? gudangTujuanNama;
+  final String? cabangTujuanId;
+  final String? cabangTujuanNama;
   final String catatan;
   final bool driverLocked;
 
@@ -35,9 +35,9 @@ class ScanKeluarState {
     this.driverUserId,
     this.driverName,
     this.driverPhone,
-    this.tujuanType = TujuanType.gudang,
-    this.gudangTujuanId,
-    this.gudangTujuanNama,
+    this.tujuanType = TujuanType.cabang,
+    this.cabangTujuanId,
+    this.cabangTujuanNama,
     this.catatan = '',
     this.driverLocked = false,
   });
@@ -48,8 +48,8 @@ class ScanKeluarState {
     String? driverName,
     String? driverPhone,
     TujuanType? tujuanType,
-    String? gudangTujuanId,
-    String? gudangTujuanNama,
+    String? cabangTujuanId,
+    String? cabangTujuanNama,
     String? catatan,
     bool? driverLocked,
   }) => ScanKeluarState(
@@ -58,8 +58,8 @@ class ScanKeluarState {
     driverName: driverName ?? this.driverName,
     driverPhone: driverPhone ?? this.driverPhone,
     tujuanType: tujuanType ?? this.tujuanType,
-    gudangTujuanId: gudangTujuanId ?? this.gudangTujuanId,
-    gudangTujuanNama: gudangTujuanNama ?? this.gudangTujuanNama,
+    cabangTujuanId: cabangTujuanId ?? this.cabangTujuanId,
+    cabangTujuanNama: cabangTujuanNama ?? this.cabangTujuanNama,
     catatan: catatan ?? this.catatan,
     driverLocked: driverLocked ?? this.driverLocked,
   );
@@ -114,8 +114,8 @@ class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
       driverUserId: stillHasValid ? state.driverUserId : null,
       driverName: stillHasValid ? state.driverName : null,
       driverPhone: stillHasValid ? state.driverPhone : null,
-      gudangTujuanId: stillHasValid ? state.gudangTujuanId : null,
-      gudangTujuanNama: stillHasValid ? state.gudangTujuanNama : null,
+      cabangTujuanId: stillHasValid ? state.cabangTujuanId : null,
+      cabangTujuanNama: stillHasValid ? state.cabangTujuanNama : null,
       catatan: stillHasValid ? state.catatan : '',
     );
   }
@@ -132,12 +132,12 @@ class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
     state = state.copyWith(tujuanType: type);
   }
 
-  void setGudangTujuan(String id, String name) {
-    state = state.copyWith(gudangTujuanId: id, gudangTujuanNama: name);
+  void setCabangTujuan(String id, String name) {
+    state = state.copyWith(cabangTujuanId: id, cabangTujuanNama: name);
   }
 
-  void setGudangTujuanManual(String name) {
-    state = state.copyWith(gudangTujuanId: null, gudangTujuanNama: name);
+  void setCabangTujuanManual(String name) {
+    state = state.copyWith(cabangTujuanId: null, cabangTujuanNama: name);
   }
 
   void setCatatan(String catatan) {

@@ -40,10 +40,10 @@ class StatusList {
   ];
 
   static const Map<String, String> labels = {
-    'diterima_konter': 'Diterima di Konter',
-    'keluar_konter': 'Keluar Konter',
-    'diterima_gudang': 'Diterima di Gudang',
-    'keluar_gudang': 'Keluar Gudang',
+    'diterima_konter': 'Diterima di Cabang',
+    'keluar_konter': 'Keluar Cabang',
+    'diterima_gudang': 'Diterima di Cabang',
+    'keluar_gudang': 'Keluar Cabang',
     'proses_kirim': 'Proses Kirim',
     'diterima': 'Diterima',
   };

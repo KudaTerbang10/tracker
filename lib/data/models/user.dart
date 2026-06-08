@@ -6,6 +6,7 @@ class User {
   final String role;
   final String? konterId;
   final String? gudangId;
+  final String? cabangId;
   final Map<String, dynamic>? lokasi;
 
   User({
@@ -16,6 +17,7 @@ class User {
     required this.role,
     this.konterId,
     this.gudangId,
+    this.cabangId,
     this.lokasi,
   });
 
@@ -27,6 +29,7 @@ class User {
     role: json['role'] as String,
     konterId: json['konter_id'] as String?,
     gudangId: json['gudang_id'] as String?,
+    cabangId: json['cabang_id'] as String?,
     lokasi: json['lokasi'] as Map<String, dynamic>?,
   );
 
@@ -38,12 +41,14 @@ class User {
     'role': role,
     'konter_id': konterId,
     'gudang_id': gudangId,
+    'cabang_id': cabangId,
     'lokasi': lokasi,
   };
 
   bool get isSuperAdmin => role == 'super_admin';
   bool get isAdminKonter => role == 'admin_konter';
   bool get isStaffGudang => role == 'staff_gudang';
+  bool get isAdminCabang => role == 'admin_cabang';
   bool get isDriver => role == 'driver';
 
   String get roleLabel {
@@ -51,6 +56,7 @@ class User {
       case 'super_admin': return 'Super Admin';
       case 'admin_konter': return 'Admin Konter';
       case 'staff_gudang': return 'Staff Gudang';
+      case 'admin_cabang': return 'Admin Cabang';
       case 'driver': return 'Driver';
       default: return role;
     }

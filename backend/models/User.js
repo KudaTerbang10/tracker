@@ -7,11 +7,12 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   role: {
     type: String,
-    enum: ['super_admin', 'admin_konter', 'staff_gudang', 'driver'],
+    enum: ['super_admin', 'admin_konter', 'staff_gudang', 'admin_cabang', 'driver'],
     required: true,
   },
   konter_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Konter', default: null },
   gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
+  cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
   is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 

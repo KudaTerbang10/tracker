@@ -10,6 +10,7 @@ const driverRoutes = require('./routes/driver');
 const gudangRoutes = require('./routes/gudang');
 const userRoutes = require('./routes/user');
 const konterRoutes = require('./routes/konter');
+const cabangRoutes = require('./routes/cabang');
 const analyticsRoutes = require('./routes/analytics');
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/gudangs', gudangRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/konters', konterRoutes);
+app.use('/api/cabangs', cabangRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
 app.get('/api/health', (req, res) => {

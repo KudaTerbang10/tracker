@@ -52,10 +52,11 @@ class TransactionRepository {
     await _api.delete('${ApiConstants.transactions}/$id');
   }
 
-  Future<Map<String, dynamic>> getList({String? status, String? kodeGerai, int page = 1, int limit = 20}) async {
+  Future<Map<String, dynamic>> getList({String? status, String? kodeGerai, String? tab, int page = 1, int limit = 20}) async {
     final res = await _api.get(ApiConstants.transactions, query: {
       if (status != null) 'status': status,
       if (kodeGerai != null) 'kode_gerai': kodeGerai,
+      if (tab != null) 'tab': tab,
       'page': page,
       'limit': limit,
     });

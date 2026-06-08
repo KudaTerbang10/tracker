@@ -21,6 +21,8 @@ router.get('/:no_resi', async (req, res) => {
         konter_name: tx.admin_konter.konter_name || '',
         gudang_id: null,
         gudang_name: '',
+        cabang_id: null,
+        cabang_name: '',
       };
     }
     delete tx.admin_konter;

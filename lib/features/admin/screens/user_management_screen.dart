@@ -27,6 +27,12 @@ final _gudangsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>(
   return HiveCache.getGudangs();
 });
 
+final _cabangsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final res = await ApiService().get('/cabangs');
+  final data = res.data['data'] as List<dynamic>;
+  return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+});
+
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
@@ -41,6 +47,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     {'key': 'all', 'label': 'Semua'},
     {'key': 'admin_konter', 'label': 'Admin Konter'},
     {'key': 'staff_gudang', 'label': 'Staff Gudang'},
+    {'key': 'admin_cabang', 'label': 'Admin Cabang'},
     {'key': 'driver', 'label': 'Driver'},
   ];
 
@@ -161,6 +168,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       case 'super_admin': return Colors.red;
       case 'admin_konter': return Colors.orange;
       case 'staff_gudang': return Colors.teal;
+      case 'admin_cabang': return Colors.purple;
       case 'driver': return Colors.blue;
       default: return Colors.grey;
     }
@@ -171,6 +179,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       case 'super_admin': return Icons.admin_panel_settings;
       case 'admin_konter': return Icons.store;
       case 'staff_gudang': return Icons.warehouse;
+      case 'admin_cabang': return Icons.business;
       case 'driver': return Icons.local_shipping;
       default: return Icons.person;
     }
@@ -185,6 +194,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     String selectedRole = user?.role ?? 'driver';
     String? selectedKonterId = user?.konterId;
     String? selectedGudangId = user?.gudangId;
+    String? selectedCabangId = user?.cabangId;
 
     showDialog(
       context: context,
@@ -207,11 +217,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: selectedRole,
-                  items: ['super_admin', 'admin_konter', 'staff_gudang', 'driver'].map((r) => DropdownMenuItem(value: r, child: Text(r.replaceAll('_', ' ').toUpperCase()))).toList(),
+                  items: ['super_admin', 'admin_konter', 'staff_gudang', 'admin_cabang', 'driver'].map((r) => DropdownMenuItem(value: r, child: Text(r.replaceAll('_', ' ').toUpperCase()))).toList(),
                   onChanged: (v) => setDialogState(() {
                     selectedRole = v ?? 'driver';
                     if (selectedRole != 'admin_konter') selectedKonterId = null;
                     if (selectedRole != 'staff_gudang') selectedGudangId = null;
+                    if (selectedRole != 'admin_cabang') selectedCabangId = null;
                   }),
                   decoration: const InputDecoration(labelText: 'Role'),
                 ),
@@ -222,6 +233,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 if (selectedRole == 'staff_gudang') ...[
                   const SizedBox(height: 8),
                   Consumer(builder: (context, ref, child) => _gudangDropdown(ref, selectedGudangId, (v) => setDialogState(() => selectedGudangId = v))),
+                ],
+                if (selectedRole == 'admin_cabang') ...[
+                  const SizedBox(height: 8),
+                  Consumer(builder: (context, ref, child) => _cabangDropdown(ref, selectedCabangId, (v) => setDialogState(() => selectedCabangId = v))),
                 ],
               ],
             ),
@@ -239,6 +254,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   if (!isEdit) data['password'] = passC.text;
                   if (selectedRole == 'admin_konter' && selectedKonterId != null) data['konter_id'] = selectedKonterId;
                   if (selectedRole == 'staff_gudang' && selectedGudangId != null) data['gudang_id'] = selectedGudangId;
+                  if (selectedRole == 'admin_cabang' && selectedCabangId != null) data['cabang_id'] = selectedCabangId;
 
                   if (isEdit) {
                     await ApiService().put('${ApiConstants.users}/${user.id}', data: data);
@@ -350,6 +366,26 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         ],
         onChanged: onChanged,
         decoration: const InputDecoration(labelText: 'Gudang Penugasan *', prefixIcon: Icon(Icons.warehouse)),
+      ),
+    );
+  }
+
+  Widget _cabangDropdown(WidgetRef ref, String? selectedId, void Function(String?) onChanged) {
+    final async = ref.watch(_cabangsProvider);
+    return async.when(
+      loading: () => const LinearProgressIndicator(),
+      error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+      data: (cabangs) => DropdownButtonFormField<String>(
+        value: selectedId,
+        items: [
+          const DropdownMenuItem<String>(value: null, child: Text('-- Pilih Cabang --')),
+          ...cabangs.map((c) => DropdownMenuItem<String>(
+            value: c['cabang_id']?.toString(),
+            child: Text('${c['kode']} - ${c['name']}'),
+          )),
+        ],
+        onChanged: onChanged,
+        decoration: const InputDecoration(labelText: 'Cabang Penugasan *', prefixIcon: Icon(Icons.business)),
       ),
     );
   }

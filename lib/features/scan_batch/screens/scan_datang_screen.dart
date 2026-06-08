@@ -27,7 +27,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     final validCount = items.where((i) => i.isValid).length;
     final hasInvalid = items.any((i) => !i.isValid);
     final role = ref.read(authProvider).user?.role ?? '';
-    final isGudang = role == 'staff_gudang';
+    final isGudang = role == 'staff_gudang' || role == 'admin_cabang';
     final nextStatus = isGudang ? 'diterima_gudang' : 'diterima_konter';
 
     return Scaffold(
@@ -241,7 +241,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
       String? error;
       final role = ref.read(authProvider).user?.role ?? '';
 
-      if (role == 'staff_gudang' || role == 'admin_konter') {
+      if (role == 'staff_gudang' || role == 'admin_konter' || role == 'admin_cabang') {
         isValid = true;
       } else {
         error = 'Role tidak memiliki akses scan datang';

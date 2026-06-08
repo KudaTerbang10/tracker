@@ -13,8 +13,11 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 
-final _listProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, page) {
-  return ref.read(transactionRepositoryProvider).getList(page: page);
+final _listProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, key) {
+  final parts = key.split('|');
+  final page = int.parse(parts[0]);
+  final tab = parts.length > 1 ? parts[1] : null;
+  return ref.read(transactionRepositoryProvider).getList(page: page, tab: tab);
 });
 
 class TransactionListScreen extends ConsumerStatefulWidget {
@@ -23,59 +26,112 @@ class TransactionListScreen extends ConsumerStatefulWidget {
   ConsumerState<TransactionListScreen> createState() => _TransactionListScreenState();
 }
 
-class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
-  int _page = 1;
+class _TransactionListScreenState extends ConsumerState<TransactionListScreen> with SingleTickerProviderStateMixin {
+  int _pageProses = 1;
+  int _pageHistory = 1;
+  TabController? _tabController;
+  bool get _isAdminCabang => ref.read(authProvider).user?.isAdminCabang ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isAdminCabang) {
+      _tabController = TabController(length: 2, vsync: this);
+      _tabController!.addListener(() {
+        if (!_tabController!.indexIsChanging) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(_listProvider(_page));
     final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
+    final isAdminCabang = _isAdminCabang;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Daftar Transaksi'),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        bottom: isAdminCabang
+            ? TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Proses'),
+                  Tab(text: 'History (3 hari)'),
+                ],
+              )
+            : null,
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (result) {
-          final list = result['data'] as List<Transaction>;
-          final totalPages = result['totalPages'] as int;
+      body: isAdminCabang
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildTab('current', _pageProses, (p) => setState(() => _pageProses = p), dateFmt),
+                _buildTab('history', _pageHistory, (p) => setState(() => _pageHistory = p), dateFmt),
+              ],
+            )
+          : _buildTab(null, 1, (p) {}, dateFmt),
+    );
+  }
 
-          if (list.isEmpty) {
-            return const Center(child: Text('Belum ada transaksi'));
-          }
+  Widget _buildTab(String? tab, int page, ValueChanged<int> onPageChanged, DateFormat dateFmt) {
+    final async = ref.watch(_listProvider('$page${tab != null ? '|$tab' : ''}'));
 
-          return Column(
-            children: [
-              if (totalPages > 1)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left),
-                        onPressed: _page > 1 ? () => setState(() => _page--) : null,
-                      ),
-                      Text('Halaman $_page dari $totalPages'),
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: _page < totalPages ? () => setState(() => _page++) : null,
-                      ),
-                    ],
-                  ),
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (result) {
+        final list = result['data'] as List<Transaction>;
+        final totalPages = result['totalPages'] as int;
+
+        if (list.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+                const SizedBox(height: 12),
+                Text(tab == 'history' ? 'Tidak ada riwayat 3 hari terakhir' : 'Belum ada transaksi', style: TextStyle(color: Colors.grey.shade500)),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            if (totalPages > 1)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: page > 1 ? () => onPageChanged(page - 1) : null,
+                    ),
+                    Text('Halaman $page dari $totalPages'),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: page < totalPages ? () => onPageChanged(page + 1) : null,
+                    ),
+                  ],
                 ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: list.length,
-                  itemBuilder: (_, i) {
-                    final tx = list[i];
-                    final konterName = _konterName(tx);
-                    final isDriver = ref.read(authProvider).user?.isDriver ?? false;
-                    final canDelete = (ref.read(authProvider).user?.isAdminKonter ?? false) || (ref.read(authProvider).user?.isStaffGudang ?? false);
+              ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: list.length,
+                itemBuilder: (_, i) {
+                  final tx = list[i];
+                  final konterName = _konterName(tx);
+                  final isDriver = ref.read(authProvider).user?.isDriver ?? false;
+                  final canDelete = (ref.read(authProvider).user?.isAdminKonter ?? false) || (ref.read(authProvider).user?.isStaffGudang ?? false) || (ref.read(authProvider).user?.isAdminCabang ?? false);
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
@@ -134,7 +190,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
             ],
           );
         },
-      ),
     );
   }
 
@@ -160,7 +215,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
     try {
       await ref.read(transactionRepositoryProvider).delete(tx.id);
       if (!mounted) return;
-      ref.invalidate(_listProvider(_page));
+      ref.invalidate(_listProvider('$_pageProses|current'));
+      ref.invalidate(_listProvider('$_pageHistory|history'));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Transaksi ${tx.noResi} berhasil dihapus')),
       );

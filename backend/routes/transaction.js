@@ -8,7 +8,7 @@ const { canRoleSetStatus } = require('../utils/statusValidator');
 
 const router = express.Router();
 
-router.post('/', auth, rbac('admin_konter', 'staff_gudang'), async (req, res) => {
+router.post('/', auth, rbac('admin_konter', 'staff_gudang', 'admin_cabang'), async (req, res) => {
   try {
     const { pengirim, penerima, paket, catatan } = req.body;
     if (!pengirim || !penerima || !paket) {
@@ -19,7 +19,24 @@ router.post('/', auth, rbac('admin_konter', 'staff_gudang'), async (req, res) =>
     let createdBy;
     let lokasi;
 
-    if (req.user.role === 'staff_gudang') {
+    if (req.user.role === 'admin_cabang') {
+      const Cabang = require('../models/Cabang');
+      const cabang = await Cabang.findById(req.user.cabang_id);
+      if (!cabang) return res.status(400).json({ message: 'Cabang tidak ditemukan' });
+      kodeGerai = cabang.kode;
+      createdBy = {
+        user_id: req.user._id,
+        name: req.user.name,
+        role: 'admin_cabang',
+        konter_id: null,
+        konter_name: '',
+        gudang_id: null,
+        gudang_name: '',
+        cabang_id: req.user.cabang_id,
+        cabang_name: cabang.name,
+      };
+      lokasi = { nama: cabang.name, tipe: 'cabang', cabang_id: req.user.cabang_id };
+    } else if (req.user.role === 'staff_gudang') {
       const gudang = await (require('../models/Gudang')).findById(req.user.gudang_id);
       if (!gudang) return res.status(400).json({ message: 'Gudang tidak ditemukan' });
       kodeGerai = gudang.kode;
@@ -63,9 +80,9 @@ router.post('/', auth, rbac('admin_konter', 'staff_gudang'), async (req, res) =>
         biaya_kirim: paket.biaya_kirim,
       },
       created_by: createdBy,
-      status_saat_ini: req.user.role === 'staff_gudang' ? 'diterima_gudang' : 'diterima_konter',
+      status_saat_ini: (req.user.role === 'staff_gudang' && req.user.gudang_id) ? 'diterima_gudang' : 'diterima_konter',
       tracking_logs: [{
-        status: req.user.role === 'staff_gudang' ? 'diterima_gudang' : 'diterima_konter',
+        status: (req.user.role === 'staff_gudang' && req.user.gudang_id) ? 'diterima_gudang' : 'diterima_konter',
         deskripsi: `Paket diterima di ${lokasi.nama}`,
         pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
         lokasi,
@@ -99,7 +116,10 @@ router.post('/batch-status', auth, async (req, res) => {
     }
     if ((status_baru === 'keluar_gudang' || status_baru === 'keluar_konter') && tipe_tujuan === 'gudang' && gudang_tujuan_id) {
       gudangTujuan = await (require('../models/Gudang')).findById(gudang_tujuan_id).lean();
-      if (!gudangTujuan) return res.status(400).json({ message: 'Gudang tujuan tidak ditemukan' });
+      if (!gudangTujuan) {
+        gudangTujuan = await (require('../models/Cabang')).findById(gudang_tujuan_id).lean();
+      }
+      if (!gudangTujuan) return res.status(400).json({ message: 'Cabang tujuan tidak ditemukan' });
     }
 
     const results = [];
@@ -232,6 +252,32 @@ router.get('/', auth, async (req, res) => {
       filter['created_by.konter_id'] = req.user.konter_id;
       const allowed = ['diterima_konter', 'keluar_konter'];
       filter.status_saat_ini = (status && allowed.includes(status)) ? status : { $in: allowed };
+    } else if (req.user.role === 'admin_cabang') {
+      const cabangId = req.user.cabang_id;
+      const tab = req.query.tab || 'current';
+
+      if (tab === 'history') {
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        filter.createdAt = { $gte: threeDaysAgo };
+        filter.$and = [
+          { 'tracking_logs.lokasi.cabang_id': new mongoose.Types.ObjectId(cabangId) },
+          {
+            $expr: {
+              $ne: [
+                { $arrayElemAt: ['$tracking_logs.lokasi.cabang_id', -1] },
+                new mongoose.Types.ObjectId(cabangId),
+              ],
+            },
+          },
+        ];
+      } else {
+        filter.$expr = {
+          $eq: [
+            { $arrayElemAt: ['$tracking_logs.lokasi.cabang_id', -1] },
+            new mongoose.Types.ObjectId(cabangId),
+          ],
+        };
+      }
     } else if (req.user.role === 'staff_gudang') {
       const gudangId = req.user.gudang_id;
       const allowedGudang = ['diterima_gudang', 'keluar_gudang'];
@@ -283,11 +329,13 @@ router.get('/', auth, async (req, res) => {
         tx.created_by = {
           user_id: tx.admin_konter.user_id,
           name: tx.admin_konter.name,
-          role: 'admin_konter',
-          konter_id: tx.admin_konter.konter_id,
-          konter_name: tx.admin_konter.konter_name || '',
-          gudang_id: null,
-          gudang_name: '',
+        role: 'admin_konter',
+        konter_id: tx.admin_konter.konter_id,
+        konter_name: tx.admin_konter.konter_name || '',
+        gudang_id: null,
+        gudang_name: '',
+        cabang_id: null,
+        cabang_name: '',
         };
       }
       delete tx.admin_konter;
@@ -299,7 +347,7 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-router.delete('/:id', auth, rbac('admin_konter', 'staff_gudang'), async (req, res) => {
+router.delete('/:id', auth, rbac('admin_konter', 'staff_gudang', 'admin_cabang'), async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.id);
     if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
@@ -316,6 +364,11 @@ router.delete('/:id', auth, rbac('admin_konter', 'staff_gudang'), async (req, re
 });
 
 async function getLokasiForUser(user) {
+  if (user.cabang_id) {
+    const Cabang = require('../models/Cabang');
+    const cabang = await Cabang.findById(user.cabang_id).lean();
+    return cabang ? { nama: cabang.name, tipe: 'cabang', cabang_id: cabang._id, konter_id: null, gudang_id: null } : { nama: '', tipe: '', cabang_id: null, konter_id: null, gudang_id: null };
+  }
   if (user.konter_id) {
     const konter = await (require('../models/Konter')).findById(user.konter_id).lean();
     return konter ? { nama: konter.name, tipe: 'konter', konter_id: konter._id, gudang_id: null } : { nama: '', tipe: '', konter_id: null, gudang_id: null };

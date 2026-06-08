@@ -91,6 +91,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                                   pengirim: tx.pengirim,
                                   penerima: tx.penerima,
                                   paket: tx.paket,
+                                  createdAt: tx.createdAt,
                                 ),
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
@@ -231,6 +232,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> {
                               pengirim: tx.pengirim,
                               penerima: tx.penerima,
                               paket: tx.paket,
+                              createdAt: tx.createdAt,
                             ),
                             child: Container(
                               padding: const EdgeInsets.all(4),

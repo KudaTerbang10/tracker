@@ -8,6 +8,7 @@ class LabelPrinter {
     Map<String, dynamic>? pengirim,
     Map<String, dynamic>? penerima,
     Map<String, dynamic>? paket,
+    DateTime? createdAt,
   }) async {
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async {
@@ -83,7 +84,7 @@ class LabelPrinter {
                   pw.SizedBox(height: 2),
                   pw.Divider(height: 1),
                   pw.SizedBox(height: 2),
-                  if (paket != null) _paketLine(paket),
+                  if (paket != null) _paketLine(paket, createdAt),
                 ],
               );
             },
@@ -107,6 +108,18 @@ class LabelPrinter {
       count++;
     }
     return out;
+  }
+
+  static String _formatDate(DateTime dt) {
+    final days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    final day = days[dt.weekday - 1];
+    final date = dt.day.toString().padLeft(2, '0');
+    final month = months[dt.month - 1];
+    final year = dt.year;
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$day, $date $month $year  $hour:$minute';
   }
 
   static pw.Widget _infoCard(String label, Map<String, dynamic> data) {
@@ -139,19 +152,32 @@ class LabelPrinter {
     );
   }
 
-  static pw.Widget _paketLine(Map<String, dynamic> paket) {
+  static pw.Widget _paketLine(Map<String, dynamic> paket, DateTime? createdAt) {
     final berat = paket['berat_kg'] ?? '0';
     final koli = paket['jumlah_koli'] ?? '0';
     final biaya = paket['biaya_kirim'] as num? ?? 0;
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.center,
+    return pw.Column(
       children: [
-        _paketItem('Berat : $berat kg'),
-        _sep(),
-        _paketItem('Koli : $koli'),
-        if (biaya > 0) ...[
-          _sep(),
-          _paketItem('Rp ${_thousands(biaya)}'),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            _paketItem('Berat : $berat kg'),
+            _sep(),
+            _paketItem('Koli : $koli'),
+            if (biaya > 0) ...[
+              _sep(),
+              _paketItem('Rp ${_thousands(biaya)}'),
+            ],
+          ],
+        ),
+        if (createdAt != null) ...[
+          pw.SizedBox(height: 3),
+          pw.Center(
+            child: pw.Text(
+              _formatDate(createdAt),
+              style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+            ),
+          ),
         ],
       ],
     );

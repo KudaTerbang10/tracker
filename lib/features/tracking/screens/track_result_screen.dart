@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../../../data/models/transaction.dart';
 import '../../../data/repositories/track_repository.dart';
 import 'package:intl/intl.dart';
@@ -24,7 +24,13 @@ class TrackResultScreen extends ConsumerWidget {
     final async = ref.watch(_trackProvider(noResi));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tracking'), leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/'))),
+      appBar: AppBar(
+        title: const Text('Detail Tracking'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.go('/'),
+        ),
+      ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) {
@@ -32,13 +38,13 @@ class TrackResultScreen extends ConsumerWidget {
           IconData icon;
           if (e is DioException && e.type == DioExceptionType.connectionError) {
             msg = 'Tidak dapat terhubung ke server.\nPastikan backend berjalan.';
-            icon = Icons.wifi_off;
+            icon = Icons.wifi_off_rounded;
           } else if (e is DioException && (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout)) {
             msg = 'Waktu koneksi habis.\nCoba lagi nanti.';
-            icon = Icons.timer_off;
+            icon = Icons.timer_off_rounded;
           } else {
             msg = 'Resi "$noResi" tidak ditemukan';
-            icon = Icons.search_off;
+            icon = Icons.search_off_rounded;
           }
           return Center(
             child: Padding(
@@ -46,11 +52,17 @@ class TrackResultScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: 64, color: Colors.grey),
+                  Icon(icon, size: 64, color: const Color(0xFF94A3B8)),
                   const SizedBox(height: 16),
-                  Text(msg, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+                  Text(msg, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF475569)), textAlign: TextAlign.center),
                   const SizedBox(height: 24),
-                  ElevatedButton(onPressed: () => context.go('/'), child: const Text('Kembali')),
+                  SizedBox(
+                    width: 160,
+                    child: ElevatedButton(
+                      onPressed: () => context.go('/'),
+                      child: const Text('Kembali'),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -88,6 +100,7 @@ class _TrackDetail extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Card(
+            color: Colors.white,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -96,23 +109,27 @@ class _TrackDetail extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('No. Resi', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                      StatusBadge(status: tx.statusSaatIni),
+                      const Text(
+                        'Nomor Resi Pengiriman',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                      ),
+                      StatusBadge(status: tx.statusSaatIni, fontSize: 10),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Flexible(
+                      Expanded(
                         child: Text(
                           tx.noResi,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 1),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 4),
                       ResiCopyButton(resi: tx.noResi),
                     ],
                   ),
@@ -126,32 +143,44 @@ class _TrackDetail extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: _InfoCard(title: 'Penerima', name: tx.penerimaName, phone: tx.penerima['phone'] as String? ?? '', address: tx.penerimaAddress, icon: Icons.call_received),
+                  child: _InfoCard(
+                    title: 'Penerima',
+                    name: tx.penerimaName,
+                    phone: tx.penerima['phone'] as String? ?? '',
+                    address: tx.penerimaAddress,
+                    icon: Icons.call_received_rounded,
+                    accentColor: AppTheme.secondary,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _InfoCard(title: 'Pengirim', name: tx.pengirimName, phone: tx.pengirim['phone'] as String? ?? '', address: tx.pengirim['address'] as String? ?? '', icon: Icons.send),
+                  child: _InfoCard(
+                    title: 'Pengirim',
+                    name: tx.pengirimName,
+                    phone: tx.pengirim['phone'] as String? ?? '',
+                    address: tx.pengirim['address'] as String? ?? '',
+                    icon: Icons.send_rounded,
+                    accentColor: AppTheme.primary,
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          IntrinsicHeight(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(child: _InfoCell(icon: Icons.scale, label: 'Berat', value: tx.beratLabel)),
-                    const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
-                    Expanded(child: _InfoCell(icon: Icons.inventory_2, label: 'Koli', value: '${tx.jumlahKoli}')),
-                    if (tx.biayaKirim > 0) ...[
-                      const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
-                      Expanded(child: _InfoCell(icon: Icons.payments, label: 'Biaya', value: fmt.format(tx.biayaKirim))),
-                    ],
+          Card(
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              child: Row(
+                children: [
+                  Expanded(child: _InfoCell(icon: Icons.scale_rounded, label: 'Berat', value: tx.beratLabel)),
+                  Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                  Expanded(child: _InfoCell(icon: Icons.inventory_2_rounded, label: 'Jumlah Koli', value: '${tx.jumlahKoli} koli')),
+                  if (tx.biayaKirim > 0) ...[
+                    Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                    Expanded(child: _InfoCell(icon: Icons.payments_rounded, label: 'Biaya Kirim', value: fmt.format(tx.biayaKirim))),
                   ],
-                ),
+                ],
               ),
             ),
           ),
@@ -164,11 +193,12 @@ class _TrackDetail extends StatelessWidget {
                   if (showDriver)
                     Expanded(
                       child: _InfoCard(
-                        title: 'Driver',
+                        title: 'Driver Kurir',
                         name: tx.namaDriver!,
                         phone: tx.kontakDriver ?? '',
                         address: '',
-                        icon: Icons.person_pin,
+                        icon: Icons.directions_car_filled_rounded,
+                        accentColor: Colors.amber.shade700,
                       ),
                     ),
                   if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty) const SizedBox(width: 8),
@@ -179,15 +209,24 @@ class _TrackDetail extends StatelessWidget {
                         name: tx.namaPenerimaAkhir!,
                         phone: '',
                         address: '',
-                        icon: Icons.check_circle,
+                        icon: Icons.check_circle_rounded,
+                        accentColor: const Color(0xFF10B981),
                       ),
                     ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 20),
-          Text('Riwayat Tracking', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          const Text(
+            'RIWAYAT PENGIRIMAN',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF64748B),
+              letterSpacing: 1,
+            ),
+          ),
           const SizedBox(height: 8),
           TrackingTimeline(logs: tx.trackingLogs),
           const SizedBox(height: 40),
@@ -197,41 +236,39 @@ class _TrackDetail extends StatelessWidget {
   }
 }
 
-class StatusBadge extends StatelessWidget {
-  final String status;
-  const StatusBadge({super.key, required this.status});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.statusColor(status).withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(StatusList.label(status), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.statusColor(status))),
-    );
-  }
-}
-
 class _InfoCard extends StatelessWidget {
   final String title, name, phone, address;
   final IconData icon;
-  const _InfoCard({required this.title, required this.name, required this.phone, required this.address, required this.icon});
+  final Color accentColor;
+
+  const _InfoCard({
+    required this.title,
+    required this.name,
+    required this.phone,
+    required this.address,
+    required this.icon,
+    required this.accentColor,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Colors.white,
       clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: AppTheme.primary.withValues(alpha: 0.12),
+            color: accentColor.withValues(alpha: 0.08),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: AppTheme.primary),
+                Icon(icon, size: 14, color: accentColor),
                 const SizedBox(width: 6),
-                Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(
+                  title,
+                  style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -241,18 +278,20 @@ class _InfoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.person, size: 18, color: Colors.black87),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ),
-                    ],
+                  Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   if (address.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(address, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ],
               ),
@@ -260,14 +299,20 @@ class _InfoCard extends StatelessWidget {
           ),
           if (phone.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: AppTheme.primary.withValues(alpha: 0.12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5)),
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.phone, size: 14, color: AppTheme.primary),
-                  const SizedBox(width: 6),
+                  const Icon(Icons.phone_iphone_rounded, size: 12, color: Color(0xFF64748B)),
+                  const SizedBox(width: 4),
                   Expanded(
-                    child: Text(phone, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+                    child: Text(
+                      phone,
+                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 11),
+                    ),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -276,7 +321,7 @@ class _InfoCard extends StatelessWidget {
                         const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
                       );
                     },
-                    child: Icon(Icons.copy, size: 16, color: AppTheme.primary),
+                    child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
                   ),
                 ],
               ),
@@ -292,6 +337,7 @@ class _InfoCell extends StatelessWidget {
   final String label;
   final String value;
   const _InfoCell({required this.icon, required this.label, required this.value});
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -299,11 +345,17 @@ class _InfoCell extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 22, color: AppTheme.primary),
-          const SizedBox(height: 4),
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          Icon(icon, size: 20, color: AppTheme.primary),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500)),
           const SizedBox(height: 2),
-          Text(value, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );

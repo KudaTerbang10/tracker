@@ -29,32 +29,49 @@ class ResiCopyButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = color ?? Theme.of(context).primaryColor;
     if (compact) {
-      return IconButton(
-        icon: const Icon(Icons.copy, size: 18),
-        onPressed: () => _copy(context),
-        tooltip: 'Salin No. Resi',
-        visualDensity: VisualDensity.compact,
-        color: primary,
-        padding: const EdgeInsets.all(4),
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _copy(context),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.content_copy_rounded, size: 16, color: primary),
+          ),
+        ),
       );
     }
-    return InkWell(
-      onTap: () => _copy(context),
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.copy, size: 14, color: primary),
-            const SizedBox(width: 4),
-            Text('Salin', style: TextStyle(fontSize: 12, color: primary)),
-          ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _copy(context),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: primary.withValues(alpha: 0.15), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.content_copy_rounded, size: 14, color: primary),
+              const SizedBox(width: 6),
+              Text(
+                'Salin',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: primary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

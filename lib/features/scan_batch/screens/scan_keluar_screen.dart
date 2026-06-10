@@ -62,109 +62,147 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
         children: [
           const SizedBox(height: 4),
           if (isAdminCabang && state.scannedItems.any((i) => i.isValid)) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: AppTheme.primary.withValues(alpha: 0.05),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Card(
+                color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.person_pin, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Data Driver & Tujuan (sekali untuk semua)',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _DriverAutocompleteField(
-                    onSelected: (d) => notifier.setDriver(
-                      d['user_id'].toString(),
-                      d['name'].toString(),
-                      d['phone'].toString(),
-                    ),
-                    onManualChanged: (name) {
-                      if (name.trim().isNotEmpty) {
-                        notifier.setDriverManual(name.trim(), '');
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      FilterChip(
-                        label: const Text('Ke Cabang Lain'),
-                        selected: state.tujuanType == TujuanType.cabang,
-                        onSelected: (v) {
-                          if (!state.driverLocked)
-                            notifier.setTujuanType(TujuanType.cabang);
-                        },
-                      ),
-                      if (isAdminCabang) ...[
-                        const SizedBox(width: 8),
-                        FilterChip(
-                          label: const Text('Langsung ke Penerima'),
-                          selected: state.tujuanType == TujuanType.penerima,
-                          onSelected: (v) {
-                            if (!state.driverLocked)
-                              notifier.setTujuanType(TujuanType.penerima);
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (state.tujuanType == TujuanType.cabang) ...[
-                    const SizedBox(height: 12),
-                    _CabangAutocompleteField(
-                      excludeCabangId: ref.read(authProvider).user?.cabangId,
-                      onSelected: (c) => notifier.setCabangTujuan(
-                        c['cabang_id'].toString(),
-                        c['name'].toString(),
-                      ),
-                      onManualChanged: (name) {
-                        if (name.trim().isNotEmpty) {
-                          notifier.setCabangTujuanManual(name.trim());
-                        }
-                      },
-                    ),
-                  ],
-                  if (state.tujuanType == TujuanType.penerima) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
+                      Row(
                         children: [
-                          const Icon(Icons.info, color: Colors.green),
+                          const Icon(Icons.person_pin_rounded, size: 20, color: AppTheme.primary),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Paket akan dikirim langsung ke alamat penerima',
-                              style: Theme.of(context).textTheme.bodySmall,
+                          const Text(
+                            'Data Driver & Tujuan',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _catatanC,
-                    decoration: const InputDecoration(
-                      labelText: 'Catatan (opsional)',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: (v) => notifier.setCatatan(v),
+                      const SizedBox(height: 14),
+                      _DriverAutocompleteField(
+                        onSelected: (d) => notifier.setDriver(
+                          d['user_id'].toString(),
+                          d['name'].toString(),
+                          d['phone'].toString(),
+                        ),
+                        onManualChanged: (name) {
+                          if (name.trim().isNotEmpty) {
+                            notifier.setDriverManual(name.trim(), '');
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          FilterChip(
+                            label: const Text('Ke Cabang Lain'),
+                            selected: state.tujuanType == TujuanType.cabang,
+                            onSelected: (v) {
+                              if (!state.driverLocked) {
+                                notifier.setTujuanType(TujuanType.cabang);
+                              }
+                            },
+                            selectedColor: AppTheme.primary.withValues(alpha: 0.1),
+                            checkmarkColor: AppTheme.primary,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: state.tujuanType == TujuanType.cabang ? FontWeight.w700 : FontWeight.w500,
+                              color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFF64748B),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFFE2E8F0),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          if (isAdminCabang) ...[
+                            const SizedBox(width: 8),
+                            FilterChip(
+                              label: const Text('Langsung ke Penerima'),
+                              selected: state.tujuanType == TujuanType.penerima,
+                              onSelected: (v) {
+                                if (!state.driverLocked) {
+                                  notifier.setTujuanType(TujuanType.penerima);
+                                }
+                              },
+                              selectedColor: AppTheme.primary.withValues(alpha: 0.1),
+                              checkmarkColor: AppTheme.primary,
+                              labelStyle: TextStyle(
+                                fontSize: 12,
+                                fontWeight: state.tujuanType == TujuanType.penerima ? FontWeight.w700 : FontWeight.w500,
+                                color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFF64748B),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFFE2E8F0),
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (state.tujuanType == TujuanType.cabang) ...[
+                        const SizedBox(height: 12),
+                        _CabangAutocompleteField(
+                          excludeCabangId: ref.read(authProvider).user?.cabangId,
+                          onSelected: (c) => notifier.setCabangTujuan(
+                            c['cabang_id'].toString(),
+                            c['name'].toString(),
+                          ),
+                          onManualChanged: (name) {
+                            if (name.trim().isNotEmpty) {
+                              notifier.setCabangTujuanManual(name.trim());
+                            }
+                          },
+                        ),
+                      ],
+                      if (state.tujuanType == TujuanType.penerima) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.green.withValues(alpha: 0.15), width: 1),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.info_rounded, color: Colors.green, size: 18),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Paket akan dikirim langsung ke alamat penerima',
+                                  style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _catatanC,
+                        decoration: const InputDecoration(
+                          labelText: 'Catatan (opsional)',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (v) => notifier.setCatatan(v),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ],

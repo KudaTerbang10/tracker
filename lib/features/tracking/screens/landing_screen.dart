@@ -21,49 +21,128 @@ class _LandingScreenState extends State<LandingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.inventory_2, size: 100, color: AppTheme.primary),
-                const SizedBox(height: 12),
-                Text('Ekspedisi Tracker', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text('Lacak kiriman Anda', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey)),
-                const SizedBox(height: 40),
-                TextFormField(
-                  controller: _resiC,
-                  decoration: InputDecoration(
-                    labelText: 'Masukkan No. Resi',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.qr_code_scanner),
-                      onPressed: _scanBarcode,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFEEF2F6), Color(0xFFF8FAFC)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo & Brand Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(
+                      Icons.local_shipping_rounded,
+                      size: 72,
+                      color: AppTheme.primary,
+                    ),
                   ),
-                  textCapitalization: TextCapitalization.characters,
-                  onFieldSubmitted: (_) => _track(),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _track,
-                    child: const Text('Lacak Kiriman'),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Hira Express',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
                   ),
-                ),
-                const SizedBox(height: 32),
-                TextButton.icon(
-                  onPressed: () => context.go('/login'),
-                  icon: const Icon(Icons.login),
-                  label: const Text('Login Staff'),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Lacak & kelola kiriman Anda secara real-time',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF64748B),
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 36),
+
+                  // Tracking Card
+                  Card(
+                    color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Nomor Resi Pengiriman',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _resiC,
+                            decoration: InputDecoration(
+                              labelText: 'Masukkan No. Resi',
+                              hintText: 'Contoh: EXP12345',
+                              prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primary),
+                              suffixIcon: Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.primary, size: 20),
+                                  onPressed: _scanBarcode,
+                                ),
+                              ),
+                            ),
+                            textCapitalization: TextCapitalization.characters,
+                            onFieldSubmitted: (_) => _track(),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _track,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.track_changes_rounded, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Lacak Kiriman'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Staff Portal Button
+                  OutlinedButton.icon(
+                    onPressed: () => context.go('/login'),
+                    icon: const Icon(Icons.login_rounded, size: 18),
+                    label: const Text('Masuk Portal Staff'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primary,
+                      side: const BorderSide(color: Color(0xFFCBD5E1), width: 1),
+                      backgroundColor: Colors.white.withValues(alpha: 0.6),
+                      minimumSize: const Size(200, 46),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

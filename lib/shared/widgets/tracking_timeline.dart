@@ -11,71 +11,161 @@ class TrackingTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (logs.isEmpty) return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Belum ada riwayat tracking')));
+    if (logs.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.history_rounded, size: 40, color: Colors.grey.shade400),
+                const SizedBox(height: 8),
+                Text('Belum ada riwayat tracking', style: TextStyle(color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     final sorted = [...logs]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    final dateFmt = DateFormat('dd/MM/yyyy', 'id_ID');
+    final dateFmt = DateFormat('dd MMM yyyy', 'id_ID');
     final timeFmt = DateFormat('HH:mm', 'id_ID');
 
     return Card(
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: sorted.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-        itemBuilder: (context, i) {
-          final log = sorted[i];
-          final isFirst = i == 0;
-          final isOldest = i == sorted.length - 1;
-          final color = isFirst ? AppTheme.statusColor(log.status) : Colors.grey.shade400;
-          final driverName = log.driverDitugaskan?['nama'] as String?;
-          final subtitleParts = _buildSubtitle(log, driverName);
+      child: Padding(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 8),
+        child: ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: sorted.length,
+          itemBuilder: (context, i) {
+            final log = sorted[i];
+            final isFirst = i == 0;
+            final isLast = i == sorted.length - 1;
+            final color = isFirst ? AppTheme.statusColor(log.status) : const Color(0xFF94A3B8); // Slate-400
+            final driverName = log.driverDitugaskan?['nama'] as String?;
+            final subtitleParts = _buildSubtitle(log, driverName);
 
-          String title;
-          if (isOldest) {
-            title = 'Paket diterima ekspedisi';
-          } else if (log.status == 'diterima_cabang') {
-            title = 'Diterima cabang';
-          } else {
-            title = StatusList.label(log.status);
-          }
+            String title;
+            if (isLast && sorted.length > 1) {
+              title = 'Paket diterima ekspedisi';
+            } else if (log.status == 'diterima_cabang') {
+              title = 'Diterima cabang';
+            } else {
+              title = StatusList.label(log.status);
+            }
 
-          return ListTile(
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_statusIcon(log.status), color: color, size: 20),
-            ),
-            title: Text(title, style: TextStyle(fontWeight: isFirst ? FontWeight.bold : FontWeight.normal, color: isFirst ? color : null)),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    subtitleParts.$1,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+                  Column(
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: isFirst ? 0.15 : 0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: color.withValues(alpha: isFirst ? 0.5 : 0.2),
+                            width: isFirst ? 2 : 1,
+                          ),
+                        ),
+                        child: Icon(
+                          _statusIcon(log.status),
+                          color: color,
+                          size: 14,
+                        ),
+                      ),
+                      Expanded(
+                        child: isLast
+                            ? const SizedBox.shrink()
+                            : Container(
+                                width: 2,
+                                margin: const EdgeInsets.symmetric(vertical: 4),
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                      ),
+                    ],
                   ),
-                  if (subtitleParts.$2 != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        subtitleParts.$2!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.primary, fontWeight: FontWeight.w500),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontWeight: isFirst ? FontWeight.w700 : FontWeight.w600,
+                                    fontSize: 14,
+                                    color: isFirst ? color : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${dateFmt.format(toJakarta(log.timestamp))}\n${timeFmt.format(toJakarta(log.timestamp))}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                  height: 1.3,
+                                ),
+                                textAlign: TextAlign.right,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitleParts.$1,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF475569),
+                              height: 1.3,
+                            ),
+                          ),
+                          if (subtitleParts.$2 != null) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.directions_car_filled_rounded, size: 14, color: AppTheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    subtitleParts.$2!,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
+                  ),
                 ],
               ),
-            ),
-            trailing: Text('${dateFmt.format(toJakarta(log.timestamp))} ${timeFmt.format(toJakarta(log.timestamp))}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -114,11 +204,11 @@ class TrackingTimeline extends StatelessWidget {
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'diterima_cabang': return Icons.store;
-      case 'keluar_cabang': return Icons.local_shipping;
-      case 'proses_kirim': return Icons.route;
-      case 'diterima': return Icons.check_circle;
-      default: return Icons.circle;
+      case 'diterima_cabang': return Icons.storefront_rounded;
+      case 'keluar_cabang': return Icons.local_shipping_rounded;
+      case 'proses_kirim': return Icons.near_me_rounded;
+      case 'diterima': return Icons.task_alt_rounded;
+      default: return Icons.radio_button_checked_rounded;
     }
   }
 }

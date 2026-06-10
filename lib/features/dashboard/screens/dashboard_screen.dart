@@ -27,7 +27,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${user?.lokasi?['nama'] as String? ?? 'Dashboard'}'),
+        title: Text(
+          user?.lokasi?['nama'] as String? ?? 'Dashboard',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
         automaticallyImplyLeading: false,
         actions: [
           _SyncButton(
@@ -36,6 +39,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onTap: _sync,
           ),
           PopupMenuButton<String>(
+            icon: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person_outline_rounded, color: AppTheme.primary, size: 20),
+            ),
             onSelected: (v) {
               if (v == 'logout') {
                 ref.read(authProvider.notifier).logout();
@@ -43,44 +54,86 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               }
             },
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'profile', child: Text('${user?.name} (${user?.roleLabel})')),
+              PopupMenuItem(
+                value: 'profile',
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(user?.name ?? '', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    Text(user?.email ?? '', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        user?.roleLabel ?? '',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const PopupMenuDivider(),
-              const PopupMenuItem(value: 'logout', child: ListTile(leading: Icon(Icons.logout), title: Text('Logout'), dense: true)),
+              const PopupMenuItem(
+                value: 'logout',
+                child: ListTile(
+                  leading: Icon(Icons.logout_rounded, color: AppTheme.error, size: 20),
+                  title: Text('Keluar dari Akun', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.w600)),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
             ],
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _greetingCard(user),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          const Text(
+            'MENU NAVIGASI',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF64748B),
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
 
           if (role == 'super_admin') ...[
-            _menuCard(Icons.bar_chart, 'Analitik Traffic', () => _comingSoon(), color: AppTheme.primary),
+            _menuCard(Icons.bar_chart_rounded, 'Analitik Traffic', () => _comingSoon(), color: AppTheme.primary),
             const SizedBox(height: 8),
-            _menuCard(Icons.people, 'Manajemen Akun', () => context.go('/dashboard/users'), color: AppTheme.primary),
+            _menuCard(Icons.people_alt_rounded, 'Manajemen Akun', () => context.go('/dashboard/users'), color: AppTheme.primary),
           ],
 
           if (role == 'admin_cabang') ...[
-            _menuCard(Icons.add_box, 'Input Transaksi Baru', () => context.go('/dashboard/transaksi-baru'), color: Colors.orange.shade700),
+            _menuCard(Icons.add_box_rounded, 'Input Transaksi Baru', () => context.go('/dashboard/transaksi-baru'), color: Colors.orange.shade700),
             const SizedBox(height: 8),
-            _menuCard(Icons.qr_code_scanner, 'Scan Barang Datang', () => context.go('/dashboard/scan-datang'), color: Colors.teal.shade700),
+            _menuCard(Icons.move_to_inbox_rounded, 'Scan Barang Datang', () => context.go('/dashboard/scan-datang'), color: Colors.teal.shade700),
             const SizedBox(height: 8),
-            _menuCard(Icons.qr_code_scanner, 'Scan Barang Keluar', () => context.go('/dashboard/scan-keluar'), color: Colors.indigo.shade700),
+            _menuCard(Icons.unarchive_rounded, 'Scan Barang Keluar', () => context.go('/dashboard/scan-keluar'), color: Colors.indigo.shade700),
           ],
 
           if (role == 'driver') ...[
-            _menuCard(Icons.check_circle, 'Scan Barang Diterima', () => context.go('/dashboard/scan-diterima'), color: Colors.green.shade700),
+            _menuCard(Icons.check_circle_rounded, 'Scan Barang Diterima', () => context.go('/dashboard/scan-diterima'), color: Colors.green.shade700),
             const SizedBox(height: 8),
-            _menuCard(Icons.list_alt, 'Daftar Transaksi Driver', () => context.go('/dashboard/driver-tab'), color: Colors.blue.shade700),
+            _menuCard(Icons.list_alt_rounded, 'Daftar Transaksi Driver', () => context.go('/dashboard/driver-tab'), color: Colors.blue.shade700),
           ],
 
           if (role != 'driver') ...[
-            const SizedBox(height: 16),
-            _menuCard(Icons.list_alt, 'Daftar Transaksi', () => context.go('/dashboard/daftar-transaksi'), color: Colors.grey.shade700),
+            const SizedBox(height: 8),
+            _menuCard(Icons.format_list_bulleted_rounded, 'Daftar Transaksi', () => context.go('/dashboard/daftar-transaksi'), color: const Color(0xFF475569)),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
           Card(
             child: Padding(
@@ -88,17 +141,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               child: Row(
                 children: [
                   connectionAsync.when(
-                    data: (ok) => Icon(ok ? Icons.cloud_done : Icons.cloud_off, color: ok ? Colors.green : Colors.red),
-                    loading: () => const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                    error: (_, __) => const Icon(Icons.cloud_off, color: Colors.red),
+                    data: (ok) => Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (ok ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(ok ? Icons.cloud_done_rounded : Icons.cloud_off_rounded, color: ok ? Colors.green : Colors.red, size: 20),
+                    ),
+                    loading: () => const SizedBox(width: 36, height: 36, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                    error: (_, __) => Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.cloud_off_rounded, color: Colors.red, size: 20),
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(connectionAsync.valueOrNull == true ? 'Terhubung ke Database' : 'Tidak Terhubung', style: const TextStyle(fontWeight: FontWeight.w500)),
-                      Text('Role: ${user?.roleLabel}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          connectionAsync.valueOrNull == true ? 'Terhubung ke Database' : 'Koneksi Offline',
+                          style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A), fontSize: 14),
+                        ),
+                        Text(
+                          'Hira Express',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -110,17 +185,72 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _greetingCard(User? user) {
-    return Card(
-      color: AppTheme.primary,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF818CF8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Halo, ${user?.name ?? 'User'}', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(user?.roleLabel ?? '', style: const TextStyle(color: Colors.white70)),
-            if (user?.lokasi != null) Text(user!.lokasi!['name'] as String? ?? '', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Halo, ${user?.name ?? 'User'}',
+                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user?.email ?? '',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                    child: Text(
+                      user?.roleLabel ?? '',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                ),
+              ],
+            ),
+            if (user?.lokasi != null) ...[
+              const SizedBox(height: 16),
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    user!.lokasi!['name'] as String? ?? '',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -128,15 +258,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _menuCard(IconData icon, String label, VoidCallback onTap, {Color? color}) {
+    final activeColor = color ?? AppTheme.primary;
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: (color ?? AppTheme.primary).withValues(alpha: 0.15),
-          child: Icon(icon, color: color ?? AppTheme.primary),
-        ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-        trailing: const Icon(Icons.chevron_right),
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: activeColor.withValues(alpha: 0.1),
+                radius: 20,
+                child: Icon(icon, color: activeColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0F172A), fontSize: 14),
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
+            ],
+          ),
+        ),
       ),
     );
   }

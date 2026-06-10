@@ -27,218 +27,366 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     final items = ref.watch(scanDatangProvider);
     final validCount = items.where((i) => i.isValid).length;
     final hasInvalid = items.any((i) => !i.isValid);
-    final role = ref.read(authProvider).user?.role ?? '';
-    final canScan = role == 'admin_cabang';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Scan Barang Datang'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
         actions: items.isNotEmpty
             ? [
                 IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Reset',
-                  onPressed: () =>
-                      ref.read(scanDatangProvider.notifier).clear(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: 'Reset semua',
+                  onPressed: () => ref.read(scanDatangProvider.notifier).clear(),
                 ),
               ]
             : null,
       ),
       body: Column(
         children: [
-          if (items.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          // Status summary bar
+          if (items.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
+                  ),
+                  const SizedBox(width: 10),
                   Text(
                     '$validCount barang valid',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
                   ),
-                  if (hasInvalid)
-                    Text(
-                      ' | ${items.length - validCount} tidak valid',
-                      style: const TextStyle(color: AppTheme.error),
+                  if (hasInvalid) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.error_rounded, size: 16, color: AppTheme.error),
                     ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${items.length - validCount} tidak valid',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.error),
+                    ),
+                  ],
                   const Spacer(),
                   Text(
                     'Total: ${items.length}',
-                    style: const TextStyle(color: Colors.grey),
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
-          ],
+
+          // Scan list / empty state
           Expanded(
             child: items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.qr_code_scanner,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Tekan "SCAN" untuk mulai 📷',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Scan barcode pada resi barang yang datang',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildEmptyState()
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     itemCount: items.length,
                     itemBuilder: (_, i) {
                       final item = items[i];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          leading: Icon(
-                            item.isValid ? Icons.check_circle : Icons.error,
-                            color: item.isValid ? Colors.green : AppTheme.error,
-                          ),
-                          title: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  item.noResi,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 1,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              ResiCopyButton(resi: item.noResi),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${item.transaction.pengirimName} → ${item.transaction.penerimaName}',
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  _badge(item.transaction.beratLabel, Colors.blue),
-                                  const SizedBox(width: 6),
-                                  _badge(item.transaction.koliLabel, Colors.orange),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                item.isValid
-                                    ? 'Siap diproses'
-                                    : item.errorMessage ?? 'Tidak valid',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: item.isValid ? Colors.green : AppTheme.error,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: GestureDetector(
-                            onLongPress: () => ref
-                                .read(scanDatangProvider.notifier)
-                                .removeItem(item.noResi),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Icon(Icons.close, size: 16, color: Colors.red.shade700),
-                            ),
-                          ),
-                        ),
-                      );
+                      return _buildScanCard(item);
                     },
                   ),
           ),
         ],
       ),
       bottomNavigationBar: SafeArea(
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: const Color(0xFFE2E8F0))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
           child: Row(
             children: [
-              if (items.isNotEmpty)
+              if (items.isNotEmpty) ...[
                 GestureDetector(
                   onLongPress: _submitting
                       ? null
                       : () => ref.read(scanDatangProvider.notifier).clear(),
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppTheme.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.error.withValues(alpha: 0.15)),
                     ),
-                    child: Icon(Icons.close, color: Colors.red.shade700, size: 20),
+                    child: Icon(Icons.delete_outline_rounded, color: AppTheme.error, size: 22),
                   ),
                 ),
-              if (items.isNotEmpty) const SizedBox(width: 8),
+                const SizedBox(width: 10),
+              ],
               Expanded(
-                flex: items.isNotEmpty ? 1 : 1,
-                child: ElevatedButton.icon(
-                  onPressed: _scan,
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('SCAN'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: _scan,
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                    label: const Text('SCAN RESI', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      minimumSize: const Size(0, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
               ),
               if (validCount > 0) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
-                  flex: 1,
-                  child: ElevatedButton(
-                    onPressed: _submitting
-                        ? null
-                        : () => _confirm(context),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('KONFIRMASI'),
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : () => _confirm(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                            )
+                          : const Text('KONFIRMASI', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    ),
                   ),
                 ),
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.qr_code_scanner_rounded,
+                size: 56,
+                color: Color(0xFF0EA5E9),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Siap Scan Barang',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Tekan tombol SCAN di bawah untuk mulai\nmenscan barcode pada resi barang datang.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF64748B),
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanCard(ScanItem item) {
+    final isValid = item.isValid;
+    final statusColor = isValid ? const Color(0xFF10B981) : AppTheme.error;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                isValid ? Icons.check_circle_rounded : Icons.error_rounded,
+                color: statusColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item.noResi,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: 0.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      ResiCopyButton(resi: item.noResi),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.transaction.pengirimName} → ${item.transaction.penerimaName}',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _badge(item.transaction.beratLabel, const Color(0xFF0EA5E9)),
+                      const SizedBox(width: 6),
+                      _badge(item.transaction.koliLabel, const Color(0xFFF97316)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isValid ? 'Siap diproses' : (item.errorMessage ?? 'Tidak valid'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onLongPress: () => ref.read(scanDatangProvider.notifier).removeItem(item.noResi),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.close_rounded, size: 16, color: AppTheme.error),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );
@@ -307,19 +455,58 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: Text('Konfirmasi ${validItems.length} barang diterima?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Konfirmasi Penerimaan', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.inventory_2_rounded, color: Color(0xFF10B981), size: 32),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${validItems.length} Paket',
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                      ),
+                      const Text('siap dikonfirmasi', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Status paket akan diperbarui menjadi "Diterima Cabang".',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+          ],
+        ),
         actions: [
           Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                child: const Text('KONFIRMASI'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  minimumSize: const Size(0, 44),
+                ),
+                child: const Text('KONFIRMASI', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('BATAL'),
@@ -345,9 +532,9 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ $berhasil berhasil' + (gagal > 0 ? ', ❌ $gagal gagal' : ''),
+              '✅ $berhasil berhasil${gagal > 0 ? ', ❌ $gagal gagal' : ''}',
             ),
-            backgroundColor: gagal > 0 ? AppTheme.warning : Colors.green,
+            backgroundColor: gagal > 0 ? AppTheme.warning : const Color(0xFF10B981),
           ),
         );
         SoundPlayer.instance.playSuccess();
@@ -366,23 +553,5 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
-  }
-
-  Widget _badge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
   }
 }

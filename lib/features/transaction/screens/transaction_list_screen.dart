@@ -350,7 +350,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     }
     return tx.trackingLogs.length == 1;
   }
-
   void _showDetail(Transaction tx) {
     final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final showDriver = _isDeliveredToRecipient(tx) && tx.namaDriver != null;
@@ -359,133 +358,204 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      backgroundColor: Colors.transparent,
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.85,
         expand: false,
-        builder: (_, scrollC) => ListView(
-          controller: scrollC,
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (_, scrollC) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC), // Slate-50 background
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1), // Slate-300 handle
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollC,
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('No. Resi', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
-                        StatusBadge(status: tx.statusSaatIni),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            tx.noResi,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 1),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        ResiCopyButton(resi: tx.noResi),
-                        if (!isDriver) ...[
-                          const SizedBox(width: 4),
-                          InkWell(
-                            onTap: () => LabelPrinter.printBarcodeLabel(
-                              data: tx.noResi,
-                              pengirim: tx.pengirim,
-                              penerima: tx.penerima,
-                              paket: tx.paket,
-                              createdAt: tx.createdAt,
-                              asal: tx.createdBy['cabang_name']?.toString() ??
-                                  tx.createdBy['konter_name']?.toString() ??
-                                  tx.createdBy['gudang_name']?.toString(),
-                              dicetakOleh: ref.read(authProvider).user?.lokasi?['name']?.toString(),
+                    // Header Card
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Nomor Resi Pengiriman',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                ),
+                                StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                              ],
                             ),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    tx.noResi,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.5,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                ResiCopyButton(resi: tx.noResi),
+                                if (!isDriver) ...[
+                                  const SizedBox(width: 8),
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => LabelPrinter.printBarcodeLabel(
+                                        data: tx.noResi,
+                                        pengirim: tx.pengirim,
+                                        penerima: tx.penerima,
+                                        paket: tx.paket,
+                                        createdAt: tx.createdAt,
+                                        asal: tx.createdBy['cabang_name']?.toString() ??
+                                            tx.createdBy['konter_name']?.toString() ??
+                                            tx.createdBy['gudang_name']?.toString(),
+                                        dicetakOleh: ref.read(authProvider).user?.lokasi?['name']?.toString(),
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primary.withValues(alpha: 0.08),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.print_rounded, size: 16, color: AppTheme.primary),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Sender & Recipient Cards
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _InfoCard(
+                              title: 'Penerima',
+                              name: tx.penerimaName,
+                              phone: tx.penerima['phone'] as String? ?? '',
+                              address: tx.penerimaAddress,
+                              icon: Icons.call_received_rounded,
+                              accentColor: AppTheme.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _InfoCard(
+                              title: 'Pengirim',
+                              name: tx.pengirimName,
+                              phone: tx.pengirim['phone'] as String? ?? '',
+                              address: tx.pengirim['address'] as String? ?? '',
+                              icon: Icons.send_rounded,
+                              accentColor: AppTheme.primary,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
+                    const SizedBox(height: 12),
+
+                    // Spec Card
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                        child: Row(
+                          children: [
+                            Expanded(child: _InfoCell(icon: Icons.scale_rounded, label: 'Berat', value: tx.beratLabel)),
+                            Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                            Expanded(child: _InfoCell(icon: Icons.inventory_2_rounded, label: 'Jumlah Koli', value: '${tx.jumlahKoli} koli')),
+                            if (tx.biayaKirim > 0) ...[
+                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                              Expanded(child: _InfoCell(icon: Icons.payments_rounded, label: 'Biaya Kirim', value: fmt.format(tx.biayaKirim))),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Driver details
+                    if (showDriver || (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)) ...[
+                      const SizedBox(height: 12),
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (showDriver)
+                              Expanded(
+                                child: _InfoCard(
+                                  title: 'Driver Kurir',
+                                  name: tx.namaDriver!,
+                                  phone: tx.kontakDriver ?? '',
+                                  address: '',
+                                  icon: Icons.directions_car_filled_rounded,
+                                  accentColor: Colors.amber.shade700,
+                                ),
+                              ),
+                            if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty) const SizedBox(width: 8),
+                            if (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
+                              Expanded(
+                                child: _InfoCard(
+                                  title: 'Diterima oleh',
+                                  name: tx.namaPenerimaAkhir!,
+                                  phone: '',
+                                  address: '',
+                                  icon: Icons.check_circle_rounded,
+                                  accentColor: Colors.green.shade600,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+
+                    const Text(
+                      'RIWAYAT PENGIRIMAN',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TrackingTimeline(logs: tx.trackingLogs),
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _InfoCard(
-              title: 'Penerima',
-              name: tx.penerimaName,
-              phone: tx.penerima['phone'] as String? ?? '',
-              address: tx.penerimaAddress,
-              icon: Icons.call_received,
-            ),
-            const SizedBox(height: 12),
-            _InfoCard(
-              title: 'Pengirim',
-              name: tx.pengirimName,
-              phone: tx.pengirim['phone'] as String? ?? '',
-              address: tx.pengirim['address'] as String? ?? '',
-              icon: Icons.send,
-            ),
-            const SizedBox(height: 12),
-            IntrinsicHeight(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: _InfoCell(icon: Icons.scale, label: 'Berat', value: tx.beratLabel)),
-                      const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
-                      Expanded(child: _InfoCell(icon: Icons.inventory_2, label: 'Koli', value: '${tx.jumlahKoli}')),
-                      if (tx.biayaKirim > 0) ...[
-                        const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
-                        Expanded(child: _InfoCell(icon: Icons.payments, label: 'Biaya', value: fmt.format(tx.biayaKirim))),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (showDriver || (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)) ...[
-              const SizedBox(height: 12),
-              if (showDriver)
-                _InfoCard(
-                  title: 'Driver',
-                  name: tx.namaDriver!,
-                  phone: tx.kontakDriver ?? '',
-                  address: '',
-                  icon: Icons.person_pin,
-                ),
-              if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty) const SizedBox(height: 12),
-              if (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
-                _InfoCard(
-                  title: 'Diterima oleh',
-                  name: tx.namaPenerimaAkhir!,
-                  phone: '',
-                  address: '',
-                  icon: Icons.check_circle,
-                ),
             ],
-            const SizedBox(height: 20),
-            Text('Riwayat Tracking', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            TrackingTimeline(logs: tx.trackingLogs),
-            const SizedBox(height: 40),
-          ],
+          ),
         ),
       ),
     );
@@ -502,78 +572,98 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     }
     return false;
   }
-
 }
 
 class _InfoCard extends StatelessWidget {
   final String title, name, phone, address;
   final IconData icon;
-  const _InfoCard({required this.title, required this.name, required this.phone, required this.address, required this.icon});
+  final Color accentColor;
+
+  const _InfoCard({
+    required this.title,
+    required this.name,
+    required this.phone,
+    required this.address,
+    required this.icon,
+    required this.accentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Colors.white,
       clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: AppTheme.primary.withValues(alpha: 0.12),
+            color: accentColor.withValues(alpha: 0.08),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 16, color: AppTheme.primary),
-                    const SizedBox(width: 6),
-                    Text(title, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ],
+                Icon(icon, size: 14, color: accentColor),
+                const SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 12),
                 ),
-                if (phone.isNotEmpty)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.phone, size: 14, color: AppTheme.primary),
-                      const SizedBox(width: 4),
-                      Text(phone, style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w700, fontSize: 13)),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: phone));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
-                          );
-                        },
-                        child: Icon(Icons.copy, size: 14, color: AppTheme.primary),
-                      ),
-                    ],
-                  ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.person, size: 18, color: Colors.black87),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (address.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
-                if (address.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(address, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],
-              ],
+              ),
             ),
           ),
+          if (phone.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.phone_iphone_rounded, size: 12, color: Color(0xFF64748B)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      phone,
+                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 11),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: phone));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                      );
+                    },
+                    child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -593,11 +683,17 @@ class _InfoCell extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 22, color: AppTheme.primary),
-          const SizedBox(height: 4),
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          Icon(icon, size: 20, color: AppTheme.primary),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500)),
           const SizedBox(height: 2),
-          Text(value, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );

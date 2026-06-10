@@ -9,6 +9,7 @@ import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
+import '../../../shared/utils/sound_player.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/scan_batch_provider.dart';
 
@@ -265,6 +266,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
 
       if (role == 'admin_cabang') {
         isValid = true;
+        SoundPlayer.instance.playScan();
       } else {
         error = 'Role tidak memiliki akses scan datang';
       }
@@ -348,9 +350,11 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
             backgroundColor: gagal > 0 ? AppTheme.warning : Colors.green,
           ),
         );
+        SoundPlayer.instance.playSuccess();
         ref.read(scanDatangProvider.notifier).clear();
       }
     } catch (e) {
+      SoundPlayer.instance.playError();
       if (mounted) {
         final msg = e is DioException
             ? (e.response?.data?['message'] as String? ?? 'Gagal')

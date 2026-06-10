@@ -9,6 +9,7 @@ import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
+import '../../../shared/utils/sound_player.dart';
 
 class ScanDiterimaScreen extends ConsumerStatefulWidget {
   const ScanDiterimaScreen({super.key});
@@ -185,6 +186,7 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       final res = await ApiService().get('${ApiConstants.track}/$code');
       final tx = Transaction.fromJson(res.data as Map<String, dynamic>);
 
+      SoundPlayer.instance.playScan();
       setState(() => _tx = tx);
     } catch (e) {
       if (mounted) {
@@ -211,9 +213,11 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Paket telah diterima'), backgroundColor: Colors.green));
+        SoundPlayer.instance.playSuccess();
         setState(() { _tx = null; _namaC.clear(); _catatanC.clear(); });
       }
     } catch (e) {
+      SoundPlayer.instance.playError();
       if (mounted) {
         final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Gagal') : 'Gagal memperbarui status';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppTheme.error));

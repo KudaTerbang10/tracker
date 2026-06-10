@@ -60,14 +60,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             _menuCard(Icons.bar_chart, 'Analitik Traffic', () => _comingSoon(), color: AppTheme.primary),
             const SizedBox(height: 8),
             _menuCard(Icons.people, 'Manajemen Akun', () => context.go('/dashboard/users'), color: AppTheme.primary),
-            const SizedBox(height: 8),
-            _menuCard(Icons.add_box, 'Input Transaksi Baru', () => context.go('/dashboard/transaksi-baru'), color: Colors.orange.shade700),
-            const SizedBox(height: 8),
-            _menuCard(Icons.qr_code_scanner, 'Scan Barang Datang', () => context.go('/dashboard/scan-datang'), color: Colors.teal.shade700),
-            const SizedBox(height: 8),
-            _menuCard(Icons.qr_code_scanner, 'Scan Barang Keluar', () => context.go('/dashboard/scan-keluar'), color: Colors.indigo.shade700),
-            const SizedBox(height: 8),
-            _menuCard(Icons.list_alt, 'Daftar Transaksi', () => context.go('/dashboard/daftar-transaksi'), color: Colors.grey.shade700),
           ],
 
           if (role == 'admin_cabang') ...[

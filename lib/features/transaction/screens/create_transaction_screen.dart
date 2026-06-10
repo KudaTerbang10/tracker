@@ -8,6 +8,7 @@ import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/barcode_widget.dart';
 import '../../../shared/utils/label_printer.dart';
+import '../../../shared/utils/sound_player.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
@@ -259,8 +260,10 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
           'biaya_kirim': double.tryParse(_biayaC.text) ?? 0,
         },
       );
+      SoundPlayer.instance.playSuccess();
       setState(() => _createdTransaction = tx);
     } catch (e) {
+      SoundPlayer.instance.playError();
       if (mounted) {
         final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Gagal membuat transaksi') : 'Gagal membuat transaksi';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppTheme.error));

@@ -9,16 +9,20 @@ import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
+import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/utils/label_printer.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
+import '../../../core/constants/api_constants.dart';
 
 final _listProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, key) {
   final parts = key.split('|');
   final page = int.parse(parts[0]);
-  final tab = parts.length > 1 ? parts[1] : null;
-  return ref.read(transactionRepositoryProvider).getList(page: page, tab: tab);
+  final tab = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null;
+  final status = parts.length > 2 && parts[2].isNotEmpty ? parts[2] : null;
+  final search = parts.length > 3 && parts[3].isNotEmpty ? parts[3] : null;
+  return ref.read(transactionRepositoryProvider).getList(page: page, tab: tab, status: status, search: search);
 });
 
 class TransactionListScreen extends ConsumerStatefulWidget {
@@ -32,6 +36,25 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   int _pageHistory = 1;
   TabController? _tabController;
   bool get _isAdminCabang => ref.read(authProvider).user?.isAdminCabang ?? false;
+
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedStatus = '';
+  int _pageAll = 1;
+
+  static const _statusFilters = [
+    '',
+    'diterima_cabang',
+    'proses_kirim',
+    'diterima',
+  ];
+
+  String _listKey(int page, {String? tab, String? status, String? search}) =>
+      '$page|${tab ?? ''}|${status ?? ''}|${search ?? ''}';
+
+  void _applyFilter() {
+    ref.invalidate(_listProvider(_listKey(_pageAll, status: _selectedStatus, search: _searchQuery)));
+  }
 
   @override
   void initState() {
@@ -47,7 +70,19 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   @override
   void dispose() {
     _tabController?.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanAndSearch() async {
+    final code = await BarcodeScannerDialog.show(context, label: 'Scan barcode untuk mencari transaksi');
+    if (code != null && code.isNotEmpty) {
+      _searchController.text = code;
+      setState(() {
+        _searchQuery = code;
+        _pageAll = 1;
+      });
+    }
   }
 
   @override
@@ -73,16 +108,93 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
           ? TabBarView(
               controller: _tabController,
               children: [
-                _buildTab('current', _pageProses, (p) => setState(() => _pageProses = p), dateFmt),
-                _buildTab('history', _pageHistory, (p) => setState(() => _pageHistory = p), dateFmt),
+                _buildTab('$_pageProses|current', (p) => setState(() => _pageProses = p), dateFmt),
+                _buildTab('$_pageHistory|history', (p) => setState(() => _pageHistory = p), dateFmt),
               ],
             )
-          : _buildTab(null, 1, (p) {}, dateFmt),
+          : _buildSuperAdminView(dateFmt),
     );
   }
 
-  Widget _buildTab(String? tab, int page, ValueChanged<int> onPageChanged, DateFormat dateFmt) {
-    final async = ref.watch(_listProvider('$page${tab != null ? '|$tab' : ''}'));
+  Widget _buildSuperAdminView(DateFormat dateFmt) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Cari no. resi...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_searchQuery.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _pageAll = 1;
+                        });
+                      },
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    onPressed: _scanAndSearch,
+                  ),
+                ],
+              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+            ),
+            onChanged: (v) {
+              setState(() {
+                _searchQuery = v;
+                _pageAll = 1;
+              });
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _statusFilters.map((s) {
+                final selected = _selectedStatus == s;
+                final label = s.isEmpty ? 'Semua' : StatusList.label(s);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(label),
+                    selected: selected,
+                    onSelected: (_) {
+                      _applyFilter();
+                      setState(() {
+                        _selectedStatus = s;
+                        _pageAll = 1;
+                      });
+                    },
+                    selectedColor: AppTheme.primary.withValues(alpha: 0.2),
+                    checkmarkColor: AppTheme.primary,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        Expanded(child: _buildTab(_listKey(_pageAll, status: _selectedStatus, search: _searchQuery), (p) => setState(() => _pageAll = p), dateFmt)),
+      ],
+    );
+  }
+
+  Widget _buildTab(String key, ValueChanged<int> onPageChanged, DateFormat dateFmt) {
+    final parts = key.split('|');
+    final page = int.parse(parts[0]);
+    final async = ref.watch(_listProvider(key));
+    final tab = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null;
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),

@@ -214,7 +214,7 @@ router.post('/batch-status', auth, async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { status, kode_gerai, page = 1, limit = 20 } = req.query;
+    const { status, search, kode_gerai, page = 1, limit = 20 } = req.query;
     const filter = {};
 
     if (req.user.role === 'admin_cabang') {
@@ -255,7 +255,17 @@ router.get('/', auth, async (req, res) => {
         filter.status_saat_ini = { $in: statusArr };
       }
     } else {
-      if (status) filter.status_saat_ini = status;
+      if (status) {
+        const statusArr = status.split(',').map(s => s.trim());
+        filter.status_saat_ini = { $in: statusArr };
+      }
+    }
+
+    if (search) {
+      filter.$or = [
+        { no_resi: { $regex: search, $options: 'i' } },
+        { barcode_data: { $regex: search, $options: 'i' } },
+      ];
     }
 
     if (kode_gerai) filter.kode_gerai = kode_gerai;

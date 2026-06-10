@@ -150,6 +150,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                                   penerima: tx.penerima,
                                   paket: tx.paket,
                                   createdAt: tx.createdAt,
+                                  asal: tx.createdBy['cabang_name']?.toString() ??
+                                      tx.createdBy['konter_name']?.toString() ??
+                                      tx.createdBy['gudang_name']?.toString(),
+                                  dicetakOleh: user?.lokasi?['name']?.toString(),
                                 ),
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
@@ -313,6 +317,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                               penerima: tx.penerima,
                               paket: tx.paket,
                               createdAt: tx.createdAt,
+                              asal: tx.createdBy['cabang_name']?.toString() ??
+                                  tx.createdBy['konter_name']?.toString() ??
+                                  tx.createdBy['gudang_name']?.toString(),
+                              dicetakOleh: ref.read(authProvider).user?.lokasi?['name']?.toString(),
                             ),
                             child: Container(
                               padding: const EdgeInsets.all(4),

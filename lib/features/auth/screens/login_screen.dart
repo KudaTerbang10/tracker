@@ -12,8 +12,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailC = TextEditingController(text: 'konter@ekspedisi.id');
-  final _passC = TextEditingController(text: 'konter123');
+  final _emailC = TextEditingController();
+  final _passC = TextEditingController();
   bool _obscure = true;
 
   @override
@@ -46,7 +46,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 40),
                   TextFormField(
                     controller: _emailC,
-                    decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                    decoration: const InputDecoration(labelText: 'Email', hintText: 'contoh@email.com', prefixIcon: Icon(Icons.email_outlined)),
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) => (v == null || v.isEmpty) ? 'Email wajib diisi' : null,
                   ),
@@ -56,6 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     obscureText: _obscure,
                     decoration: InputDecoration(
                       labelText: 'Password',
+                      hintText: 'Masukkan password',
                       prefixIcon: const Icon(Icons.lock_outlined),
                       suffixIcon: IconButton(
                         icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),

@@ -202,6 +202,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                   penerima: _createdTransaction!.penerima,
                   paket: _createdTransaction!.paket,
                   createdAt: _createdTransaction!.createdAt,
+                  asal: _createdTransaction!.createdBy['cabang_name']?.toString() ??
+                      _createdTransaction!.createdBy['konter_name']?.toString() ??
+                      _createdTransaction!.createdBy['gudang_name']?.toString(),
                 ),
                 icon: const Icon(Icons.print),
                 label: const Text('Cetak Resi'),

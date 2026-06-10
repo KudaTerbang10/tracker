@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../data/datasources/remote/api_service.dart';
-import '../../../data/datasources/local/hive_cache.dart';
-import '../../../data/repositories/sync_repository.dart';
 import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -13,18 +11,6 @@ final _usersProvider = FutureProvider.autoDispose<List<User>>((ref) async {
   final res = await ApiService().get(ApiConstants.users);
   final data = res.data['data'] as List<dynamic>;
   return data.map((e) => User.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-});
-
-final _kontersProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final sync = ref.read(syncRepositoryProvider);
-  await sync.syncKonters();
-  return await sync.getKonters();
-});
-
-final _gudangsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final sync = ref.read(syncRepositoryProvider);
-  await sync.syncGudangs();
-  return HiveCache.getGudangs();
 });
 
 final _cabangsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
@@ -45,8 +31,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   static const _filters = [
     {'key': 'all', 'label': 'Semua'},
-    {'key': 'admin_konter', 'label': 'Admin Konter'},
-    {'key': 'staff_gudang', 'label': 'Staff Gudang'},
+    {'key': 'super_admin', 'label': 'Super Admin'},
     {'key': 'admin_cabang', 'label': 'Admin Cabang'},
     {'key': 'driver', 'label': 'Driver'},
   ];
@@ -54,10 +39,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(_usersProvider);
-    final kontersAsync = ref.watch(_kontersProvider);
-    final gudangsAsync = ref.watch(_gudangsProvider);
-    final konters = kontersAsync.maybeWhen(data: (v) => v, orElse: () => <Map<String, dynamic>>[]);
-    final gudangs = gudangsAsync.maybeWhen(data: (v) => v, orElse: () => <Map<String, dynamic>>[]);
 
     return Scaffold(
       appBar: AppBar(
@@ -95,7 +76,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           child: Icon(_roleIcon(u.role), color: _roleColor(u.role)),
                         ),
                         title: Text(u.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                        subtitle: Text('${u.email}\n${_roleWithLocation(u, konters, gudangs)}'),
+                        subtitle: Text('${u.email}\n${u.roleLabel}'),
                         isThreeLine: true,
                         trailing: null,
                         onTap: () => _showForm(context, ref, user: u),
@@ -141,33 +122,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
-  String _roleWithLocation(User u, List<Map<String, dynamic>> konters, List<Map<String, dynamic>> gudangs) {
-    String? name;
-    if (u.isAdminKonter && u.konterId != null) {
-      final match = konters.firstWhere(
-        (k) => (k['_id']?.toString() ?? k['konter_id']?.toString()) == u.konterId,
-        orElse: () => const {},
-      );
-      name = match.isNotEmpty ? match['name']?.toString() : null;
-    } else if (u.isStaffGudang && u.gudangId != null) {
-      final match = gudangs.firstWhere(
-        (g) => (g['_id']?.toString() ?? g['gudang_id']?.toString()) == u.gudangId,
-        orElse: () => const {},
-      );
-      name = match.isNotEmpty ? match['name']?.toString() : null;
-    }
-    name ??= u.lokasi?['nama']?.toString();
-    if (name != null && name.isNotEmpty) {
-      return '${u.roleLabel} - $name';
-    }
-    return u.roleLabel;
-  }
-
   Color _roleColor(String role) {
     switch (role) {
       case 'super_admin': return Colors.red;
-      case 'admin_konter': return Colors.orange;
-      case 'staff_gudang': return Colors.teal;
       case 'admin_cabang': return Colors.purple;
       case 'driver': return Colors.blue;
       default: return Colors.grey;
@@ -177,8 +134,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   IconData _roleIcon(String role) {
     switch (role) {
       case 'super_admin': return Icons.admin_panel_settings;
-      case 'admin_konter': return Icons.store;
-      case 'staff_gudang': return Icons.warehouse;
       case 'admin_cabang': return Icons.business;
       case 'driver': return Icons.local_shipping;
       default: return Icons.person;
@@ -192,8 +147,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final phoneC = TextEditingController(text: user?.phone ?? '');
     final passC = TextEditingController();
     String selectedRole = user?.role ?? 'driver';
-    String? selectedKonterId = user?.konterId;
-    String? selectedGudangId = user?.gudangId;
     String? selectedCabangId = user?.cabangId;
 
     showDialog(
@@ -217,23 +170,13 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: selectedRole,
-                  items: ['super_admin', 'admin_konter', 'staff_gudang', 'admin_cabang', 'driver'].map((r) => DropdownMenuItem(value: r, child: Text(r.replaceAll('_', ' ').toUpperCase()))).toList(),
+                  items: ['super_admin', 'admin_cabang', 'driver'].map((r) => DropdownMenuItem(value: r, child: Text(r.replaceAll('_', ' ').toUpperCase()))).toList(),
                   onChanged: (v) => setDialogState(() {
                     selectedRole = v ?? 'driver';
-                    if (selectedRole != 'admin_konter') selectedKonterId = null;
-                    if (selectedRole != 'staff_gudang') selectedGudangId = null;
                     if (selectedRole != 'admin_cabang') selectedCabangId = null;
                   }),
                   decoration: const InputDecoration(labelText: 'Role'),
                 ),
-                if (selectedRole == 'admin_konter') ...[
-                  const SizedBox(height: 8),
-                  Consumer(builder: (context, ref, child) => _konterDropdown(ref, selectedKonterId, (v) => setDialogState(() => selectedKonterId = v))),
-                ],
-                if (selectedRole == 'staff_gudang') ...[
-                  const SizedBox(height: 8),
-                  Consumer(builder: (context, ref, child) => _gudangDropdown(ref, selectedGudangId, (v) => setDialogState(() => selectedGudangId = v))),
-                ],
                 if (selectedRole == 'admin_cabang') ...[
                   const SizedBox(height: 8),
                   Consumer(builder: (context, ref, child) => _cabangDropdown(ref, selectedCabangId, (v) => setDialogState(() => selectedCabangId = v))),
@@ -252,8 +195,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     'role': selectedRole,
                   };
                   if (!isEdit) data['password'] = passC.text;
-                  if (selectedRole == 'admin_konter' && selectedKonterId != null) data['konter_id'] = selectedKonterId;
-                  if (selectedRole == 'staff_gudang' && selectedGudangId != null) data['gudang_id'] = selectedGudangId;
                   if (selectedRole == 'admin_cabang' && selectedCabangId != null) data['cabang_id'] = selectedCabangId;
 
                   if (isEdit) {
@@ -328,46 +269,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           : 'Gagal menghapus';
       messenger.showSnackBar(SnackBar(content: Text(msg)));
     }
-  }
-
-  Widget _konterDropdown(WidgetRef ref, String? selectedId, void Function(String?) onChanged) {
-    final async = ref.watch(_kontersProvider);
-    return async.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
-      data: (konters) => DropdownButtonFormField<String>(
-        value: selectedId,
-        items: [
-          const DropdownMenuItem<String>(value: null, child: Text('-- Pilih Konter --')),
-          ...konters.map((k) => DropdownMenuItem<String>(
-            value: k['_id']?.toString() ?? k['konter_id']?.toString(),
-            child: Text('${k['kode_singkat']} - ${k['name']}'),
-          )),
-        ],
-        onChanged: onChanged,
-        decoration: const InputDecoration(labelText: 'Konter Penugasan *', prefixIcon: Icon(Icons.store)),
-      ),
-    );
-  }
-
-  Widget _gudangDropdown(WidgetRef ref, String? selectedId, void Function(String?) onChanged) {
-    final async = ref.watch(_gudangsProvider);
-    return async.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
-      data: (gudangs) => DropdownButtonFormField<String>(
-        value: selectedId,
-        items: [
-          const DropdownMenuItem<String>(value: null, child: Text('-- Pilih Gudang --')),
-          ...gudangs.map((g) => DropdownMenuItem<String>(
-            value: g['_id']?.toString() ?? g['gudang_id']?.toString(),
-            child: Text('${g['kode']} - ${g['name']}'),
-          )),
-        ],
-        onChanged: onChanged,
-        decoration: const InputDecoration(labelText: 'Gudang Penugasan *', prefixIcon: Icon(Icons.warehouse)),
-      ),
-    );
   }
 
   Widget _cabangDropdown(WidgetRef ref, String? selectedId, void Function(String?) onChanged) {

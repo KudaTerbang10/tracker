@@ -1,8 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Konter = require('../models/Konter');
-const Gudang = require('../models/Gudang');
 const Cabang = require('../models/Cabang');
 const auth = require('../middleware/auth');
 
@@ -28,10 +26,6 @@ router.post('/login', async (req, res) => {
     let lokasi = null;
     if (user.cabang_id) {
       lokasi = await Cabang.findById(user.cabang_id).lean();
-    } else if (user.konter_id) {
-      lokasi = await Konter.findById(user.konter_id).lean();
-    } else if (user.gudang_id) {
-      lokasi = await Gudang.findById(user.gudang_id).lean();
     }
 
     const token = jwt.sign(
@@ -48,8 +42,6 @@ router.post('/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        konter_id: user.konter_id,
-        gudang_id: user.gudang_id,
         cabang_id: user.cabang_id,
         lokasi,
       },
@@ -63,10 +55,6 @@ router.get('/me', auth, async (req, res) => {
   let lokasi = null;
   if (req.user.cabang_id) {
     lokasi = await Cabang.findById(req.user.cabang_id).lean();
-  } else if (req.user.konter_id) {
-    lokasi = await Konter.findById(req.user.konter_id).lean();
-  } else if (req.user.gudang_id) {
-    lokasi = await Gudang.findById(req.user.gudang_id).lean();
   }
   res.json({ ...req.user.toJSON(), lokasi });
 });

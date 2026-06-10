@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/api_constants.dart';
 import '../datasources/remote/api_service.dart';
 import '../datasources/local/auth_local.dart';
-import '../datasources/local/hive_cache.dart';
 import '../models/user.dart';
 import 'sync_repository.dart';
 
@@ -54,8 +53,7 @@ class AuthRepository {
     try {
       await Future.wait([
         _sync.syncDrivers(),
-        _sync.syncGudangs(),
-        _sync.syncKonters(),
+        _sync.syncCabangs(),
       ]);
     } catch (_) {}
   }

@@ -27,9 +27,20 @@ class TrackingTimeline extends StatelessWidget {
         itemBuilder: (context, i) {
           final log = sorted[i];
           final isFirst = i == 0;
+          final isOldest = i == sorted.length - 1;
           final color = isFirst ? AppTheme.statusColor(log.status) : Colors.grey.shade400;
           final driverName = log.driverDitugaskan?['nama'] as String?;
           final subtitleParts = _buildSubtitle(log, driverName);
+
+          String title;
+          if (isOldest) {
+            title = 'Paket diterima ekspedisi';
+          } else if (log.status == 'diterima_cabang') {
+            title = 'Diterima cabang';
+          } else {
+            title = StatusList.label(log.status);
+          }
+
           return ListTile(
             leading: Container(
               width: 40,
@@ -40,7 +51,7 @@ class TrackingTimeline extends StatelessWidget {
               ),
               child: Icon(_statusIcon(log.status), color: color, size: 20),
             ),
-            title: Text(StatusList.label(log.status), style: TextStyle(fontWeight: isFirst ? FontWeight.bold : FontWeight.normal, color: isFirst ? color : null)),
+            title: Text(title, style: TextStyle(fontWeight: isFirst ? FontWeight.bold : FontWeight.normal, color: isFirst ? color : null)),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Column(
@@ -75,26 +86,20 @@ class TrackingTimeline extends StatelessWidget {
     final loc = log.lokasiName;
 
     switch (log.status) {
-      case 'diterima_konter':
-        main = 'Paket diterima di ${loc.isNotEmpty ? loc : 'konter'}';
+      case 'diterima_cabang':
+        main = 'Paket diterima di ${loc.isNotEmpty ? loc : 'cabang'}';
         break;
-      case 'diterima_gudang':
-        main = 'Paket diterima di ${loc.isNotEmpty ? loc : 'gudang'}';
-        break;
-      case 'keluar_konter':
+      case 'keluar_cabang':
         final tujuan = log.tujuan?['nama'] as String? ?? '';
-        main = 'Paket meninggalkan${loc.isNotEmpty ? ' $loc' : ' konter'} menuju${tujuan.isNotEmpty ? ' $tujuan' : ' gudang'}';
-        if (driverName != null && driverName.isNotEmpty) driverLine = 'Kurir: $driverName';
-        break;
-      case 'keluar_gudang':
-        final tujuan = log.tujuan?['nama'] as String? ?? 'penerima';
-        main = 'Paket keluar dari${loc.isNotEmpty ? ' $loc' : ' gudang'} menuju $tujuan';
+        main = 'Paket keluar dari${loc.isNotEmpty ? ' $loc' : ' cabang'} menuju${tujuan.isNotEmpty ? ' $tujuan' : ' tujuan'}';
         if (driverName != null && driverName.isNotEmpty) driverLine = 'Kurir: $driverName';
         break;
       case 'proses_kirim':
-        main = driverName != null && driverName.isNotEmpty
-            ? 'Dalam perjalanan oleh $driverName'
+        final tujuan = log.tujuan?['nama'] as String? ?? '';
+        main = tujuan.isNotEmpty
+            ? 'Paket dalam perjalanan menuju $tujuan'
             : 'Paket dalam perjalanan';
+        if (driverName != null && driverName.isNotEmpty) driverLine = 'Kurir: $driverName';
         break;
       case 'diterima':
         final nama = log.namaPenerima ?? '';
@@ -109,10 +114,8 @@ class TrackingTimeline extends StatelessWidget {
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'diterima_konter': return Icons.store;
-      case 'keluar_konter': return Icons.directions_walk;
-      case 'diterima_gudang': return Icons.warehouse;
-      case 'keluar_gudang': return Icons.local_shipping;
+      case 'diterima_cabang': return Icons.store;
+      case 'keluar_cabang': return Icons.local_shipping;
       case 'proses_kirim': return Icons.route;
       case 'diterima': return Icons.check_circle;
       default: return Icons.circle;

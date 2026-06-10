@@ -1,7 +1,5 @@
 const ROLE_SCAN_PERMISSIONS = {
-  admin_konter: ['diterima_konter', 'keluar_konter'],
-  staff_gudang: ['diterima_gudang', 'keluar_gudang'],
-  admin_cabang: ['diterima_konter', 'keluar_konter', 'diterima_gudang', 'keluar_gudang'],
+  admin_cabang: ['diterima_cabang', 'keluar_cabang'],
   driver: ['diterima'],
 };
 
@@ -10,8 +8,7 @@ function canRoleSetStatus(role, targetStatus) {
 }
 
 function getScanTypeForRole(role) {
-  if (role === 'admin_konter') return 'create';
-  if (role === 'admin_cabang' || role === 'staff_gudang') return 'datang';
+  if (role === 'admin_cabang') return 'datang';
   if (role === 'driver') return 'diterima';
   return null;
 }

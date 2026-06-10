@@ -28,9 +28,9 @@ class TransactionRepository {
     required String statusBaru,
     String? driverUserId,
     String? tipeTujuan,
-    String? gudangTujuanId,
+    String? cabangTujuanId,
     String? namaDriverManual,
-    String? gudangNamaManual,
+    String? cabangNamaManual,
     String? catatan,
     String? namaPenerima,
   }) async {
@@ -39,9 +39,9 @@ class TransactionRepository {
       'status_baru': statusBaru,
       if (driverUserId != null && driverUserId.isNotEmpty) 'driver_user_id': driverUserId,
       if (tipeTujuan != null) 'tipe_tujuan': tipeTujuan,
-      if (gudangTujuanId != null && gudangTujuanId.isNotEmpty) 'gudang_tujuan_id': gudangTujuanId,
+      if (cabangTujuanId != null && cabangTujuanId.isNotEmpty) 'cabang_tujuan_id': cabangTujuanId,
       if (namaDriverManual != null && namaDriverManual.isNotEmpty) 'nama_driver_manual': namaDriverManual,
-      if (gudangNamaManual != null && gudangNamaManual.isNotEmpty) 'gudang_nama_manual': gudangNamaManual,
+      if (cabangNamaManual != null && cabangNamaManual.isNotEmpty) 'cabang_nama_manual': cabangNamaManual,
       if (catatan != null && catatan.isNotEmpty) 'catatan': catatan,
       if (namaPenerima != null && namaPenerima.isNotEmpty) 'nama_penerima': namaPenerima,
     });

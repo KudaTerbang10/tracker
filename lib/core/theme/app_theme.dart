@@ -35,10 +35,8 @@ class AppTheme {
 
   static Color statusColor(String status) {
     switch (status) {
-      case 'diterima_konter': return Colors.orange;
-      case 'keluar_konter': return Colors.blue;
-      case 'diterima_gudang': return Colors.teal;
-      case 'keluar_gudang': return Colors.indigo;
+      case 'diterima_cabang': return Colors.teal;
+      case 'keluar_cabang': return Colors.indigo;
       case 'proses_kirim': return Colors.deepPurple;
       case 'diterima': return Colors.green;
       default: return Colors.grey;

@@ -71,7 +71,7 @@ class _TrackDetail extends StatelessWidget {
     final tipe = tx.tujuanSelanjutnya?['tipe'] as String?;
     if (tipe == 'penerima') return true;
     for (final log in tx.trackingLogs) {
-      if (log.status == 'keluar_konter' || log.status == 'keluar_gudang') {
+      if (log.status == 'keluar_cabang') {
         if (log.tujuan?['tipe'] == 'penerima') return true;
       }
     }

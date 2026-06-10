@@ -60,20 +60,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             _menuCard(Icons.bar_chart, 'Analitik Traffic', () => _comingSoon(), color: AppTheme.primary),
             const SizedBox(height: 8),
             _menuCard(Icons.people, 'Manajemen Akun', () => context.go('/dashboard/users'), color: AppTheme.primary),
-          ],
-
-          if (role == 'admin_konter') ...[
-            _menuCard(Icons.add_box, 'Input Transaksi Baru', () => context.go('/dashboard/transaksi-baru'), color: Colors.orange.shade700),
             const SizedBox(height: 8),
-            _menuCard(Icons.qr_code_scanner, 'Scan Barang Keluar', () => context.go('/dashboard/scan-keluar'), color: Colors.blue.shade700),
-          ],
-
-          if (role == 'staff_gudang') ...[
             _menuCard(Icons.add_box, 'Input Transaksi Baru', () => context.go('/dashboard/transaksi-baru'), color: Colors.orange.shade700),
             const SizedBox(height: 8),
             _menuCard(Icons.qr_code_scanner, 'Scan Barang Datang', () => context.go('/dashboard/scan-datang'), color: Colors.teal.shade700),
             const SizedBox(height: 8),
             _menuCard(Icons.qr_code_scanner, 'Scan Barang Keluar', () => context.go('/dashboard/scan-keluar'), color: Colors.indigo.shade700),
+            const SizedBox(height: 8),
+            _menuCard(Icons.list_alt, 'Daftar Transaksi', () => context.go('/dashboard/daftar-transaksi'), color: Colors.grey.shade700),
           ],
 
           if (role == 'admin_cabang') ...[
@@ -157,12 +151,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Future<void> _sync() async {
     setState(() => _syncing = true);
-    final role = ref.read(authProvider).user?.role ?? '';
-    final result = await ref.read(syncRepositoryProvider).syncAll(canSyncKonters: role == 'super_admin');
+    final result = await ref.read(syncRepositoryProvider).syncAll();
     final driversOk = result['drivers'] ?? false;
-    final gudangsOk = result['gudangs'] ?? false;
-    final kontersOk = result['konters'] ?? false;
-    final allOk = driversOk && gudangsOk && kontersOk;
+    final cabangsOk = result['cabangs'] ?? false;
+    final allOk = driversOk && cabangsOk;
     setState(() {
       _syncing = false;
       _lastSyncSuccess = allOk;

@@ -130,7 +130,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                 itemCount: list.length,
                 itemBuilder: (_, i) {
                   final tx = list[i];
-                  final konterName = _konterName(tx);
                   final user = ref.read(authProvider).user;
                   final isDriver = user?.isDriver ?? false;
                   final canDelete = tab != 'history' && _canDelete(tx, user);
@@ -175,11 +174,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('${tx.pengirimName} → ${tx.penerimaName}'),
-                              if (konterName.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(konterName, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.statusColor(tx.statusSaatIni), fontWeight: FontWeight.w500)),
-                                ),
                               Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
                             ],
                           ),
@@ -234,30 +228,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     }
   }
 
-  String _konterName(Transaction tx) {
-    if (tx.statusSaatIni == 'diterima_konter' || tx.statusSaatIni == 'keluar_konter') {
-      final name = tx.createdBy['konter_name']?.toString() ?? '';
-      if (name.isNotEmpty) return name;
-      return tx.createdBy['gudang_name']?.toString() ?? tx.createdBy['name']?.toString() ?? '';
-    }
-    return '';
-  }
-
   bool _canDelete(Transaction tx, User? user) {
     if (user == null) return false;
-    if (!(user.isAdminKonter || user.isStaffGudang || user.isAdminCabang)) return false;
-
-    if (user.isAdminKonter) {
-      return tx.createdBy['konter_id']?.toString() == user.konterId &&
-          tx.statusSaatIni == 'diterima_konter';
-    }
-    if (user.isStaffGudang) {
-      return tx.createdBy['gudang_id']?.toString() == user.gudangId &&
-          tx.statusSaatIni == 'diterima_gudang';
-    }
-    if (tx.statusSaatIni != 'diterima_konter' && tx.statusSaatIni != 'diterima_gudang') {
-      return false;
-    }
+    if (!user.isAdminCabang) return false;
+    if (tx.statusSaatIni != 'diterima_cabang') return false;
     if (tx.trackingLogs.isNotEmpty) {
       final firstCabang = tx.trackingLogs.first.lokasi?['cabang_id']?.toString();
       if (firstCabang != null) return firstCabang == user.cabangId;
@@ -338,10 +312,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                 ),
               ),
             ),
-            if (_konterName(tx).isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _lokasiCard(tx),
-            ],
             const SizedBox(height: 12),
             _InfoCard(
               title: 'Penerima',
@@ -414,32 +384,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     final tipe = tx.tujuanSelanjutnya?['tipe'] as String?;
     if (tipe == 'penerima') return true;
     for (final log in tx.trackingLogs) {
-      if (log.status == 'keluar_konter' || log.status == 'keluar_gudang') {
+      if (log.status == 'keluar_cabang') {
         if (log.tujuan?['tipe'] == 'penerima') return true;
       }
     }
     return false;
-  }
-
-  Widget _lokasiCard(Transaction tx) {
-    final name = _konterName(tx);
-    if (name.isEmpty) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.store, color: AppTheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
   }
 
 }

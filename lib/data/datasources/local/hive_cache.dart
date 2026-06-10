@@ -2,13 +2,13 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 class HiveCache {
   static const String _driverBox = 'drivers_cache';
-  static const String _gudangBox = 'gudangs_cache';
+  static const String _cabangBox = 'cabangs_cache';
   static const String _metaKey = '__meta__';
 
   static Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox(_driverBox);
-    await Hive.openBox(_gudangBox);
+    await Hive.openBox(_cabangBox);
   }
 
   static Future<Box> openBoxIfNeeded(String name) async {
@@ -17,10 +17,11 @@ class HiveCache {
   }
 
   static Box _driver() => Hive.box(_driverBox);
-  static Box _gudang() => Hive.box(_gudangBox);
+  static Box _cabang() => Hive.box(_cabangBox);
 
   static Future<void> saveDrivers(List<Map<String, dynamic>> drivers) async {
     final box = _driver();
+    await box.clear();
     for (final d in drivers) {
       await box.put(d['user_id'].toString(), d);
     }
@@ -45,23 +46,17 @@ class HiveCache {
     return list;
   }
 
-  static DateTime? getLastSynced() {
-    final box = _driver();
-    final meta = box.get(_metaKey);
-    if (meta == null) return null;
-    return DateTime.tryParse((meta as Map)['last_synced'] as String);
-  }
-
-  static Future<void> saveGudangs(List<Map<String, dynamic>> gudangs) async {
-    final box = _gudang();
-    for (final g in gudangs) {
-      await box.put(g['gudang_id'].toString(), g);
+  static Future<void> saveCabangs(List<Map<String, dynamic>> cabangs) async {
+    final box = _cabang();
+    await box.clear();
+    for (final c in cabangs) {
+      await box.put(c['cabang_id'].toString(), c);
     }
     await box.put(_metaKey, {'last_synced': DateTime.now().toIso8601String()});
   }
 
-  static List<Map<String, dynamic>> getGudangs({String? query}) {
-    final box = _gudang();
+  static List<Map<String, dynamic>> getCabangs({String? query}) {
+    final box = _cabang();
     final list = <Map<String, dynamic>>[];
     for (final key in box.keys) {
       if (key == _metaKey) continue;
@@ -77,4 +72,12 @@ class HiveCache {
     }
     return list;
   }
+
+  static DateTime? getLastSynced() {
+    final box = _driver();
+    final meta = box.get(_metaKey);
+    if (meta == null) return null;
+    return DateTime.tryParse((meta as Map)['last_synced'] as String);
+  }
+
 }

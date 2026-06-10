@@ -9,7 +9,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
   await HiveCache.init();
-  await HiveCache.openBoxIfNeeded('konters_cache');
   await _bootstrapSync();
   runApp(const ProviderScope(child: TrackerApp()));
 }
@@ -20,8 +19,9 @@ Future<void> _bootstrapSync() async {
   final needSync = lastSynced == null || now.difference(lastSynced).inHours >= 24;
 
   if (!needSync) return;
-  if (HiveCache.getDrivers().isEmpty || HiveCache.getGudangs().isEmpty) {
-    final sync = SyncRepository();
-    await Future.wait([sync.syncDrivers(), sync.syncGudangs(), sync.syncKonters()]);
-  }
+  final sync = SyncRepository();
+  await Future.wait([
+    if (HiveCache.getDrivers().isEmpty) sync.syncDrivers(),
+    sync.syncCabangs(),
+  ]);
 }

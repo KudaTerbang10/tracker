@@ -10,13 +10,14 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
+import '../../auth/providers/auth_provider.dart';
 
 final _kirimProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, page) {
   return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', page: page);
 });
 
 final _riwayatProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, page) {
-  return ref.read(transactionRepositoryProvider).getList(status: 'diterima', page: page);
+  return ref.read(transactionRepositoryProvider).getList(status: 'diterima,diterima_cabang', tab: 'history', page: page);
 });
 
 class DriverTabScreen extends ConsumerStatefulWidget {
@@ -63,19 +64,31 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
         controller: _tabController,
         children: [
           _buildTab(_kirimProvider, _kirimPage, (p) => setState(() => _kirimPage = p)),
-          _buildTab(_riwayatProvider, _riwayatPage, (p) => setState(() => _riwayatPage = p)),
+          _buildTab(_riwayatProvider, _riwayatPage, (p) => setState(() => _riwayatPage = p), isRiwayat: true),
         ],
       ),
     );
   }
 
+  Map<String, dynamic>? _tujuanUntukDriver(Transaction tx, String? userId) {
+    if (userId == null) return null;
+    for (final log in tx.trackingLogs) {
+      if (log.driverDitugaskan?['user_id']?.toString() == userId) {
+        return log.tujuan;
+      }
+    }
+    return null;
+  }
+
   Widget _buildTab(
     AutoDisposeFutureProvider<Map<String, dynamic>> Function(int) provider,
     int page,
-    ValueChanged<int> onPageChanged,
-  ) {
+    ValueChanged<int> onPageChanged, {
+    bool isRiwayat = false,
+  }) {
     final async = ref.watch(provider(page));
     final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
+    final currentUserId = ref.read(authProvider).user?.id;
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -146,6 +159,30 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('${tx.pengirimName} → ${tx.penerimaName}'),
+                            if (isRiwayat
+                                ? _tujuanUntukDriver(tx, currentUserId) != null
+                                : tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.tour, size: 14, color: Colors.orange.shade700),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        () {
+                                          final tujuan = isRiwayat ? _tujuanUntukDriver(tx, currentUserId) : tx.tujuanSelanjutnya;
+                                          final nama = tujuan?['nama']?.toString() ?? '';
+                                          final tipe = tujuan?['tipe']?.toString() ?? '';
+                                          return tipe == 'penerima' ? 'Mengantar ke $nama (penerima)' : 'Mengantar ke $nama';
+                                        }(),
+                                        style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
                           ],
                         ),

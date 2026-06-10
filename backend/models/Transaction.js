@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const trackingLogSchema = new mongoose.Schema({
   status: {
     type: String,
-    enum: ['diterima_konter', 'keluar_konter', 'diterima_gudang', 'keluar_gudang', 'proses_kirim', 'diterima'],
+    enum: ['diterima_cabang', 'keluar_cabang', 'proses_kirim', 'diterima'],
     required: true,
   },
   deskripsi: { type: String, default: '' },
@@ -14,9 +14,7 @@ const trackingLogSchema = new mongoose.Schema({
   },
   lokasi: {
     nama: { type: String, default: '' },
-    tipe: { type: String, enum: ['konter', 'gudang', 'cabang', ''], default: '' },
-    konter_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Konter', default: null },
-    gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
+    tipe: { type: String, enum: ['cabang', ''], default: '' },
     cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
   },
   driver_ditugaskan: {
@@ -25,7 +23,7 @@ const trackingLogSchema = new mongoose.Schema({
     kontak: { type: String, default: '' },
   },
   tujuan: {
-    tipe: { type: String, enum: ['gudang', 'penerima', ''], default: '' },
+    tipe: { type: String, enum: ['cabang', 'penerima', ''], default: '' },
     nama: { type: String, default: '' },
   },
   nama_penerima: { type: String, default: '' },
@@ -57,18 +55,14 @@ const transactionSchema = new mongoose.Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
     role: { type: String, required: true },
-    konter_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Konter', default: null },
-    konter_name: { type: String, default: '' },
-    gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
-    gudang_name: { type: String, default: '' },
     cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
     cabang_name: { type: String, default: '' },
   },
 
   status_saat_ini: {
     type: String,
-    enum: ['diterima_konter', 'keluar_konter', 'diterima_gudang', 'keluar_gudang', 'proses_kirim', 'diterima'],
-    default: 'diterima_konter',
+    enum: ['diterima_cabang', 'keluar_cabang', 'proses_kirim', 'diterima'],
+    default: 'diterima_cabang',
   },
 
   nama_driver: { type: String, default: null },
@@ -76,8 +70,8 @@ const transactionSchema = new mongoose.Schema({
   driver_user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
   tujuan_selanjutnya: {
-    tipe: { type: String, enum: ['gudang', 'penerima', null], default: null },
-    gudang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Gudang', default: null },
+    tipe: { type: String, enum: ['cabang', 'penerima', null], default: null },
+    cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
     nama: { type: String, default: null },
   },
 

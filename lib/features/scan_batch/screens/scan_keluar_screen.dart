@@ -35,7 +35,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     final notifier = ref.read(scanKeluarProvider.notifier);
     final validCount = state.validCount;
     final role = ref.read(authProvider).user?.role ?? '';
-    final isGudangRole = role == 'staff_gudang' || role == 'admin_konter' || role == 'admin_cabang';
+    final isAdminCabang = role == 'admin_cabang';
 
     return Scaffold(
       appBar: AppBar(
@@ -60,7 +60,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       body: Column(
         children: [
           const SizedBox(height: 4),
-          if (isGudangRole && state.scannedItems.any((i) => i.isValid)) ...[
+          if (isAdminCabang && state.scannedItems.any((i) => i.isValid)) ...[
             Container(
               padding: const EdgeInsets.all(16),
               color: AppTheme.primary.withValues(alpha: 0.05),
@@ -103,7 +103,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                             notifier.setTujuanType(TujuanType.cabang);
                         },
                       ),
-                      if (role == 'staff_gudang' || role == 'admin_cabang') ...[
+                      if (isAdminCabang) ...[
                         const SizedBox(width: 8),
                         FilterChip(
                           label: const Text('Langsung ke Penerima'),
@@ -383,7 +383,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       String? error;
       final role = ref.read(authProvider).user?.role ?? '';
 
-      if (role == 'staff_gudang' || role == 'admin_konter' || role == 'admin_cabang') {
+      if (role == 'admin_cabang') {
         isValid = true;
       } else {
         error = 'Role tidak memiliki akses scan keluar';
@@ -485,22 +485,20 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     setState(() => _submitting = true);
     try {
       final repo = ref.read(transactionRepositoryProvider);
-      final statusBaru = role == 'admin_konter'
-          ? 'keluar_konter'
-          : 'keluar_gudang';
+      final statusBaru = 'keluar_cabang';
 
       final result = await repo.batchUpdateStatus(
         noResiList: validItems.map((i) => i.noResi).toList(),
         statusBaru: statusBaru,
         driverUserId: state.driverUserId,
         tipeTujuan: state.tujuanType == TujuanType.cabang
-            ? 'gudang'
+            ? 'cabang'
             : 'penerima',
-        gudangTujuanId: state.tujuanType == TujuanType.cabang
+        cabangTujuanId: state.tujuanType == TujuanType.cabang
             ? state.cabangTujuanId
             : null,
         namaDriverManual: state.driverUserId == null ? state.driverName : null,
-        gudangNamaManual:
+        cabangNamaManual:
             (state.tujuanType == TujuanType.cabang &&
                 state.cabangTujuanId == null)
             ? state.cabangTujuanNama

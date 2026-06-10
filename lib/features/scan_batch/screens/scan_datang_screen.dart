@@ -27,8 +27,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     final validCount = items.where((i) => i.isValid).length;
     final hasInvalid = items.any((i) => !i.isValid);
     final role = ref.read(authProvider).user?.role ?? '';
-    final isGudang = role == 'staff_gudang' || role == 'admin_cabang';
-    final nextStatus = isGudang ? 'diterima_gudang' : 'diterima_konter';
+    final canScan = role == 'admin_cabang';
 
     return Scaffold(
       appBar: AppBar(
@@ -218,7 +217,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                   child: ElevatedButton(
                     onPressed: _submitting
                         ? null
-                        : () => _confirm(context, nextStatus),
+                        : () => _confirm(context),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(0, 48),
                       backgroundColor: Colors.green,
@@ -264,7 +263,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
       String? error;
       final role = ref.read(authProvider).user?.role ?? '';
 
-      if (role == 'staff_gudang' || role == 'admin_konter' || role == 'admin_cabang') {
+      if (role == 'admin_cabang') {
         isValid = true;
       } else {
         error = 'Role tidak memiliki akses scan datang';
@@ -298,7 +297,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     await _processResi(code);
   }
 
-  Future<void> _confirm(BuildContext context, String nextStatus) async {
+  Future<void> _confirm(BuildContext context) async {
     final items = ref.read(scanDatangProvider);
     final validItems = items.where((i) => i.isValid).toList();
     if (validItems.isEmpty) return;
@@ -335,7 +334,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
       final repo = ref.read(transactionRepositoryProvider);
       final result = await repo.batchUpdateStatus(
         noResiList: validItems.map((i) => i.noResi).toList(),
-        statusBaru: nextStatus,
+        statusBaru: 'diterima_cabang',
       );
 
       if (mounted) {

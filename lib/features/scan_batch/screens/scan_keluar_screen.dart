@@ -247,10 +247,33 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                               ResiCopyButton(resi: item.noResi),
                             ],
                           ),
-                          subtitle: Text(
-                            '${item.transaction.pengirimName} → ${item.transaction.penerimaName}\n${item.isValid ? 'Siap diproses' : item.errorMessage ?? 'Tidak valid'}',
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${item.transaction.pengirimName} → ${item.transaction.penerimaName}',
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  _badge(item.transaction.beratLabel, Colors.blue),
+                                  const SizedBox(width: 6),
+                                  _badge(item.transaction.koliLabel, Colors.orange),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                item.isValid
+                                    ? 'Siap diproses'
+                                    : item.errorMessage ?? 'Tidak valid',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: item.isValid ? Colors.green : AppTheme.error,
+                                ),
+                              ),
+                            ],
                           ),
-                          isThreeLine: true,
                           trailing: GestureDetector(
                             onLongPress: () => notifier.removeItem(item.noResi),
                             child: Container(
@@ -513,6 +536,24 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     } finally {
       setState(() => _submitting = false);
     }
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
   }
 }
 

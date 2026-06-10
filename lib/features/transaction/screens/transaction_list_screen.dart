@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/transaction.dart';
+import '../../../data/models/user.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
@@ -130,8 +131,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                 itemBuilder: (_, i) {
                   final tx = list[i];
                   final konterName = _konterName(tx);
-                  final isDriver = ref.read(authProvider).user?.isDriver ?? false;
-                  final canDelete = (ref.read(authProvider).user?.isAdminKonter ?? false) || (ref.read(authProvider).user?.isStaffGudang ?? false) || (ref.read(authProvider).user?.isAdminCabang ?? false);
+                  final user = ref.read(authProvider).user;
+                  final isDriver = user?.isDriver ?? false;
+                  final canDelete = tab != 'history' && _canDelete(tx, user);
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
@@ -235,6 +237,28 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       return tx.createdBy['gudang_name']?.toString() ?? tx.createdBy['name']?.toString() ?? '';
     }
     return '';
+  }
+
+  bool _canDelete(Transaction tx, User? user) {
+    if (user == null) return false;
+    if (!(user.isAdminKonter || user.isStaffGudang || user.isAdminCabang)) return false;
+
+    if (user.isAdminKonter) {
+      return tx.createdBy['konter_id']?.toString() == user.konterId &&
+          tx.statusSaatIni == 'diterima_konter';
+    }
+    if (user.isStaffGudang) {
+      return tx.createdBy['gudang_id']?.toString() == user.gudangId &&
+          tx.statusSaatIni == 'diterima_gudang';
+    }
+    if (tx.statusSaatIni != 'diterima_konter' && tx.statusSaatIni != 'diterima_gudang') {
+      return false;
+    }
+    if (tx.trackingLogs.isNotEmpty) {
+      final firstCabang = tx.trackingLogs.first.lokasi?['cabang_id']?.toString();
+      if (firstCabang != null) return firstCabang == user.cabangId;
+    }
+    return tx.trackingLogs.length == 1;
   }
 
   void _showDetail(Transaction tx) {

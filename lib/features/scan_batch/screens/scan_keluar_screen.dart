@@ -21,14 +21,7 @@ class ScanKeluarScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
-  final _catatanC = TextEditingController();
   bool _submitting = false;
-
-  @override
-  void dispose() {
-    _catatanC.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,10 +43,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   tooltip: 'Reset',
-                  onPressed: () {
-                    notifier.clear();
-                    _resetFields();
-                  },
+                  onPressed: () => notifier.clear(),
                 ),
               ]
             : null,
@@ -190,16 +180,6 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _catatanC,
-                        decoration: const InputDecoration(
-                          labelText: 'Catatan (opsional)',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        onChanged: (v) => notifier.setCatatan(v),
-                      ),
                     ],
                   ),
                 ),
@@ -338,10 +318,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
             children: [
               if (state.scannedItems.isNotEmpty)
                 GestureDetector(
-                  onLongPress: () {
-                    notifier.clear();
-                    _resetFields();
-                  },
+                  onLongPress: () => notifier.clear(),
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -396,10 +373,6 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
         ),
       ),
     );
-  }
-
-  void _resetFields() {
-    _catatanC.clear();
   }
 
   Future<void> _processResi(String code) async {
@@ -543,7 +516,6 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 state.cabangTujuanId == null)
             ? state.cabangTujuanNama
             : null,
-        catatan: state.catatan,
       );
 
       if (mounted) {
@@ -561,7 +533,6 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
         );
         SoundPlayer.instance.playSuccess();
         ref.read(scanKeluarProvider.notifier).clear();
-        _resetFields();
       }
     } catch (e) {
       SoundPlayer.instance.playError();

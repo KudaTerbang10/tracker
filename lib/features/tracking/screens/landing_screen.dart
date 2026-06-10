@@ -37,33 +37,40 @@ class _LandingScreenState extends State<LandingScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo & Brand Header
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.local_shipping_rounded,
-                      size: 72,
-                      color: AppTheme.primary,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(100),
+                      onLongPress: () => context.go('/login'),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.local_shipping_rounded,
+                          size: 72,
+                          color: AppTheme.primary,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Hira Express',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                          letterSpacing: -0.5,
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Lacak & kelola kiriman Anda secara real-time',
+                    'Lacak kiriman Anda secara real-time',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF64748B),
-                        ),
+                      color: const Color(0xFF64748B),
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 36),
@@ -77,7 +84,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Nomor Resi Pengiriman',
+                            'Lacak Pengiriman',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,
@@ -89,16 +96,25 @@ class _LandingScreenState extends State<LandingScreen> {
                             controller: _resiC,
                             decoration: InputDecoration(
                               labelText: 'Masukkan No. Resi',
-                              hintText: 'Contoh: EXP12345',
-                              prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primary),
+                              hintText: 'Contoh: CKG-20270710-0002',
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                color: AppTheme.primary,
+                              ),
                               suffixIcon: Container(
                                 margin: const EdgeInsets.only(right: 6),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(alpha: 0.08),
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.08,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: IconButton(
-                                  icon: const Icon(Icons.qr_code_scanner_rounded, color: AppTheme.primary, size: 20),
+                                  icon: const Icon(
+                                    Icons.qr_code_scanner_rounded,
+                                    color: AppTheme.primary,
+                                    size: 20,
+                                  ),
                                   onPressed: _scanBarcode,
                                 ),
                               ),
@@ -117,7 +133,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 children: const [
                                   Icon(Icons.track_changes_rounded, size: 18),
                                   SizedBox(width: 8),
-                                  Text('Lacak Kiriman'),
+                                  Text('Lacak'),
                                 ],
                               ),
                             ),
@@ -135,10 +151,15 @@ class _LandingScreenState extends State<LandingScreen> {
                     label: const Text('Masuk Portal Staff'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.primary,
-                      side: const BorderSide(color: Color(0xFFCBD5E1), width: 1),
+                      side: const BorderSide(
+                        color: Color(0xFFCBD5E1),
+                        width: 1,
+                      ),
                       backgroundColor: Colors.white.withValues(alpha: 0.6),
                       minimumSize: const Size(200, 46),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
                   ),
                 ],

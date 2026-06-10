@@ -41,7 +41,8 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
                   tooltip: 'Reset semua',
-                  onPressed: () => ref.read(scanDatangProvider.notifier).clear(),
+                  onPressed: () =>
+                      ref.read(scanDatangProvider.notifier).clear(),
                 ),
               ]
             : null,
@@ -73,12 +74,20 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                       color: const Color(0xFF10B981).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      size: 16,
+                      color: Color(0xFF10B981),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     '$validCount barang valid',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   if (hasInvalid) ...[
                     const SizedBox(width: 8),
@@ -88,18 +97,30 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                         color: AppTheme.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.error_rounded, size: 16, color: AppTheme.error),
+                      child: Icon(
+                        Icons.error_rounded,
+                        size: 16,
+                        color: AppTheme.error,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       '${items.length - validCount} tidak valid',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.error),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppTheme.error,
+                      ),
                     ),
                   ],
                   const Spacer(),
                   Text(
                     'Total: ${items.length}',
-                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -147,9 +168,15 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                     decoration: BoxDecoration(
                       color: AppTheme.error.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.error.withValues(alpha: 0.15)),
+                      border: Border.all(
+                        color: AppTheme.error.withValues(alpha: 0.15),
+                      ),
                     ),
-                    child: Icon(Icons.delete_outline_rounded, color: AppTheme.error, size: 22),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppTheme.error,
+                      size: 22,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -172,13 +199,21 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _scan,
                     icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                    label: const Text('SCAN RESI', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    label: const Text(
+                      'SCAN RESI',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: Colors.white,
                       shadowColor: Colors.transparent,
                       minimumSize: const Size(0, 48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -207,15 +242,26 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                         foregroundColor: Colors.white,
                         shadowColor: Colors.transparent,
                         minimumSize: const Size(0, 48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: _submitting
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
                             )
-                          : const Text('KONFIRMASI', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                          : const Text(
+                              'KONFIRMASI',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -257,7 +303,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Tekan tombol SCAN di bawah untuk mulai\nmenscan barcode pada resi barang datang.',
+              'Tekan tombol SCAN di bawah untuk mulai\n memindai barcode pada resi barang datang.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -334,20 +380,31 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '${item.transaction.pengirimName} → ${item.transaction.penerimaName}',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      _badge(item.transaction.beratLabel, const Color(0xFF0EA5E9)),
+                      _badge(
+                        item.transaction.beratLabel,
+                        const Color(0xFF0EA5E9),
+                      ),
                       const SizedBox(width: 6),
-                      _badge(item.transaction.koliLabel, const Color(0xFFF97316)),
+                      _badge(
+                        item.transaction.koliLabel,
+                        const Color(0xFFF97316),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isValid ? 'Siap diproses' : (item.errorMessage ?? 'Tidak valid'),
+                    isValid
+                        ? 'Siap diproses'
+                        : (item.errorMessage ?? 'Tidak valid'),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -358,14 +415,19 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
               ),
             ),
             GestureDetector(
-              onLongPress: () => ref.read(scanDatangProvider.notifier).removeItem(item.noResi),
+              onLongPress: () =>
+                  ref.read(scanDatangProvider.notifier).removeItem(item.noResi),
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppTheme.error.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.close_rounded, size: 16, color: AppTheme.error),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppTheme.error,
+                ),
               ),
             ),
           ],
@@ -393,8 +455,9 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
   }
 
   Future<void> _processResi(String code) async {
-    final alreadyScanned =
-        ref.read(scanDatangProvider).any((i) => i.noResi == code);
+    final alreadyScanned = ref
+        .read(scanDatangProvider)
+        .any((i) => i.noResi == code);
     if (alreadyScanned) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -456,7 +519,10 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Konfirmasi Penerimaan', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Konfirmasi Penerimaan',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -468,16 +534,30 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.inventory_2_rounded, color: Color(0xFF10B981), size: 32),
+                  const Icon(
+                    Icons.inventory_2_rounded,
+                    color: Color(0xFF10B981),
+                    size: 32,
+                  ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '${validItems.length} Paket',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
-                      const Text('siap dikonfirmasi', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                      const Text(
+                        'siap dikonfirmasi',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -501,10 +581,15 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF10B981),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   minimumSize: const Size(0, 44),
                 ),
-                child: const Text('KONFIRMASI', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'KONFIRMASI',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
               const SizedBox(height: 6),
               TextButton(
@@ -534,7 +619,9 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
             content: Text(
               '✅ $berhasil berhasil${gagal > 0 ? ', ❌ $gagal gagal' : ''}',
             ),
-            backgroundColor: gagal > 0 ? AppTheme.warning : const Color(0xFF10B981),
+            backgroundColor: gagal > 0
+                ? AppTheme.warning
+                : const Color(0xFF10B981),
           ),
         );
         SoundPlayer.instance.playSuccess();

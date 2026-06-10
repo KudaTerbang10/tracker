@@ -27,7 +27,6 @@ class ScanKeluarState {
   final TujuanType tujuanType;
   final String? cabangTujuanId;
   final String? cabangTujuanNama;
-  final String catatan;
   final bool driverLocked;
 
   ScanKeluarState({
@@ -38,7 +37,6 @@ class ScanKeluarState {
     this.tujuanType = TujuanType.cabang,
     this.cabangTujuanId,
     this.cabangTujuanNama,
-    this.catatan = '',
     this.driverLocked = false,
   });
 
@@ -50,7 +48,6 @@ class ScanKeluarState {
     TujuanType? tujuanType,
     String? cabangTujuanId,
     String? cabangTujuanNama,
-    String? catatan,
     bool? driverLocked,
   }) => ScanKeluarState(
     scannedItems: scannedItems ?? this.scannedItems,
@@ -60,7 +57,6 @@ class ScanKeluarState {
     tujuanType: tujuanType ?? this.tujuanType,
     cabangTujuanId: cabangTujuanId ?? this.cabangTujuanId,
     cabangTujuanNama: cabangTujuanNama ?? this.cabangTujuanNama,
-    catatan: catatan ?? this.catatan,
     driverLocked: driverLocked ?? this.driverLocked,
   );
 
@@ -116,7 +112,6 @@ class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
       driverPhone: stillHasValid ? state.driverPhone : null,
       cabangTujuanId: stillHasValid ? state.cabangTujuanId : null,
       cabangTujuanNama: stillHasValid ? state.cabangTujuanNama : null,
-      catatan: stillHasValid ? state.catatan : '',
     );
   }
 
@@ -138,10 +133,6 @@ class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
 
   void setCabangTujuanManual(String name) {
     state = state.copyWith(cabangTujuanId: null, cabangTujuanNama: name);
-  }
-
-  void setCatatan(String catatan) {
-    state = state.copyWith(catatan: catatan);
   }
 
   void clear() => state = ScanKeluarState();

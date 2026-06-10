@@ -192,8 +192,12 @@ class TrackingTimeline extends StatelessWidget {
         if (driverName != null && driverName.isNotEmpty) driverLine = 'Kurir: $driverName';
         break;
       case 'diterima':
-        final nama = log.namaPenerima ?? '';
-        main = nama.isNotEmpty ? 'Diterima oleh $nama' : 'Paket telah diterima';
+        if (log.deskripsi.isNotEmpty) {
+          main = log.deskripsi;
+        } else {
+          final nama = log.namaPenerima ?? '';
+          main = nama.isNotEmpty ? 'Diterima oleh $nama' : 'Paket telah diterima';
+        }
         break;
       default:
         if (log.deskripsi.isNotEmpty) main = log.deskripsi;

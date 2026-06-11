@@ -32,17 +32,18 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     final isAdminCabang = role == 'admin_cabang';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Scan Barang Keluar'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
         actions: state.scannedItems.isNotEmpty
             ? [
                 IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Reset',
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: 'Reset semua',
                   onPressed: () => notifier.clear(),
                 ),
               ]
@@ -50,321 +51,354 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       ),
       body: Column(
         children: [
-          const SizedBox(height: 4),
+          // Driver & Tujuan card
           if (isAdminCabang && state.scannedItems.any((i) => i.isValid)) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Card(
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
                 color: Colors.white,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.person_pin_rounded, size: 20, color: AppTheme.primary),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Data Driver & Tujuan',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _DriverAutocompleteField(
-                        onSelected: (d) => notifier.setDriver(
-                          d['user_id'].toString(),
-                          d['name'].toString(),
-                          d['phone'].toString(),
+                      const Icon(Icons.person_pin_rounded, size: 18, color: AppTheme.primary),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Data Driver & Tujuan',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Color(0xFF0F172A),
                         ),
-                        onManualChanged: (name) {
-                          if (name.trim().isNotEmpty) {
-                            notifier.setDriverManual(name.trim(), '');
-                          }
-                        },
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _DriverAutocompleteField(
+                    onSelected: (d) => notifier.setDriver(
+                      d['user_id'].toString(),
+                      d['name'].toString(),
+                      d['phone'].toString(),
+                    ),
+                    onManualChanged: (name) {
+                      if (name.trim().isNotEmpty) {
+                        notifier.setDriverManual(name.trim(), '');
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
                           FilterChip(
                             label: const Text('Ke Cabang Lain'),
                             selected: state.tujuanType == TujuanType.cabang,
-                            onSelected: (v) {
-                              if (!state.driverLocked) {
-                                notifier.setTujuanType(TujuanType.cabang);
-                              }
-                            },
-                            selectedColor: AppTheme.primary.withValues(alpha: 0.1),
-                            checkmarkColor: AppTheme.primary,
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              fontWeight: state.tujuanType == TujuanType.cabang ? FontWeight.w700 : FontWeight.w500,
-                              color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFF64748B),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFFE2E8F0),
-                                width: 1,
-                              ),
-                            ),
+                            onSelected: (v) => notifier.setTujuanType(TujuanType.cabang),
+                        selectedColor: AppTheme.primary.withValues(alpha: 0.1),
+                        checkmarkColor: AppTheme.primary,
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: state.tujuanType == TujuanType.cabang ? FontWeight.w700 : FontWeight.w500,
+                          color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFF64748B),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFFE2E8F0),
+                            width: 1,
                           ),
-                          if (isAdminCabang) ...[
-                            const SizedBox(width: 8),
+                        ),
+                      ),
+                      if (isAdminCabang) ...[
+                        const SizedBox(width: 8),
                             FilterChip(
                               label: const Text('Langsung ke Penerima'),
                               selected: state.tujuanType == TujuanType.penerima,
-                              onSelected: (v) {
-                                if (!state.driverLocked) {
-                                  notifier.setTujuanType(TujuanType.penerima);
-                                }
-                              },
-                              selectedColor: AppTheme.primary.withValues(alpha: 0.1),
-                              checkmarkColor: AppTheme.primary,
-                              labelStyle: TextStyle(
-                                fontSize: 12,
-                                fontWeight: state.tujuanType == TujuanType.penerima ? FontWeight.w700 : FontWeight.w500,
-                                color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFF64748B),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                side: BorderSide(
-                                  color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFFE2E8F0),
-                                  width: 1,
-                                ),
-                              ),
+                              onSelected: (v) => notifier.setTujuanType(TujuanType.penerima),
+                          selectedColor: AppTheme.primary.withValues(alpha: 0.1),
+                          checkmarkColor: AppTheme.primary,
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: state.tujuanType == TujuanType.penerima ? FontWeight.w700 : FontWeight.w500,
+                            color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFF64748B),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFFE2E8F0),
+                              width: 1,
                             ),
-                          ],
-                        ],
-                      ),
-                      if (state.tujuanType == TujuanType.cabang) ...[
-                        const SizedBox(height: 12),
-                        _CabangAutocompleteField(
-                          excludeCabangId: ref.read(authProvider).user?.cabangId,
-                          onSelected: (c) => notifier.setCabangTujuan(
-                            c['cabang_id'].toString(),
-                            c['name'].toString(),
-                          ),
-                          onManualChanged: (name) {
-                            if (name.trim().isNotEmpty) {
-                              notifier.setCabangTujuanManual(name.trim());
-                            }
-                          },
-                        ),
-                      ],
-                      if (state.tujuanType == TujuanType.penerima) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.green.withValues(alpha: 0.15), width: 1),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.info_rounded, color: Colors.green, size: 18),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Paket akan dikirim langsung ke alamat penerima',
-                                  style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                            ],
                           ),
                         ),
                       ],
                     ],
                   ),
-                ),
+                  if (state.tujuanType == TujuanType.cabang) ...[
+                    const SizedBox(height: 12),
+                    _CabangAutocompleteField(
+                      excludeCabangId: ref.read(authProvider).user?.cabangId,
+                      onSelected: (c) => notifier.setCabangTujuan(
+                        c['cabang_id'].toString(),
+                        c['name'].toString(),
+                      ),
+                      onManualChanged: (name) {
+                        if (name.trim().isNotEmpty) {
+                          notifier.setCabangTujuanManual(name.trim());
+                        }
+                      },
+                    ),
+                  ],
+                  if (state.tujuanType == TujuanType.penerima) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.15), width: 1),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.info_rounded, color: Colors.green, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Paket akan dikirim langsung ke alamat penerima',
+                              style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
-          if (state.scannedItems.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+          // Status summary bar
+          if (state.scannedItems.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      size: 16,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Text(
                     '$validCount barang valid',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  if (validCount < state.scannedItems.length)
-                    Text(
-                      ' | ${state.scannedItems.length - validCount} tidak valid',
-                      style: const TextStyle(color: AppTheme.error),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF0F172A),
                     ),
+                  ),
+                  if (validCount < state.scannedItems.length) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.error_rounded,
+                        size: 16,
+                        color: AppTheme.error,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${state.scannedItems.length - validCount} tidak valid',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppTheme.error,
+                      ),
+                    ),
+                  ],
                   const Spacer(),
                   Text(
                     'Total: ${state.scannedItems.length}',
-                    style: const TextStyle(color: Colors.grey),
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
-          ],
+
+          // Scan list / empty state
           Expanded(
             child: state.scannedItems.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.qr_code_scanner,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Tekan "SCAN" untuk mulai 📷',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(color: Colors.grey),
-                        ),
-                        Text(
-                          'Scan barcode barang yang akan keluar',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildEmptyState()
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     itemCount: state.scannedItems.length,
                     itemBuilder: (_, i) {
                       final item = state.scannedItems[i];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          leading: Icon(
-                            item.isValid ? Icons.check_circle : Icons.error,
-                            color: item.isValid ? Colors.green : AppTheme.error,
-                          ),
-                          title: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  item.noResi,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 1,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              ResiCopyButton(resi: item.noResi),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${item.transaction.pengirimName} → ${item.transaction.penerimaName}',
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  _badge(item.transaction.beratLabel, Colors.blue),
-                                  const SizedBox(width: 6),
-                                  _badge(item.transaction.koliLabel, Colors.orange),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                item.isValid
-                                    ? 'Siap diproses'
-                                    : item.errorMessage ?? 'Tidak valid',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: item.isValid ? Colors.green : AppTheme.error,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: GestureDetector(
-                            onLongPress: () => notifier.removeItem(item.noResi),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Icon(Icons.close, size: 16, color: Colors.red.shade700),
-                            ),
-                          ),
-                        ),
-                      );
+                      return _buildScanCard(item, notifier);
                     },
                   ),
           ),
         ],
       ),
       bottomNavigationBar: SafeArea(
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: const Color(0xFFE2E8F0))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
           child: Row(
             children: [
-              if (state.scannedItems.isNotEmpty)
+              if (state.scannedItems.isNotEmpty) ...[
                 GestureDetector(
-                  onLongPress: () => notifier.clear(),
+                  onLongPress: _submitting ? null : () => notifier.clear(),
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
+                      color: AppTheme.error.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.error.withValues(alpha: 0.15),
+                      ),
                     ),
-                    child: Icon(Icons.close, color: Colors.red.shade700, size: 20),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      color: AppTheme.error,
+                      size: 22,
+                    ),
                   ),
                 ),
-              if (state.scannedItems.isNotEmpty) const SizedBox(width: 8),
+                const SizedBox(width: 10),
+              ],
               Expanded(
-                flex: state.scannedItems.isNotEmpty ? 1 : 1,
-                child: ElevatedButton.icon(
-                  onPressed: _scan,
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('SCAN'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: _scan,
+                    icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                    label: const Text(
+                      'SCAN RESI',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      shadowColor: Colors.transparent,
+                      minimumSize: const Size(0, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ),
               ),
               if (validCount > 0) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
-                  flex: 1,
-                  child: ElevatedButton(
-                    onPressed: _submitting
-                        ? null
-                        : () => _confirm(context, ref),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                    child: ElevatedButton(
+                      onPressed: _submitting ? null : () => _confirm(context, ref),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        minimumSize: const Size(0, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'KONFIRMASI',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
                             ),
-                          )
-                        : const Text('KONFIRMASI'),
+                    ),
                   ),
                 ),
               ],
@@ -432,7 +466,6 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
 
   Future<void> _confirm(BuildContext context, WidgetRef ref) async {
     final state = ref.read(scanKeluarProvider);
-    final role = ref.read(authProvider).user?.role ?? '';
     final validItems = state.scannedItems.where((i) => i.isValid).toList();
 
     if (validItems.isEmpty) return;
@@ -468,21 +501,80 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: Text(
-          'Kirim ${validItems.length} barang dengan Driver ${state.driverName ?? "-"}?',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Konfirmasi Kiriman',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.local_shipping_rounded,
+                    color: AppTheme.primary,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${validItems.length} Paket',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        'dikirim dengan ${state.driverName ?? "-"}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Status paket akan diperbarui menjadi "Keluar Cabang".',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+          ],
         ),
         actions: [
           Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-                child: const Text('KONFIRMASI'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  minimumSize: const Size(0, 44),
+                ),
+                child: const Text(
+                  'KONFIRMASI',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('BATAL'),
@@ -520,15 +612,12 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
 
       if (mounted) {
         final berhasil = result['berhasil'] as int? ?? 0;
-        final gagal = result['gagal'] as int? ?? 0;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              gagal > 0
-                  ? '✅ $berhasil berhasil, ❌ $gagal gagal'
-                  : '✅ $berhasil berhasil',
-            ),
-            backgroundColor: gagal > 0 ? AppTheme.warning : Colors.green,
+            content: Text('$berhasil berhasil'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
         SoundPlayer.instance.playSuccess();
@@ -549,18 +638,181 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
     }
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(100),
+                onLongPress: _scan,
+                child: Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 56,
+                    color: Color(0xFF0EA5E9),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Siap Scan Barang Keluar',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Tekan tombol SCAN di bawah untuk mulai\n memindai barcode pada resi barang keluar.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF64748B),
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanCard(ScanItem item, ScanKeluarNotifier notifier) {
+    final isValid = item.isValid;
+    final statusColor = isValid ? const Color(0xFF10B981) : AppTheme.error;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                isValid ? Icons.check_circle_rounded : Icons.error_rounded,
+                color: statusColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item.noResi,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: Color(0xFF0F172A),
+                            letterSpacing: 0.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      ResiCopyButton(resi: item.noResi),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.transaction.pengirimName} → ${item.transaction.penerimaName}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _badge(item.transaction.beratLabel, const Color(0xFF0EA5E9)),
+                      const SizedBox(width: 6),
+                      _badge(item.transaction.koliLabel, const Color(0xFFF97316)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isValid
+                        ? 'Siap diproses'
+                        : (item.errorMessage ?? 'Tidak valid'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onLongPress: () => notifier.removeItem(item.noResi),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: AppTheme.error,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _badge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
           color: color,
         ),
       ),

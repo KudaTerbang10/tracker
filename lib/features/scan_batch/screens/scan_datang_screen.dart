@@ -280,21 +280,28 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.qr_code_scanner_rounded,
-                size: 56,
-                color: Color(0xFF0EA5E9),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(100),
+                onLongPress: _scan,
+                child: Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 56,
+                    color: Color(0xFF0EA5E9),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 20),
             const Text(
-              'Siap Scan Barang',
+              'Siap Scan Barang Datang',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -552,7 +559,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                         ),
                       ),
                       const Text(
-                        'siap dikonfirmasi',
+                        'Siap dikonfirmasi',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),
@@ -613,15 +620,12 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
 
       if (mounted) {
         final berhasil = result['berhasil'] as int? ?? 0;
-        final gagal = result['gagal'] as int? ?? 0;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '✅ $berhasil berhasil${gagal > 0 ? ', ❌ $gagal gagal' : ''}',
-            ),
-            backgroundColor: gagal > 0
-                ? AppTheme.warning
-                : const Color(0xFF10B981),
+            content: Text('$berhasil berhasil'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
         SoundPlayer.instance.playSuccess();

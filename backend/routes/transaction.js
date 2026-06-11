@@ -197,7 +197,24 @@ router.post('/batch-status', auth, async (req, res) => {
         });
       }
 
-      await Transaction.bulkWrite(bulkOps, { ordered: false });
+      const bulkResult = await Transaction.bulkWrite(bulkOps, { ordered: false });
+
+      const updatedIds = new Set(
+        (await Transaction.find({
+          _id: { $in: validIds },
+          status_saat_ini: status_baru,
+        }, { _id: 1 }).lean()).map(d => d._id.toString())
+      );
+
+      for (const r of results) {
+        if (r.status === 'ok') {
+          const tx = transactions.find(t => t.no_resi === r.no_resi);
+          if (tx && !updatedIds.has(tx._id.toString())) {
+            r.status = 'error';
+            r.error = `Barang ${r.no_resi} sudah discan oleh admin lain`;
+          }
+        }
+      }
     }
 
     res.json({

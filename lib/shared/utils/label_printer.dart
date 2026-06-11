@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,6 +14,7 @@ class LabelPrinter {
     String? dicetakOleh,
   }) async {
       final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
+      final logoBytes = await rootBundle.load('assets/pics/hiralogo.webp');
 
       await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async {
@@ -99,6 +101,8 @@ class LabelPrinter {
                                 width: 22 * PdfPageFormat.mm,
                                 height: 22 * PdfPageFormat.mm,
                               ),
+                              pw.SizedBox(height: 6),
+                              pw.Image(pw.MemoryImage(logoBytes.buffer.asUint8List()), width: 32, height: 32),
                             ],
                           ),
                         ),

@@ -154,16 +154,23 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.inventory_2_rounded,
-                size: 56,
-                color: Color(0xFF10B981),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(100),
+                onLongPress: _scan,
+                child: Container(
+                  padding: const EdgeInsets.all(28),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.handshake_rounded,
+                    size: 56,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -381,7 +388,7 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
     setState(() => _submitting = true);
     try {
       final repo = ref.read(transactionRepositoryProvider);
-      await repo.batchUpdateStatus(
+      final result = await repo.batchUpdateStatus(
         noResiList: [_tx!.noResi],
         statusBaru: 'diterima',
         namaPenerima: _namaC.text.trim(),
@@ -389,13 +396,18 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       );
 
       if (mounted) {
+        final berhasil = result['berhasil'] as int? ?? 0;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Paket telah dikonfirmasi diterima'),
-            backgroundColor: Color(0xFF10B981),
+          SnackBar(
+            content: Text('$berhasil berhasil'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
-        SoundPlayer.instance.playSuccess();
+        if (berhasil > 0) {
+          SoundPlayer.instance.playSuccess();
+        }
         setState(() {
           _tx = null;
           _namaC.clear();

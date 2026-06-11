@@ -27,7 +27,6 @@ class ScanKeluarState {
   final TujuanType tujuanType;
   final String? cabangTujuanId;
   final String? cabangTujuanNama;
-  final bool driverLocked;
 
   ScanKeluarState({
     this.scannedItems = const [],
@@ -37,7 +36,6 @@ class ScanKeluarState {
     this.tujuanType = TujuanType.cabang,
     this.cabangTujuanId,
     this.cabangTujuanNama,
-    this.driverLocked = false,
   });
 
   ScanKeluarState copyWith({
@@ -48,7 +46,6 @@ class ScanKeluarState {
     TujuanType? tujuanType,
     String? cabangTujuanId,
     String? cabangTujuanNama,
-    bool? driverLocked,
   }) => ScanKeluarState(
     scannedItems: scannedItems ?? this.scannedItems,
     driverUserId: driverUserId ?? this.driverUserId,
@@ -57,7 +54,6 @@ class ScanKeluarState {
     tujuanType: tujuanType ?? this.tujuanType,
     cabangTujuanId: cabangTujuanId ?? this.cabangTujuanId,
     cabangTujuanNama: cabangTujuanNama ?? this.cabangTujuanNama,
-    driverLocked: driverLocked ?? this.driverLocked,
   );
 
   int get validCount => scannedItems.where((i) => i.isValid).length;
@@ -93,20 +89,15 @@ class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
     }
     final exists = state.scannedItems.any((i) => i.noResi == item.noResi);
     if (!exists) {
-      state = state.copyWith(
-        scannedItems: [...state.scannedItems, item],
-        driverLocked: state.scannedItems.isNotEmpty ? true : false,
-      );
+      state = state.copyWith(scannedItems: [...state.scannedItems, item]);
     }
   }
 
   void removeItem(String noResi) {
     final newList = state.scannedItems.where((i) => i.noResi != noResi).toList();
     final stillHasValid = newList.any((i) => i.isValid);
-    final validCount = newList.where((i) => i.isValid).length;
     state = state.copyWith(
       scannedItems: newList,
-      driverLocked: validCount > 1,
       driverUserId: stillHasValid ? state.driverUserId : null,
       driverName: stillHasValid ? state.driverName : null,
       driverPhone: stillHasValid ? state.driverPhone : null,

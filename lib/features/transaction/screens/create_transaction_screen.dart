@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -248,11 +247,6 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
             ),
             const SizedBox(height: 16),
             const Text(
-              'Transaksi Berhasil!',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 6),
-            const Text(
               'Detail pengiriman barang telah disimpan ke sistem.',
               style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
               textAlign: TextAlign.center,
@@ -270,58 +264,29 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                       'NOMOR RESI PENGIRIMAN',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _createdTransaction!.noResi,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 2, color: Color(0xFF0F172A)),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: _createdTransaction!.noResi));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('No. Resi disalin'), duration: Duration(seconds: 2)),
-                            );
-                          },
-                          icon: const Icon(Icons.content_copy_rounded, size: 14),
-                          label: const Text('Salin Resi'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(120, 36),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(color: Color(0xFFE2E8F0)),
                     const SizedBox(height: 16),
                     BarcodeDisplay(data: _createdTransaction!.noResi),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed: () => LabelPrinter.printBarcodeLabel(
+                          data: _createdTransaction!.noResi,
+                          pengirim: _createdTransaction!.pengirim,
+                          penerima: _createdTransaction!.penerima,
+                          paket: _createdTransaction!.paket,
+                          createdAt: _createdTransaction!.createdAt,
+                          asal: _createdTransaction!.createdBy['cabang_name']?.toString() ??
+                              _createdTransaction!.createdBy['konter_name']?.toString() ??
+                              _createdTransaction!.createdBy['gudang_name']?.toString(),
+                        ),
+                        icon: const Icon(Icons.print_rounded, size: 18),
+                        label: const Text('Cetak Resi'),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () => LabelPrinter.printBarcodeLabel(
-                  data: _createdTransaction!.noResi,
-                  pengirim: _createdTransaction!.pengirim,
-                  penerima: _createdTransaction!.penerima,
-                  paket: _createdTransaction!.paket,
-                  createdAt: _createdTransaction!.createdAt,
-                  asal: _createdTransaction!.createdBy['cabang_name']?.toString() ??
-                      _createdTransaction!.createdBy['konter_name']?.toString() ??
-                      _createdTransaction!.createdBy['gudang_name']?.toString(),
-                ),
-                icon: const Icon(Icons.print_rounded),
-                label: const Text('Cetak Ulang Resi'),
               ),
             ),
             const SizedBox(height: 10),

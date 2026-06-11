@@ -29,29 +29,40 @@ class _LandingScreenState extends State<LandingScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                   // Logo & Brand Header
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(100),
                       onLongPress: () => context.go('/login'),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.1),
+                      child: Ink(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: const Icon(
-                          Icons.local_shipping_rounded,
-                          size: 72,
-                          color: AppTheme.primary,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Image.asset(
+                            'assets/pics/hiralogo.webp',
+                            width: 72,
+                            height: 72,
+                          ),
                         ),
                       ),
                     ),
@@ -162,10 +173,12 @@ class _LandingScreenState extends State<LandingScreen> {
                       ),
                     ),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
+          ],
         ),
       ),
     );

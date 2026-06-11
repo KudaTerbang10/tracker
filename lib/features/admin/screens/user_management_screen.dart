@@ -219,6 +219,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (_, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
           title: Text(isEdit ? 'Edit Akun' : 'Tambah Akun'),
           content: SingleChildScrollView(
             child: Column(
@@ -296,6 +297,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         title: const Text('Hapus Akun'),
         content: Text('Yakin hapus akun "${user.name}" (${user.email})?\n\nAkun akan dinonaktifkan.'),
         actions: [

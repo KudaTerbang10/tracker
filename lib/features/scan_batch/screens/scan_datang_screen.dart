@@ -26,7 +26,6 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
   Widget build(BuildContext context) {
     final items = ref.watch(scanDatangProvider);
     final validCount = items.where((i) => i.isValid).length;
-    final hasInvalid = items.any((i) => !i.isValid);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -41,7 +40,8 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                 IconButton(
                   icon: const Icon(Icons.refresh_rounded),
                   tooltip: 'Reset semua',
-                  onPressed: () =>
+                  onPressed: () {},
+                  onLongPress: () =>
                       ref.read(scanDatangProvider.notifier).clear(),
                 ),
               ]
@@ -49,83 +49,6 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
       ),
       body: Column(
         children: [
-          // Status summary bar
-          if (items.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle_rounded,
-                      size: 16,
-                      color: Color(0xFF10B981),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '$validCount barang valid',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                  if (hasInvalid) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.error_rounded,
-                        size: 16,
-                        color: AppTheme.error,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${items.length - validCount} tidak valid',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: AppTheme.error,
-                      ),
-                    ),
-                  ],
-                  const Spacer(),
-                  Text(
-                    'Total: ${items.length}',
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
           // Scan list / empty state
           Expanded(
             child: items.isEmpty
@@ -157,30 +80,6 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
           ),
           child: Row(
             children: [
-              if (items.isNotEmpty) ...[
-                GestureDetector(
-                  onLongPress: _submitting
-                      ? null
-                      : () => ref.read(scanDatangProvider.notifier).clear(),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppTheme.error.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.error.withValues(alpha: 0.15),
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.delete_outline_rounded,
-                      color: AppTheme.error,
-                      size: 22,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -200,7 +99,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                     onPressed: _scan,
                     icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
                     label: const Text(
-                      'SCAN RESI',
+                      'SCAN',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -255,12 +154,33 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'KONFIRMASI',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                              ),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Konfirmasi',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '$validCount',
+                                    style: const TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
                   ),
@@ -393,30 +313,18 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
-                      _badge(
-                        item.transaction.beratLabel,
-                        const Color(0xFF0EA5E9),
-                      ),
+                      _badge(item.transaction.beratLabel, const Color(0xFF0EA5E9)),
                       const SizedBox(width: 6),
-                      _badge(
-                        item.transaction.koliLabel,
-                        const Color(0xFFF97316),
+                      _badge(item.transaction.koliLabel, const Color(0xFFF97316)),
+                      const SizedBox(width: 8),
+                      Text(
+                        isValid ? 'Siap diproses' : (item.errorMessage ?? 'Tidak valid'),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isValid
-                        ? 'Siap diproses'
-                        : (item.errorMessage ?? 'Tidak valid'),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
-                    ),
                   ),
                 ],
               ),
@@ -525,6 +433,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Konfirmasi Penerimaan',

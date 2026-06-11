@@ -311,10 +311,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Halo, ${user?.name ?? 'User'}',
@@ -332,12 +332,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         fontSize: 13,
                       ),
                     ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
+                    horizontal: 10,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
@@ -347,7 +349,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     user?.roleLabel ?? '',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

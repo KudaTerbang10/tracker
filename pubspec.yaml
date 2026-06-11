@@ -34,3 +34,7 @@ flutter:
   assets:
     - assets/sounds/
     - assets/pics/
+  fonts:
+    - family: hiralogo
+      fonts:
+        - asset: assets/pics/hiralogo.ttf

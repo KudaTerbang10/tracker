@@ -4,6 +4,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class LabelPrinter {
+  static Future<pw.Font> _loadHiraFont() async {
+    final data = await rootBundle.load('assets/pics/hiralogo.ttf');
+    return pw.Font.ttf(data);
+  }
+
   static Future<void> printBarcodeLabel({
     required String data,
     Map<String, dynamic>? pengirim,
@@ -14,7 +19,7 @@ class LabelPrinter {
     String? dicetakOleh,
   }) async {
       final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
-      final logoBytes = await rootBundle.load('assets/pics/hiralogo.webp');
+      final hiraFont = await _loadHiraFont();
 
       await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async {
@@ -35,7 +40,7 @@ class LabelPrinter {
                         style: pw.TextStyle(
                           fontSize: 13,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue700,
+                          color: PdfColors.black,
                         ),
                       ),
                     ),
@@ -61,7 +66,7 @@ class LabelPrinter {
                             fontSize: 7,
                             color: dicetakOleh != null && asal != dicetakOleh
                                 ? PdfColors.red700
-                                : PdfColors.blue700,
+                                : PdfColors.black,
                             fontWeight: pw.FontWeight.bold,
                           ),
                           textAlign: pw.TextAlign.center,
@@ -81,8 +86,10 @@ class LabelPrinter {
                             children: [
                               if (penerima != null)
                                 _infoCard('Penerima', penerima),
-                              if (pengirim != null && penerima != null)
-                                pw.SizedBox(height: 3),
+                              if (penerima != null && pengirim != null) ...[
+                                pw.Divider(height: 1, thickness: 0.3),
+                                pw.SizedBox(height: 2),
+                              ],
                               if (pengirim != null)
                                 _infoCard('Pengirim', pengirim),
                             ],
@@ -102,8 +109,47 @@ class LabelPrinter {
                                 height: 22 * PdfPageFormat.mm,
                               ),
                               pw.SizedBox(height: 6),
-                              pw.Image(pw.MemoryImage(logoBytes.buffer.asUint8List()), width: 32, height: 32),
+                              pw.Center(
+                                child: pw.Text(
+                                  String.fromCharCode(0xe000),
+                                  style: pw.TextStyle(font: hiraFont, fontSize: 25),
+                                ),
+                              ),
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                            ),
+                            child: pw.Text(
+                              'Sukajadi',
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                              textAlign: pw.TextAlign.center,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ),
+                        pw.SizedBox(width: 3),
+                        pw.Expanded(
+                          child: pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                            ),
+                            child: pw.Text(
+                              'Kota Bandung',
+                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                              textAlign: pw.TextAlign.center,
+                              maxLines: 1,
+                            ),
                           ),
                         ),
                       ],
@@ -113,13 +159,18 @@ class LabelPrinter {
                     pw.SizedBox(height: 2),
                     if (paket != null) _paketLine(paket, createdAt),
                     if (jumlahKoli > 1) ...[
-                      pw.SizedBox(height: 6),
-                      pw.Center(
-                        child: pw.Text(
-                          'Koli $i/$jumlahKoli',
-                          style: pw.TextStyle(
-                            fontSize: 26,
-                            fontWeight: pw.FontWeight.bold,
+                      pw.SizedBox(height: 3),
+                      pw.Container(
+                        color: PdfColors.black,
+                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                        child: pw.Center(
+                          child: pw.Text(
+                            'Koli $i/$jumlahKoli',
+                            style: pw.TextStyle(
+                              fontSize: 22,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -164,29 +215,23 @@ class LabelPrinter {
     final name = data['name'] as String? ?? '';
     final phone = data['phone'] as String? ?? '';
     final address = data['address'] as String? ?? '';
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(3),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(2)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-        children: [
-          pw.Text(
-            '$label: $name',
-            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
-          ),
-          if (phone.isNotEmpty) ...[
-            pw.SizedBox(height: 1),
-            pw.Text('[ $phone ]', style: pw.TextStyle(fontSize: 8)),
-          ],
-          if (address.isNotEmpty) ...[
-            pw.SizedBox(height: 1),
-            pw.Text(address, style: pw.TextStyle(fontSize: 8), maxLines: 2),
-          ],
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Text(
+          '$label: $name',
+          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          maxLines: 2,
+        ),
+        if (phone.isNotEmpty) ...[
+          pw.SizedBox(height: 1),
+          pw.Text('[ $phone ]', style: pw.TextStyle(fontSize: 8)),
         ],
-      ),
+        if (address.isNotEmpty) ...[
+          pw.SizedBox(height: 1),
+          pw.Text(address, style: pw.TextStyle(fontSize: 8), maxLines: 2),
+        ],
+      ],
     );
   }
 

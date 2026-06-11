@@ -14,8 +14,6 @@ async function seed() {
 
     await Promise.all([
       User.deleteMany({}),
-      Konter.deleteMany({}),
-      Gudang.deleteMany({}),
       Cabang.deleteMany({}),
     ]);
     console.log('Cleared existing data');

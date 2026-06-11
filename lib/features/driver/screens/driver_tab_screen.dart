@@ -201,10 +201,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     );
   }
 
-  void _showDetail(Transaction tx) {
+    void _showDetail(Transaction tx) {
     final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final showDriver = tx.namaDriver != null;
-    final isDriver = ref.read(authProvider).user?.isDriver ?? false;
 
     showModalBottomSheet(
       context: context,

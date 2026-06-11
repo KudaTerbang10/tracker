@@ -20,9 +20,8 @@ class _AuthListenable extends ChangeNotifier {
   }
 }
 
-final routerProvider = Provider<GoRouter>((ref) {
+  final routerProvider = Provider<GoRouter>((ref) {
   final listenable = _AuthListenable(ref);
-  final auth = ref.read(authProvider);
 
   return GoRouter(
     initialLocation: '/',

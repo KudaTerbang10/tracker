@@ -12,12 +12,8 @@ import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../auth/providers/auth_provider.dart';
 
-final _kirimProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, page) {
-  return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', page: page);
-});
-
-final _riwayatProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, int>((ref, page) {
-  return ref.read(transactionRepositoryProvider).getList(status: 'diterima,diterima_cabang', tab: 'history', page: page);
+final _kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', limit: 999);
 });
 
 class DriverTabScreen extends ConsumerStatefulWidget {
@@ -28,43 +24,113 @@ class DriverTabScreen extends ConsumerStatefulWidget {
 
 class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _kirimPage = 1;
+
+  // infinite scroll riwayat
+  final _riwayatItems = <Transaction>[];
   int _riwayatPage = 1;
+  int _riwayatTotalPages = 1;
+  bool _riwayatLoadingMore = false;
+  final _riwayatScrollC = ScrollController();
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) setState(() {});
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+        if (_tabController.index == 1) _loadRiwayat();
+      }
     });
+    _riwayatScrollC.addListener(() {
+      if (_riwayatScrollC.position.pixels >= _riwayatScrollC.position.maxScrollExtent - 200) {
+        _loadRiwayat();
+      }
+    });
+    _loadRiwayat();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _riwayatScrollC.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadRiwayat() async {
+    if (_riwayatLoadingMore || _riwayatPage > _riwayatTotalPages) return;
+    if (_riwayatPage == 1) _riwayatItems.clear();
+    _riwayatLoadingMore = true;
+    try {
+      final result = await ref.read(transactionRepositoryProvider).getList(
+        status: 'diterima,diterima_cabang',
+        tab: 'history',
+        page: _riwayatPage,
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+      _riwayatTotalPages = result['totalPages'] as int;
+      _riwayatItems.addAll(result['data'] as List<Transaction>);
+      _riwayatPage++;
+    } finally {
+      _riwayatLoadingMore = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _resetRiwayat() {
+    _riwayatPage = 1;
+    _riwayatTotalPages = 1;
+    _riwayatItems.clear();
+    _loadRiwayat();
   }
 
   @override
   Widget build(BuildContext context) {
+    final kirimAsync = ref.watch(_kirimProvider);
+    final kirimData = kirimAsync.valueOrNull;
+    final kirimCount = kirimData != null ? (kirimData['data'] as List<dynamic>).length : 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver'),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Perlu Dikirim'),
-            Tab(text: 'Riwayat'),
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Perlu Dikirim'),
+                  if (kirimCount > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade400,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$kirimCount',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Tab(text: 'Riwayat'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildTab(_kirimProvider, _kirimPage, (p) => setState(() => _kirimPage = p)),
-          _buildTab(_riwayatProvider, _riwayatPage, (p) => setState(() => _riwayatPage = p), isRiwayat: true),
+          _buildKirimTab(),
+          _buildRiwayatTab(),
         ],
       ),
     );
@@ -80,22 +146,15 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     return null;
   }
 
-  Widget _buildTab(
-    AutoDisposeFutureProvider<Map<String, dynamic>> Function(int) provider,
-    int page,
-    ValueChanged<int> onPageChanged, {
-    bool isRiwayat = false,
-  }) {
-    final async = ref.watch(provider(page));
+  Widget _buildKirimTab() {
+    final async = ref.watch(_kirimProvider);
     final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
-    final currentUserId = ref.read(authProvider).user?.id;
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (result) {
         final list = result['data'] as List<Transaction>;
-        final totalPages = result['totalPages'] as int;
 
         if (list.isEmpty) {
           return Center(
@@ -110,31 +169,10 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
           );
         }
 
-        return Column(
-          children: [
-            if (totalPages > 1)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: page > 1 ? () => onPageChanged(page - 1) : null,
-                    ),
-                    Text('Halaman $page dari $totalPages'),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: page < totalPages ? () => onPageChanged(page + 1) : null,
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: list.length,
-                itemBuilder: (_, i) {
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: list.length,
+          itemBuilder: (_, i) {
                   final tx = list[i];
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 4),
@@ -159,9 +197,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('${tx.pengirimName} → ${tx.penerimaName}'),
-                            if (isRiwayat
-                                ? _tujuanUntukDriver(tx, currentUserId) != null
-                                : tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty)
+                            if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Row(
@@ -171,9 +207,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                     Flexible(
                                       child: Text(
                                         () {
-                                          final tujuan = isRiwayat ? _tujuanUntukDriver(tx, currentUserId) : tx.tujuanSelanjutnya;
-                                          final nama = tujuan?['nama']?.toString() ?? '';
-                                          final tipe = tujuan?['tipe']?.toString() ?? '';
+                                          final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
+                                          final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
                                           return tipe == 'penerima' ? 'Mengantar ke $nama (penerima)' : 'Mengantar ke $nama';
                                         }(),
                                         style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
@@ -192,12 +227,196 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                       onTap: () => _showDetail(tx),
                     ),
                   );
-                },
+                  },
+                );
+              },
+            );
+          }
+
+  Widget _buildRiwayatTab() {
+    final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
+    final currentUserId = ref.read(authProvider).user?.id;
+    final fmt = DateFormat('dd/MM/yyyy');
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: InkWell(
+            onTap: () async {
+              final picked = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+                initialDateRange: _startDate != null && _endDate != null
+                    ? DateTimeRange(start: _startDate!, end: _endDate!)
+                    : null,
+                helpText: 'Pilih rentang tanggal',
+                initialEntryMode: DatePickerEntryMode.calendarOnly,
+                builder: (context, child) => Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: Theme.of(context).colorScheme.copyWith(
+                      surface: Colors.white,
+                      surfaceContainerHighest: Colors.white,
+                      onSurface: const Color(0xFF0F172A),
+                      primary: const Color(0xFF6366F1),
+                      onPrimary: Colors.white,
+                    ),
+                    datePickerTheme: DatePickerThemeData(
+                      backgroundColor: Colors.white,
+                      surfaceTintColor: Colors.white,
+                      headerBackgroundColor: const Color(0xFF6366F1),
+                      headerForegroundColor: Colors.white,
+                      todayBackgroundColor: WidgetStateProperty.all(const Color(0xFFEEF2FF)),
+                      todayForegroundColor: WidgetStateProperty.all(const Color(0xFF6366F1)),
+                      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) return const Color(0xFF6366F1);
+                        return Colors.transparent;
+                      }),
+                      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) return Colors.white;
+                        return const Color(0xFF0F172A);
+                      }),
+                      dayOverlayColor: WidgetStateProperty.all(Colors.transparent),
+                      rangePickerBackgroundColor: Colors.white,
+                      rangeSelectionBackgroundColor: const Color(0xFFEEF2FF),
+                      dayShape: WidgetStateProperty.all(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8)))),
+                    ),
+                    dialogTheme: const DialogThemeData(backgroundColor: Colors.white, surfaceTintColor: Colors.white),
+                    inputDecorationTheme: const InputDecorationTheme(filled: true, fillColor: Colors.white),
+                  ),
+                  child: child!,
+                ),
+              );
+              if (picked != null) {
+                setState(() {
+                  _startDate = picked.start;
+                  _endDate = picked.end;
+                  _resetRiwayat();
+                });
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.date_range, size: 16, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _startDate != null && _endDate != null
+                          ? '${fmt.format(_startDate!)} — ${fmt.format(_endDate!)}'
+                          : 'Filter riwayat berdasarkan tanggal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _startDate != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ),
+                  if (_startDate != null) ...[
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _startDate = null;
+                          _endDate = null;
+                          _resetRiwayat();
+                        });
+                      },
+                      child: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+        Expanded(
+          child: _riwayatItems.isEmpty && !_riwayatLoadingMore
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('Tidak ada riwayat', style: TextStyle(color: Colors.grey.shade500)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  controller: _riwayatScrollC,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: _riwayatItems.length + (_riwayatPage <= _riwayatTotalPages ? 1 : 0),
+                  itemBuilder: (_, i) {
+                    if (i == _riwayatItems.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    final tx = _riwayatItems[i];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        leading: Icon(
+                          tx.statusSaatIni == 'diterima' ? Icons.check_circle : Icons.local_shipping,
+                          color: tx.statusSaatIni == 'diterima' ? Colors.green : Colors.orange,
+                        ),
+                        title: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 4),
+                            ResiCopyButton(resi: tx.noResi),
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${tx.pengirimName} → ${tx.penerimaName}'),
+                              if (_tujuanUntukDriver(tx, currentUserId) != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.tour, size: 14, color: Colors.orange.shade700),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          () {
+                                            final tujuan = _tujuanUntukDriver(tx, currentUserId);
+                                            final nama = tujuan?['nama']?.toString() ?? '';
+                                            final tipe = tujuan?['tipe']?.toString() ?? '';
+                                            return tipe == 'penerima' ? 'Mengantar ke $nama (penerima)' : 'Mengantar ke $nama';
+                                          }(),
+                                          style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        isThreeLine: true,
+                        trailing: StatusBadge(status: tx.statusSaatIni),
+                        onTap: () => _showDetail(tx),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 

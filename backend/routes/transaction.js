@@ -234,7 +234,7 @@ router.post('/batch-status', auth, async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { status, search, kode_gerai, page = 1, limit = 20 } = req.query;
+    const { status, search, kode_gerai, page = 1, limit = 20, start_date, end_date } = req.query;
     const filter = {};
 
     if (req.user.role === 'admin_cabang') {
@@ -242,8 +242,6 @@ router.get('/', auth, async (req, res) => {
       const tab = req.query.tab || 'current';
 
       if (tab === 'history') {
-        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-        filter.createdAt = { $gte: threeDaysAgo };
         filter.$and = [
           { 'tracking_logs.lokasi.cabang_id': new mongoose.Types.ObjectId(cabangId) },
           {
@@ -289,6 +287,16 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (kode_gerai) filter.kode_gerai = kode_gerai;
+
+    if (start_date || end_date) {
+      filter.createdAt = {};
+      if (start_date) filter.createdAt.$gte = new Date(start_date);
+      if (end_date) {
+        const d = new Date(end_date);
+        d.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = d;
+      }
+    }
 
     const total = await Transaction.countDocuments(filter);
     const data = await Transaction.find(filter)

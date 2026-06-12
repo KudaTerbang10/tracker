@@ -52,12 +52,14 @@ class TransactionRepository {
     await _api.delete('${ApiConstants.transactions}/$id');
   }
 
-  Future<Map<String, dynamic>> getList({String? status, String? search, String? kodeGerai, String? tab, int page = 1, int limit = 20}) async {
+  Future<Map<String, dynamic>> getList({String? status, String? search, String? kodeGerai, String? tab, int page = 1, int limit = 20, DateTime? startDate, DateTime? endDate}) async {
     final res = await _api.get(ApiConstants.transactions, query: {
       if (status != null) 'status': status,
       if (search != null && search.isNotEmpty) 'search': search,
       if (kodeGerai != null) 'kode_gerai': kodeGerai,
       if (tab != null) 'tab': tab,
+      if (startDate != null) 'start_date': startDate.toIso8601String(),
+      if (endDate != null) 'end_date': endDate.toIso8601String(),
       'page': page,
       'limit': limit,
     });

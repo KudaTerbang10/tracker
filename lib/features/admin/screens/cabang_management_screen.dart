@@ -101,6 +101,20 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                   counts[k] = (counts[k] ?? 0) + 1;
                 }
                 final filters = _buildFilters(cabangs);
+                final filterCounts = <String, int>{
+                  'all': cabangs.length,
+                  'nonaktif': cabangs.where((c) => !c.isActive).length,
+                  'jakarta': cabangs.where((c) => c.kota.startsWith('Jakarta')).length,
+                  'lainnya': cabangs.where((c) {
+                    final k = c.kota.startsWith('Jakarta') ? 'jakarta' : c.kota;
+                    return (counts[k] ?? 0) <= 1 && c.isActive;
+                  }).length,
+                };
+                for (final entry in counts.entries) {
+                  if (entry.key != 'jakarta' && entry.value > 1) {
+                    filterCounts[entry.key] = entry.value;
+                  }
+                }
                 final q = _search.toLowerCase();
                 final filtered = cabangs.where((c) {
                   if (q.isEmpty) return true;
@@ -111,7 +125,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
 
                 return Column(
                   children: [
-                    _buildFilterChips(filters),
+                    _buildFilterChips(filters, filterCounts),
                     Expanded(
                       child: filtered.isEmpty
                           ? const Center(child: Text('Tidak ada cabang'))
@@ -206,7 +220,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
     );               // close Scaffold body
   }                  // close build
 
-  Widget _buildFilterChips(List<Map<String, String>> filters) {
+  Widget _buildFilterChips(List<Map<String, String>> filters, Map<String, int> filterCounts) {
     return SizedBox(
       height: 44,
       child: Center(
@@ -221,8 +235,32 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                 () {
                   final f = filters[i];
                   final selected = _kotaFilter == f['key'];
+                  final count = filterCounts[f['key']] ?? 0;
                   return ChoiceChip(
-                    label: Text(f['label']!),
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(f['label']!),
+                        if (count > 0) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: selected ? const Color(0xFF3B82F6) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: selected ? Colors.white : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     selected: selected,
                     onSelected: (_) => setState(() => _kotaFilter = f['key']!),
                     selectedColor: const Color(0xFF3B82F6).withValues(alpha: 0.1),

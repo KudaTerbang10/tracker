@@ -29,17 +29,9 @@ class UserManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
-  String _filter = 'all';
   final _searchC = TextEditingController();
   String _search = '';
-
-  static const _filters = [
-    {'key': 'all', 'label': 'Semua'},
-    {'key': 'super_admin', 'label': 'Super Admin'},
-    {'key': 'admin_cabang', 'label': 'Admin Cabang'},
-    {'key': 'driver', 'label': 'Driver'},
-    {'key': 'unassigned', 'label': 'Belum Ditugaskan'},
-  ];
+  String _filter = 'all';
 
   @override
   Widget build(BuildContext context) {
@@ -69,12 +61,29 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       body: Column(
         children: [
           _buildSearchBar(),
-          _buildFilterTabs(),
           Expanded(
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (users) {
+                final counts = <String, int>{
+                  'all': users.length,
+                  'super_admin': users.where((u) => u.role == 'super_admin').length,
+                  'admin_cabang': users.where((u) => u.role == 'admin_cabang').length,
+                  'driver': users.where((u) => u.role == 'driver').length,
+                  'unassigned': users.where((u) {
+                    if (u.role != 'admin_cabang') return false;
+                    if (u.cabangId == null || u.cabangId!.isEmpty) return true;
+                    return !activeCabangIds.contains(u.cabangId);
+                  }).length,
+                };
+                final filters = [
+                  {'key': 'all', 'label': 'Semua'},
+                  {'key': 'super_admin', 'label': 'Super Admin'},
+                  {'key': 'admin_cabang', 'label': 'Admin Cabang'},
+                  {'key': 'driver', 'label': 'Driver'},
+                  if ((counts['unassigned'] ?? 0) > 0) {'key': 'unassigned', 'label': 'Belum Ditugaskan'},
+                ];
                 final q = _search.toLowerCase();
                 final filtered = users.where((u) {
                   if (_filter == 'unassigned') {
@@ -89,12 +98,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   }
                   return true;
                 }).toList();
-                if (filtered.isEmpty) {
-                  return const Center(child: Text('Tidak ada akun'));
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: filtered.length,
+                return Column(
+                  children: [
+                    _buildFilterTabs(filters, counts),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(child: Text('Tidak ada akun'))
+                          : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: filtered.length,
                   itemBuilder: (_, i) {
                     final u = filtered[i];
                     final rColor = _roleColor(u.role);
@@ -168,14 +180,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       ),
                     );
                   },
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
-    );
-  }
+    ),
+  ],
+),
+);
+}
 
   Widget _buildSearchBar() {
     return Padding(
@@ -209,23 +224,47 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
-  Widget _buildFilterTabs() {
+  Widget _buildFilterTabs(List<Map<String, String>> filters, Map<String, int> counts) {
     return SizedBox(
-      height: 52,
+      height: 44,
       child: Center(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (var i = 0; i < _filters.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
+              for (var i = 0; i < filters.length; i++) ...[
+                if (i > 0) const SizedBox(width: 6),
                 () {
-                  final f = _filters[i];
+                  final f = filters[i];
                   final selected = _filter == f['key'];
+                  final count = counts[f['key']] ?? 0;
                   return ChoiceChip(
-                    label: Text(f['label']!),
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(f['label']!),
+                        if (count > 0) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: selected ? const Color(0xFF8B5CF6) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: selected ? Colors.white : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     selected: selected,
                     onSelected: (_) => setState(() => _filter = f['key']!),
                     selectedColor: AppTheme.primary.withValues(alpha: 0.1),

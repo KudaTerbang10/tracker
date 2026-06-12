@@ -25,6 +25,10 @@ final _listProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, St
   return ref.read(transactionRepositoryProvider).getList(page: page, tab: tab, status: status, search: search);
 });
 
+final _prosesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+  return ref.read(transactionRepositoryProvider).getList(tab: 'current', limit: 999);
+});
+
 class TransactionListScreen extends ConsumerStatefulWidget {
   const TransactionListScreen({super.key});
   @override
@@ -32,8 +36,6 @@ class TransactionListScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionListScreenState extends ConsumerState<TransactionListScreen> with SingleTickerProviderStateMixin {
-  int _pageProses = 1;
-  int _pageHistory = 1;
   TabController? _tabController;
   bool get _isAdminCabang => ref.read(authProvider).user?.isAdminCabang ?? false;
 
@@ -41,6 +43,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   String _searchQuery = '';
   String _selectedStatus = '';
   int _pageAll = 1;
+
+  // Infinite scroll untuk history tab
+  final _historyItems = <Transaction>[];
+  int _historyPage = 1;
+  int _historyTotalPages = 1;
+  bool _historyLoadingMore = false;
+  final _historyScrollC = ScrollController();
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   static const _statusFilters = [
     '',
@@ -62,16 +73,54 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     if (_isAdminCabang) {
       _tabController = TabController(length: 2, vsync: this);
       _tabController!.addListener(() {
-        if (!_tabController!.indexIsChanging) setState(() {});
+        if (!_tabController!.indexIsChanging) {
+          setState(() {});
+          if (_tabController!.index == 1) _loadHistory();
+        }
+      });
+      _historyScrollC.addListener(() {
+        if (_historyScrollC.position.pixels >= _historyScrollC.position.maxScrollExtent - 200) {
+          _loadHistory();
+        }
       });
     }
+    _loadHistory();
   }
 
   @override
   void dispose() {
     _tabController?.dispose();
     _searchController.dispose();
+    _historyScrollC.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadHistory() async {
+    if (_historyLoadingMore || _historyPage > _historyTotalPages) return;
+    if (_historyPage == 1) _historyItems.clear();
+    _historyLoadingMore = true;
+    try {
+      final result = await ref.read(transactionRepositoryProvider).getList(
+        page: _historyPage,
+        tab: 'history',
+        startDate: _startDate,
+        endDate: _endDate,
+      );
+      final list = result['data'] as List<Transaction>;
+      _historyTotalPages = result['totalPages'] as int;
+      _historyItems.addAll(list);
+      _historyPage++;
+    } finally {
+      _historyLoadingMore = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _resetHistory() {
+    _historyPage = 1;
+    _historyTotalPages = 1;
+    _historyItems.clear();
+    _loadHistory();
   }
 
   Future<void> _scanAndSearch() async {
@@ -97,9 +146,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
         bottom: isAdminCabang
             ? TabBar(
                 controller: _tabController,
-                tabs: const [
-                  Tab(text: 'Proses'),
-                  Tab(text: 'History (3 hari)'),
+                tabs: [
+                  _buildProsesTabBadge(),
+                  const Tab(text: 'History'),
                 ],
               )
             : null,
@@ -108,15 +157,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
           ? TabBarView(
               controller: _tabController,
               children: [
-                _buildTab('$_pageProses|current', (p) => setState(() => _pageProses = p), dateFmt),
-                _buildTab('$_pageHistory|history', (p) => setState(() => _pageHistory = p), dateFmt),
+                _buildProsesTab(dateFmt),
+                _buildHistoryTab(dateFmt),
               ],
             )
-          : _buildSuperAdminView(dateFmt),
+          : _buildPaginatedSuperAdminView(dateFmt),
     );
   }
 
-  Widget _buildSuperAdminView(DateFormat dateFmt) {
+  Widget _buildPaginatedSuperAdminView(DateFormat dateFmt) {
     return Column(
       children: [
         Padding(
@@ -185,16 +234,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             ),
           ),
         ),
-        Expanded(child: _buildTab(_listKey(_pageAll, status: _selectedStatus, search: _searchQuery), (p) => setState(() => _pageAll = p), dateFmt)),
+        Expanded(child: _buildPaginatedTab(_listKey(_pageAll, status: _selectedStatus, search: _searchQuery), dateFmt)),
       ],
     );
   }
 
-  Widget _buildTab(String key, ValueChanged<int> onPageChanged, DateFormat dateFmt) {
+  Widget _buildPaginatedTab(String key, DateFormat dateFmt) {
     final parts = key.split('|');
     final page = int.parse(parts[0]);
     final async = ref.watch(_listProvider(key));
-    final tab = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null;
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -210,7 +258,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               children: [
                 Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                 const SizedBox(height: 12),
-                Text(tab == 'history' ? 'Tidak ada riwayat 3 hari terakhir' : 'Belum ada transaksi', style: TextStyle(color: Colors.grey.shade500)),
+                Text('Tidak ada transaksi', style: TextStyle(color: Colors.grey.shade500)),
               ],
             ),
           );
@@ -226,12 +274,12 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left),
-                      onPressed: page > 1 ? () => onPageChanged(page - 1) : null,
+                      onPressed: page > 1 ? () => setState(() => _pageAll = page - 1) : null,
                     ),
                     Text('Halaman $page dari $totalPages'),
                     IconButton(
                       icon: const Icon(Icons.chevron_right),
-                      onPressed: page < totalPages ? () => onPageChanged(page + 1) : null,
+                      onPressed: page < totalPages ? () => setState(() => _pageAll = page + 1) : null,
                     ),
                   ],
                 ),
@@ -240,68 +288,261 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: list.length,
-                itemBuilder: (_, i) {
-                  final tx = list[i];
-                  final user = ref.read(authProvider).user;
-                  final isDriver = user?.isDriver ?? false;
-                  final canDelete = tab != 'history' && _canDelete(tx, user);
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        title: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis)),
-                            if (!isDriver) ...[
-                              const SizedBox(width: 4),
-                              InkWell(
-                                onTap: () => LabelPrinter.printBarcodeLabel(
-                                  data: tx.noResi,
-                                  pengirim: tx.pengirim,
-                                  penerima: tx.penerima,
-                                  paket: tx.paket,
-                                  createdAt: tx.createdAt,
-                                  asal: tx.createdBy['cabang_name']?.toString() ??
-                                      tx.createdBy['konter_name']?.toString() ??
-                                      tx.createdBy['gudang_name']?.toString(),
-                                  dicetakOleh: user?.lokasi?['name']?.toString(),
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(width: 4),
-                            ResiCopyButton(resi: tx.noResi),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${tx.pengirimName} → ${tx.penerimaName}'),
-                              Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        isThreeLine: true,
-                        trailing: StatusBadge(status: tx.statusSaatIni),
-                        onTap: () => _showDetail(tx),
-                        onLongPress: canDelete ? () => _confirmDelete(tx) : null,
+                itemBuilder: (_, i) => _buildItemCard(list[i], dateFmt, canDelete: false),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildProsesTabBadge() {
+    final async = ref.watch(_prosesProvider);
+    final data = async.valueOrNull;
+    final count = data != null ? (data['data'] as List<dynamic>).length : 0;
+    return Tab(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Proses'),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppTheme.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProsesTab(DateFormat dateFmt) {
+    final async = ref.watch(_prosesProvider);
+
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (result) {
+        final list = result['data'] as List<Transaction>;
+
+        if (list.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+                const SizedBox(height: 12),
+                Text('Belum ada transaksi proses', style: TextStyle(color: Colors.grey.shade500)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          itemCount: list.length,
+          itemBuilder: (_, i) => _buildItemCard(list[i], dateFmt, canDelete: true),
+        );
+      },
+    );
+  }
+
+  Widget _buildHistoryTab(DateFormat dateFmt) {
+    final fmt = DateFormat('dd/MM/yyyy');
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: InkWell(
+            onTap: () async {
+              final picked = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+                initialDateRange: _startDate != null && _endDate != null
+                    ? DateTimeRange(start: _startDate!, end: _endDate!)
+                    : null,
+                helpText: 'Pilih rentang tanggal',
+                initialEntryMode: DatePickerEntryMode.calendarOnly,
+                builder: (context, child) => Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: Theme.of(context).colorScheme.copyWith(
+                      surface: Colors.white,
+                      surfaceContainerHighest: Colors.white,
+                      onSurface: const Color(0xFF0F172A),
+                      primary: const Color(0xFF6366F1),
+                      onPrimary: Colors.white,
+                    ),
+                    datePickerTheme: DatePickerThemeData(
+                      backgroundColor: Colors.white,
+                      surfaceTintColor: Colors.white,
+                      headerBackgroundColor: const Color(0xFF6366F1),
+                      headerForegroundColor: Colors.white,
+                      todayBackgroundColor: WidgetStateProperty.all(const Color(0xFFEEF2FF)),
+                      todayForegroundColor: WidgetStateProperty.all(const Color(0xFF6366F1)),
+                      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) return const Color(0xFF6366F1);
+                        return Colors.transparent;
+                      }),
+                      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) return Colors.white;
+                        return const Color(0xFF0F172A);
+                      }),
+                      dayOverlayColor: WidgetStateProperty.all(Colors.transparent),
+                      rangePickerBackgroundColor: Colors.white,
+                      rangeSelectionBackgroundColor: const Color(0xFFEEF2FF),
+                      dayShape: WidgetStateProperty.all(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8)))),
+                    ),
+                    dialogTheme: const DialogThemeData(backgroundColor: Colors.white, surfaceTintColor: Colors.white),
+                    inputDecorationTheme: const InputDecorationTheme(
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                  child: child!,
+                ),
+              );
+              if (picked != null) {
+                setState(() {
+                  _startDate = picked.start;
+                  _endDate = picked.end;
+                  _resetHistory();
+                });
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.date_range, size: 16, color: Color(0xFF64748B)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _startDate != null && _endDate != null
+                          ? '${fmt.format(_startDate!)} — ${fmt.format(_endDate!)}'
+                          : 'Filter berdasarkan tanggal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _startDate != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
                       ),
-                    );
+                    ),
+                  ),
+                  if (_startDate != null) ...[
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _startDate = null;
+                          _endDate = null;
+                          _resetHistory();
+                        });
+                      },
+                      child: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _historyItems.isEmpty && !_historyLoadingMore
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('Tidak ada riwayat transaksi', style: TextStyle(color: Colors.grey.shade500)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  controller: _historyScrollC,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: _historyItems.length + (_historyPage <= _historyTotalPages ? 1 : 0),
+                  itemBuilder: (_, i) {
+                    if (i == _historyItems.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    return _buildItemCard(_historyItems[i], dateFmt, canDelete: false);
                   },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemCard(Transaction tx, DateFormat dateFmt, {required bool canDelete}) {
+    final user = ref.read(authProvider).user;
+    final isDriver = user?.isDriver ?? false;
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis)),
+            if (!isDriver) ...[
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: () => LabelPrinter.printBarcodeLabel(
+                  data: tx.noResi,
+                  pengirim: tx.pengirim,
+                  penerima: tx.penerima,
+                  paket: tx.paket,
+                  createdAt: tx.createdAt,
+                  asal: tx.createdBy['cabang_name']?.toString() ??
+                      tx.createdBy['konter_name']?.toString() ??
+                      tx.createdBy['gudang_name']?.toString(),
+                  dicetakOleh: user?.lokasi?['name']?.toString(),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
                 ),
               ),
             ],
-          );
-        },
+            const SizedBox(width: 4),
+            ResiCopyButton(resi: tx.noResi),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${tx.pengirimName} → ${tx.penerimaName}'),
+              Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
+            ],
+          ),
+        ),
+        isThreeLine: true,
+        trailing: StatusBadge(status: tx.statusSaatIni),
+        onTap: () => _showDetail(tx),
+        onLongPress: canDelete && _canDelete(tx, user) ? () => _confirmDelete(tx) : null,
+      ),
     );
   }
 
@@ -327,8 +568,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     try {
       await ref.read(transactionRepositoryProvider).delete(tx.id);
       if (!mounted) return;
-      ref.invalidate(_listProvider('$_pageProses|current'));
-      ref.invalidate(_listProvider('$_pageHistory|history'));
+      ref.invalidate(_prosesProvider);
+      _resetHistory();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Transaksi ${tx.noResi} berhasil dihapus')),
       );

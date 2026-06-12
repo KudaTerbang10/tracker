@@ -7,12 +7,16 @@ const router = express.Router();
 
 router.get('/', auth, rbac('super_admin'), async (req, res) => {
   try {
-    const users = await User.find().lean();
-    const data = users.map(u => {
-      const { password, ...rest } = u;
-      return rest;
-    });
-    res.json({ data });
+    const { search } = req.query;
+    const filter = {};
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+      ];
+    }
+    const users = await User.find(filter).lean();
+    res.json({ data: users });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -34,7 +38,7 @@ router.post('/', auth, rbac('super_admin'), async (req, res) => {
 
 router.put('/:id', auth, rbac('super_admin'), async (req, res) => {
   try {
-    const { name, email, phone, role, cabang_id, is_active } = req.body;
+    const { name, email, phone, role, cabang_id, is_active, password: newPassword } = req.body;
     const update = {};
     if (name !== undefined) update.name = name;
     if (email !== undefined) update.email = email;
@@ -42,6 +46,7 @@ router.put('/:id', auth, rbac('super_admin'), async (req, res) => {
     if (role !== undefined) update.role = role;
     if (cabang_id !== undefined) update.cabang_id = cabang_id;
     if (is_active !== undefined) update.is_active = is_active;
+    if (newPassword !== undefined && newPassword.length > 0) update.password = newPassword;
 
     const user = await User.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });

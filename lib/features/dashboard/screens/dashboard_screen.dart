@@ -168,6 +168,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               () => context.go('/dashboard/users'),
               color: AppTheme.primary,
             ),
+            const SizedBox(height: 8),
+            _menuCard(
+              Icons.business_rounded,
+              'Manajemen Cabang',
+              () => context.go('/dashboard/cabangs'),
+              color: AppTheme.primary,
+            ),
           ],
 
           if (role == 'admin_cabang') ...[

@@ -3,6 +3,7 @@ class User {
   final String name;
   final String email;
   final String phone;
+  final String password;
   final String role;
   final String? cabangId;
   final Map<String, dynamic>? lokasi;
@@ -12,6 +13,7 @@ class User {
     required this.name,
     required this.email,
     required this.phone,
+    this.password = '',
     required this.role,
     this.cabangId,
     this.lokasi,
@@ -22,6 +24,7 @@ class User {
     name: json['name'] as String,
     email: json['email'] as String,
     phone: json['phone'] as String,
+    password: json['password'] as String? ?? '',
     role: json['role'] as String,
     cabangId: json['cabang_id'] as String?,
     lokasi: json['lokasi'] as Map<String, dynamic>?,
@@ -32,6 +35,7 @@ class User {
     'name': name,
     'email': email,
     'phone': phone,
+    'password': password,
     'role': role,
     'cabang_id': cabangId,
     'lokasi': lokasi,

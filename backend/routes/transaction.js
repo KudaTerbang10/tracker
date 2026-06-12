@@ -82,6 +82,9 @@ router.post('/batch-status', auth, async (req, res) => {
       if (!cabangTujuan) return res.status(400).json({ message: 'Cabang tujuan tidak ditemukan' });
     }
 
+    const hasAnyDriver = driver || (nama_driver_manual && nama_driver_manual.trim().length > 0);
+    const finalStatus = (status_baru === 'keluar_cabang' && hasAnyDriver) ? 'proses_kirim' : status_baru;
+
     const results = [];
     const validIds = [];
 
@@ -97,8 +100,8 @@ router.post('/batch-status', auth, async (req, res) => {
         continue;
       }
 
-      if (tx.status_saat_ini === status_baru) {
-        results.push({ no_resi, status: 'error', error: `Barang ${no_resi} sudah discan sebagai ${status_baru} sebelumnya` });
+      if (tx.status_saat_ini === finalStatus) {
+        results.push({ no_resi, status: 'error', error: `Barang ${no_resi} sudah discan sebelumnya` });
         continue;
       }
 
@@ -202,7 +205,7 @@ router.post('/batch-status', auth, async (req, res) => {
       const updatedIds = new Set(
         (await Transaction.find({
           _id: { $in: validIds },
-          status_saat_ini: status_baru,
+          status_saat_ini: finalStatus,
         }, { _id: 1 }).lean()).map(d => d._id.toString())
       );
 

@@ -5,6 +5,7 @@ const cabangSchema = new mongoose.Schema({
   name: { type: String, required: true },
   address: { type: String, required: true },
   phone: { type: String, required: true },
+  kota: { type: String, default: '' },
   is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 

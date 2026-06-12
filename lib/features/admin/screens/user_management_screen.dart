@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../shared/utils/sound_player.dart';
 
 final _usersProvider = FutureProvider.autoDispose<List<User>>((ref) async {
   final res = await ApiService().get(ApiConstants.users);
@@ -29,17 +30,32 @@ class UserManagementScreen extends ConsumerStatefulWidget {
 
 class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   String _filter = 'all';
+  final _searchC = TextEditingController();
+  String _search = '';
 
   static const _filters = [
     {'key': 'all', 'label': 'Semua'},
     {'key': 'super_admin', 'label': 'Super Admin'},
     {'key': 'admin_cabang', 'label': 'Admin Cabang'},
     {'key': 'driver', 'label': 'Driver'},
+    {'key': 'unassigned', 'label': 'Belum Ditugaskan'},
   ];
 
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(_usersProvider);
+    final cabangsAsync = ref.watch(_cabangsProvider);
+    final cabangs = cabangsAsync.valueOrNull ?? [];
+    final activeCabangIds = cabangs
+        .where((c) => c['is_active'] == true)
+        .map((c) => c['cabang_id']?.toString())
+        .whereType<String>()
+        .toSet();
+    final cabangNameById = <String, String>{};
+    for (final c in cabangs) {
+      final id = c['cabang_id']?.toString();
+      if (id != null) cabangNameById[id] = '${c['kode']} - ${c['name']}';
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -52,15 +68,27 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       ),
       body: Column(
         children: [
+          _buildSearchBar(),
           _buildFilterTabs(),
           Expanded(
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (users) {
-                final filtered = _filter == 'all'
-                    ? users
-                    : users.where((u) => u.role == _filter).toList();
+                final q = _search.toLowerCase();
+                final filtered = users.where((u) {
+                  if (_filter == 'unassigned') {
+                    if (u.role != 'admin_cabang') return false;
+                    if (u.cabangId == null || u.cabangId!.isEmpty) return true;
+                    return !activeCabangIds.contains(u.cabangId);
+                  }
+                  if (_filter != 'all' && u.role != _filter) return false;
+                  if (q.isNotEmpty) {
+                    if (!u.name.toLowerCase().contains(q) &&
+                        !u.email.toLowerCase().contains(q)) return false;
+                  }
+                  return true;
+                }).toList();
                 if (filtered.isEmpty) {
                   return const Center(child: Text('Tidak ada akun'));
                 }
@@ -126,6 +154,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                         style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
                                       ),
                                     ],
+                                    if (u.role == 'admin_cabang') ...[
+                                      const SizedBox(height: 4),
+                                      _cabangAssignmentRow(u, cabangNameById, activeCabangIds),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -141,6 +173,38 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: SizedBox(
+        height: 40,
+        child: TextField(
+          controller: _searchC,
+          onChanged: (v) => setState(() => _search = v),
+          decoration: InputDecoration(
+            hintText: 'Cari nama atau email...',
+            prefixIcon: const Icon(Icons.search, size: 20),
+            suffixIcon: _search.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      _searchC.clear();
+                      setState(() => _search = '');
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            filled: true,
+            fillColor: const Color(0xFFF1F5F9),
+            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+          ),
+          style: const TextStyle(fontSize: 13),
+        ),
       ),
     );
   }
@@ -188,6 +252,36 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
+  Widget _cabangAssignmentRow(User u, Map<String, String> cabangNameById, Set<String> activeCabangIds) {
+    final hasActiveCabang = u.cabangId != null && u.cabangId!.isNotEmpty && activeCabangIds.contains(u.cabangId);
+    final cabangLabel = u.cabangId != null && u.cabangId!.isNotEmpty
+        ? (cabangNameById[u.cabangId] ?? 'Cabang tidak dikenal')
+        : 'Belum ditugaskan';
+
+    return Row(
+      children: [
+        Icon(
+          hasActiveCabang ? Icons.business_rounded : Icons.warning_amber_rounded,
+          size: 13,
+          color: hasActiveCabang ? const Color(0xFF94A3B8) : Colors.orange.shade400,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            cabangLabel,
+            style: TextStyle(
+              fontSize: 11,
+              color: hasActiveCabang ? const Color(0xFF94A3B8) : Colors.orange.shade400,
+              fontWeight: FontWeight.w500,
+              decoration: hasActiveCabang ? null : TextDecoration.lineThrough,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
   Color _roleColor(String role) {
     switch (role) {
       case 'super_admin': return const Color(0xFFEF4444); // Red
@@ -211,9 +305,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final nameC = TextEditingController(text: user?.name ?? '');
     final emailC = TextEditingController(text: user?.email ?? '');
     final phoneC = TextEditingController(text: user?.phone ?? '');
-    final passC = TextEditingController();
+    final passC = TextEditingController(text: isEdit ? user.password : '');
     String selectedRole = user?.role ?? 'driver';
     String? selectedCabangId = user?.cabangId;
+    bool passVisible = false;
 
     showDialog(
       context: context,
@@ -230,10 +325,18 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 TextField(controller: emailC, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 8),
                 TextField(controller: phoneC, decoration: const InputDecoration(labelText: 'Kontak'), keyboardType: TextInputType.phone),
-                if (!isEdit) ...[
-                  const SizedBox(height: 8),
-                  TextField(controller: passC, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
-                ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: passC,
+                  obscureText: !passVisible,
+                  decoration: InputDecoration(
+                    labelText: isEdit ? 'Password' : 'Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(passVisible ? Icons.visibility_off : Icons.visibility),
+                      onPressed: () => setDialogState(() => passVisible = !passVisible),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: selectedRole,
@@ -262,6 +365,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     'role': selectedRole,
                   };
                   if (!isEdit) data['password'] = passC.text;
+                  if (isEdit && passC.text.isNotEmpty) data['password'] = passC.text;
                   if (selectedRole == 'admin_cabang' && selectedCabangId != null) data['cabang_id'] = selectedCabangId;
 
                   if (isEdit) {
@@ -271,6 +375,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   }
                   Navigator.pop(ctx);
                   ref.invalidate(_usersProvider);
+                  SoundPlayer.instance.playSuccess();
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text(isEdit ? 'Akun berhasil diperbarui' : 'Akun berhasil ditambahkan'),
+                        backgroundColor: const Color(0xFF10B981),
+                      ),
+                    );
+                  }
                 } catch (e) {
                   final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -344,18 +457,22 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     return async.when(
       loading: () => const LinearProgressIndicator(),
       error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
-      data: (cabangs) => DropdownButtonFormField<String>(
-        value: selectedId,
-        items: [
-          const DropdownMenuItem<String>(value: null, child: Text('-- Pilih Cabang --')),
-          ...cabangs.map((c) => DropdownMenuItem<String>(
-            value: c['cabang_id']?.toString(),
-            child: Text('${c['kode']} - ${c['name']}'),
-          )),
-        ],
-        onChanged: onChanged,
-        decoration: const InputDecoration(labelText: 'Cabang Penugasan *', prefixIcon: Icon(Icons.business)),
-      ),
+      data: (cabangs) {
+        final active = cabangs.where((c) => c['is_active'] == true).toList();
+          return DropdownButtonFormField<String>(
+            isExpanded: true,
+            value: active.any((c) => c['cabang_id']?.toString() == selectedId) ? selectedId : null,
+            items: [
+              const DropdownMenuItem<String>(value: null, child: Text('-- Pilih Cabang --')),
+              ...active.map((c) => DropdownMenuItem<String>(
+                value: c['cabang_id']?.toString(),
+                child: Text('${c['kode']} - ${c['name']}', overflow: TextOverflow.ellipsis),
+              )),
+            ],
+            onChanged: onChanged,
+          decoration: const InputDecoration(labelText: 'Cabang Penugasan *', prefixIcon: Icon(Icons.business)),
+        );
+      },
     );
   }
 }

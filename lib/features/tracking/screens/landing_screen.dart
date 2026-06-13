@@ -176,7 +176,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () => context.go('/login'),
                           icon: const Icon(Icons.login_rounded, size: 18),
-                          label: const Text('Masuk Portal Staff'),
+                          label: const Text('Login'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.primary,
                             side: const BorderSide(color: Color(0xFFCBD5E1), width: 1),

@@ -58,10 +58,10 @@ class LabelPrinter {
                     if (asal != null && asal.isNotEmpty) ...[
                       pw.Padding(
                         padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        child: pw.Text(
-                          dicetakOleh != null && asal != dicetakOleh
-                              ? 'Resi ini dicetak ulang ($dicetakOleh)'
-                              : asal,
+                            child: pw.Text(
+                              dicetakOleh != null && asal != dicetakOleh
+                                  ? 'Resi ini dicetak ulang (Cabang $dicetakOleh)'
+                                  : 'Cabang $asal',
                           style: pw.TextStyle(
                             fontSize: 7,
                             color: dicetakOleh != null && asal != dicetakOleh
@@ -130,7 +130,7 @@ class LabelPrinter {
                               border: pw.Border.all(color: PdfColors.black, width: 0.5),
                             ),
                             child: pw.Text(
-                              'Sukajadi',
+                              _capitalize(penerima?['kecamatan'] as String? ?? ''),
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center,
                               maxLines: 1,
@@ -145,7 +145,7 @@ class LabelPrinter {
                               border: pw.Border.all(color: PdfColors.black, width: 0.5),
                             ),
                             child: pw.Text(
-                              'Kota Bandung',
+                              penerima?['kota'] as String? ?? '',
                               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                               textAlign: pw.TextAlign.center,
                               maxLines: 1,
@@ -185,6 +185,14 @@ class LabelPrinter {
         return doc.save();
       },
     );
+  }
+
+  static String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
   }
 
   static String _thousands(dynamic val) {

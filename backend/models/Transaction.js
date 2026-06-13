@@ -44,6 +44,8 @@ const transactionSchema = new mongoose.Schema({
     name: { type: String, required: true },
     phone: { type: String, required: true },
     address: { type: String, required: true },
+    kecamatan: { type: String, default: '' },
+    kota: { type: String, default: '' },
   },
   paket: {
     berat_kg: { type: Number, required: true },

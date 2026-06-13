@@ -27,6 +27,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   final _penerimaNameC = TextEditingController();
   final _penerimaPhoneC = TextEditingController();
   final _penerimaAddrC = TextEditingController();
+  final _penerimaKecC = TextEditingController();
   final _beratC = TextEditingController();
   final _koliC = TextEditingController(text: '1');
   final _biayaC = TextEditingController();
@@ -74,6 +75,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _penerimaNameC.dispose();
     _penerimaPhoneC.dispose();
     _penerimaAddrC.dispose();
+    _penerimaKecC.dispose();
     _beratC.dispose();
     _koliC.dispose();
     _biayaC.dispose();
@@ -145,6 +147,17 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                               const SizedBox(height: 8),
                               const Text('Kota asal tidak dapat ditentukan — atur di data cabang', style: TextStyle(color: Colors.red, fontSize: 11)),
                             ],
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _penerimaKecC,
+                              decoration: const InputDecoration(
+                                labelText: 'Kecamatan *',
+                                prefixIcon: Icon(Icons.map_rounded),
+                                hintText: 'Contoh: Margahayu',
+                              ),
+                              textCapitalization: TextCapitalization.sentences,
+                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                            ),
                           ],
                         ),
                       ),
@@ -431,9 +444,14 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _penerimaNameC.clear();
     _penerimaPhoneC.clear();
     _penerimaAddrC.clear();
+    _penerimaKecC.clear();
     _beratC.clear();
     _koliC.text = '1';
     _biayaC.clear();
+    setState(() {
+      _kotaTujuan = null;
+      _ongkirResult = null;
+    });
   }
 
   Future<void> _submit() async {
@@ -444,7 +462,13 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       final repo = ref.read(transactionRepositoryProvider);
       final tx = await repo.create(
         pengirim: { 'name': _pengirimNameC.text.trim(), 'phone': _pengirimPhoneC.text.trim(), 'address': _pengirimAddrC.text.trim() },
-        penerima: { 'name': _penerimaNameC.text.trim(), 'phone': _penerimaPhoneC.text.trim(), 'address': _penerimaAddrC.text.trim() },
+        penerima: {
+          'name': _penerimaNameC.text.trim(),
+          'phone': _penerimaPhoneC.text.trim(),
+          'address': _penerimaAddrC.text.trim(),
+          'kecamatan': _penerimaKecC.text.trim(),
+          'kota': _kotaTujuan ?? '',
+        },
         paket: {
           'berat_kg': double.tryParse(_beratC.text) ?? 0,
           'jumlah_koli': int.tryParse(_koliC.text) ?? 1,

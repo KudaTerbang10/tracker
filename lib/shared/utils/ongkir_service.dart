@@ -14,13 +14,13 @@ class OngkirService {
   static Map<String, dynamic>? _tariffs;
 
   static const List<String> availableCities = [
-    'Semarang', 'Ungaran', 'Kudus', 'Yogyakarta', 'Magelang', 'Solo',
-    'Pekalongan', 'Tegal', 'Cirebon', 'Purwokerto', 'Bandung', 'Cimahi',
-    'Tasikmalaya', 'Tangerang', 'Bekasi', 'Bogor', 'Jakarta', 'Surabaya',
-    'Malang', 'Sidoarjo', 'Jember', 'Kediri', 'Denpasar', 'Ngawi',
-    'Nganjuk', 'Bojonegoro', 'Mojokerto', 'Madiun', 'Sragen', 'Pare',
-    'Probolinggo', 'Wonosobo', 'Temanggung', 'Parakan', 'Tulung Agung',
-    'Kuningan', 'Cilacap',
+    'Bandung', 'Bekasi', 'Bogor', 'Bojonegoro', 'Cilacap', 'Cimahi',
+    'Cirebon', 'Denpasar', 'Jakarta', 'Jember', 'Kediri', 'Kudus',
+    'Kuningan', 'Madiun', 'Magelang', 'Malang', 'Mojokerto', 'Nganjuk',
+    'Ngawi', 'Parakan', 'Pare', 'Pekalongan', 'Probolinggo', 'Purwokerto',
+    'Semarang', 'Sidoarjo', 'Solo', 'Sragen', 'Surabaya', 'Tangerang',
+    'Tasikmalaya', 'Tegal', 'Temanggung', 'Tulung Agung', 'Ungaran',
+    'Wonosobo', 'Yogyakarta',
   ];
 
   static const _cabangToKota = {

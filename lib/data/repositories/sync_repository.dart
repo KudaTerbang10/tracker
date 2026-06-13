@@ -34,14 +34,29 @@ class SyncRepository {
     }
   }
 
+  Future<bool> syncTariffs() async {
+    try {
+      final res = await _api.get(ApiConstants.tariffs);
+      final list = (res.data['data'] as List<dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      await HiveCache.saveTariffs(list);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, bool>> syncAll() async {
     final results = await Future.wait([
       syncDrivers(),
       syncCabangs(),
+      syncTariffs(),
     ]);
     return {
       'drivers': results[0],
       'cabangs': results[1],
+      'tariffs': results[2],
     };
   }
 

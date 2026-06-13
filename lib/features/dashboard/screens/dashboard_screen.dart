@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/sync_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../data/models/user.dart';
+import '../../../shared/utils/ongkir_service.dart';
 
 final _connectionProvider = FutureProvider<bool>(
   (ref) => ref.read(syncRepositoryProvider).checkConnection(),
@@ -173,6 +174,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Icons.business_rounded,
               'Manajemen Cabang',
               () => context.go('/dashboard/cabangs'),
+              color: AppTheme.primary,
+            ),
+            const SizedBox(height: 8),
+            _menuCard(
+              Icons.payments_rounded,
+              'Tarif',
+              () => context.go('/dashboard/tariffs'),
               color: AppTheme.primary,
             ),
           ],
@@ -440,7 +448,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final result = await ref.read(syncRepositoryProvider).syncAll();
     final driversOk = result['drivers'] ?? false;
     final cabangsOk = result['cabangs'] ?? false;
-    final allOk = driversOk && cabangsOk;
+    final tariffsOk = result['tariffs'] ?? false;
+    if (tariffsOk) {
+      OngkirService.updateFromHive();
+    }
+    final allOk = driversOk && cabangsOk && tariffsOk;
     setState(() {
       _syncing = false;
       _lastSyncSuccess = allOk;

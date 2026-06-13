@@ -13,6 +13,7 @@ import '../features/transaction/screens/transaction_list_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/admin/screens/user_management_screen.dart';
 import '../features/admin/screens/cabang_management_screen.dart';
+import '../features/admin/screens/tariff_management_screen.dart';
 import '../features/driver/screens/driver_tab_screen.dart';
 
 class _AuthListenable extends ChangeNotifier {
@@ -54,6 +55,7 @@ class _AuthListenable extends ChangeNotifier {
         GoRoute(path: 'users', builder: (_, __) => const UserManagementScreen()),
         GoRoute(path: 'cabangs', builder: (_, __) => const CabangManagementScreen()),
         GoRoute(path: 'driver-tab', builder: (_, __) => const DriverTabScreen()),
+        GoRoute(path: 'tariffs', builder: (_, __) => const TariffManagementScreen()),
       ]),
     ],
   );

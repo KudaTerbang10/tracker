@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../data/datasources/local/hive_cache.dart';
 
 class OngkirResult {
   final int min;
@@ -52,8 +53,20 @@ class OngkirService {
   };
 
   static Future<void> init() async {
+    final cached = HiveCache.getTariffs();
+    if (cached != null) {
+      _tariffs = cached;
+      return;
+    }
     final json = await rootBundle.loadString('assets/tariff.json');
     _tariffs = jsonDecode(json) as Map<String, dynamic>;
+  }
+
+  static void updateFromHive() {
+    final cached = HiveCache.getTariffs();
+    if (cached != null) {
+      _tariffs = cached;
+    }
   }
 
   static String? cabangToKota(String? cabangNama) {

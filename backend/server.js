@@ -10,6 +10,7 @@ const driverRoutes = require('./routes/driver');
 const userRoutes = require('./routes/user');
 const cabangRoutes = require('./routes/cabang');
 const analyticsRoutes = require('./routes/analytics');
+const tariffRoutes = require('./routes/tariff');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/cabangs', cabangRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/tariffs', tariffRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });

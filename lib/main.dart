@@ -25,5 +25,7 @@ Future<void> _bootstrapSync() async {
   await Future.wait([
     if (HiveCache.getDrivers().isEmpty) sync.syncDrivers(),
     sync.syncCabangs(),
+    sync.syncTariffs(),
   ]);
+  OngkirService.updateFromHive();
 }

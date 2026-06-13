@@ -3,12 +3,14 @@ import 'package:hive_flutter/hive_flutter.dart';
 class HiveCache {
   static const String _driverBox = 'drivers_cache';
   static const String _cabangBox = 'cabangs_cache';
+  static const String _tariffBox = 'tariffs_cache';
   static const String _metaKey = '__meta__';
 
   static Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox(_driverBox);
     await Hive.openBox(_cabangBox);
+    await Hive.openBox(_tariffBox);
   }
 
   static Future<Box> openBoxIfNeeded(String name) async {
@@ -18,6 +20,7 @@ class HiveCache {
 
   static Box _driver() => Hive.box(_driverBox);
   static Box _cabang() => Hive.box(_cabangBox);
+  static Box _tariff() => Hive.box(_tariffBox);
 
   static Future<void> saveDrivers(List<Map<String, dynamic>> drivers) async {
     final box = _driver();
@@ -80,4 +83,29 @@ class HiveCache {
     return DateTime.tryParse((meta as Map)['last_synced'] as String);
   }
 
+  static Future<void> saveTariffs(List<Map<String, dynamic>> tariffs) async {
+    final box = _tariff();
+    await box.clear();
+    for (final t in tariffs) {
+      await box.put(t['key'].toString(), t);
+    }
+    await box.put(_metaKey, {'last_synced': DateTime.now().toIso8601String()});
+  }
+
+  static Map<String, dynamic>? getTariffs() {
+    final box = _tariff();
+    final data = <String, dynamic>{};
+    for (final key in box.keys) {
+      if (key == _metaKey) continue;
+      data[key as String] = box.get(key) as Map;
+    }
+    return data.isEmpty ? null : data;
+  }
+
+  static DateTime? getTariffsLastSynced() {
+    final box = _tariff();
+    final meta = box.get(_metaKey);
+    if (meta == null) return null;
+    return DateTime.tryParse((meta as Map)['last_synced'] as String);
+  }
 }

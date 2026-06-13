@@ -30,12 +30,6 @@ class TariffItem {
   );
 }
 
-final _tariffsProvider = FutureProvider.autoDispose<List<TariffItem>>((ref) async {
-  final res = await ApiService().get('/tariffs');
-  final data = res.data['data'] as List<dynamic>;
-  return data.map((e) => TariffItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-});
-
 class TariffManagementScreen extends ConsumerStatefulWidget {
   const TariffManagementScreen({super.key});
   @override
@@ -45,20 +39,82 @@ class TariffManagementScreen extends ConsumerStatefulWidget {
 class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen> {
   final _asalC = TextEditingController();
   final _tujuanC = TextEditingController();
+  final _scrollC = ScrollController();
   String _asal = '';
   String _tujuan = '';
+
+  List<TariffItem> _items = [];
+  int _page = 1;
+  bool _loading = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+    _scrollC.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
     _asalC.dispose();
     _tujuanC.dispose();
+    _scrollC.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollC.position.pixels >= _scrollC.position.maxScrollExtent - 200 && !_loading && _hasMore) {
+      _fetch();
+    }
+  }
+
+  Future<void> _fetch() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    try {
+      final params = <String, dynamic>{'page': _page, 'limit': 20};
+      if (_asal.isNotEmpty) params['asal'] = _asal;
+      if (_tujuan.isNotEmpty) params['tujuan'] = _tujuan;
+
+      final res = await ApiService().get('/tariffs', query: params);
+      final data = res.data['data'] as List<dynamic>;
+      final totalPages = res.data['totalPages'] as int;
+      final newItems = data.map((e) => TariffItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+
+      setState(() {
+        _items.addAll(newItems);
+        _page++;
+        _hasMore = _page <= totalPages;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _reset() async {
+    setState(() {
+      _items = [];
+      _page = 1;
+      _hasMore = true;
+    });
+    await _fetch();
+  }
+
+  void _onAsalChanged(String v) {
+    _asal = v;
+    _reset();
+  }
+
+  void _onTujuanChanged(String v) {
+    _tujuan = v;
+    _reset();
   }
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(_tariffsProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kelola Tarif'),
@@ -68,66 +124,59 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
         children: [
           _buildSearchBar(),
           Expanded(
-            child: async.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (tariffs) {
-                final qAsal = _asal.toLowerCase();
-                final qTujuan = _tujuan.toLowerCase();
-                final filtered = tariffs.where((t) {
-                  final matchAsal = qAsal.isEmpty || t.asal.toLowerCase().contains(qAsal);
-                  final matchTujuan = qTujuan.isEmpty || t.tujuan.toLowerCase().contains(qTujuan);
-                  return matchAsal && matchTujuan;
-                }).toList();
-
-                return filtered.isEmpty
-                    ? const Center(child: Text('Tidak ada tarif'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) {
-                          final t = filtered[i];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            child: InkWell(
-                              onTap: () => _showEditForm(context, ref, t),
-                              borderRadius: BorderRadius.circular(16),
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-                                      radius: 24,
-                                      child: const Icon(Icons.local_shipping_rounded, color: Color(0xFF3B82F6), size: 22),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${t.asalCapitalized} → ${t.tujuanCapitalized}',
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF0F172A)),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Min: Rp${_formatRupiah(t.min)} | Per kg: Rp${_formatRupiah(t.perkg)} | Estimasi: ${t.est}',
-                                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const Icon(Icons.edit_outlined, color: Color(0xFF94A3B8), size: 18),
-                                  ],
+            child: _items.isEmpty && !_loading
+                ? const Center(child: Text('Tidak ada tarif'))
+                : ListView.builder(
+                    controller: _scrollC,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: _items.length + (_hasMore ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (i == _items.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        );
+                      }
+                      final t = _items[i];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: InkWell(
+                          onTap: () => _showEditForm(context, ref, t),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                                  radius: 24,
+                                  child: const Icon(Icons.local_shipping_rounded, color: Color(0xFF3B82F6), size: 22),
                                 ),
-                              ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${t.asalCapitalized} → ${t.tujuanCapitalized}',
+                                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF0F172A)),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Min: Rp${_formatRupiah(t.min)} | Per kg: Rp${_formatRupiah(t.perkg)} | Estimasi: ${t.est}',
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.edit_outlined, color: Color(0xFF94A3B8), size: 18),
+                              ],
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       );
-              },
-            ),
+                    },
+                  ),
           ),
         ],
       ),
@@ -143,7 +192,7 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
             height: 40,
             child: TextField(
               controller: _asalC,
-              onChanged: (v) => setState(() => _asal = v),
+              onChanged: _onAsalChanged,
               decoration: InputDecoration(
                 hintText: 'Kota asal...',
                 prefixIcon: const Icon(Icons.trip_origin, size: 20),
@@ -152,7 +201,7 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
                         icon: const Icon(Icons.clear, size: 18),
                         onPressed: () {
                           _asalC.clear();
-                          setState(() => _asal = '');
+                          _onAsalChanged('');
                         },
                       )
                     : null,
@@ -170,7 +219,7 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
             height: 40,
             child: TextField(
               controller: _tujuanC,
-              onChanged: (v) => setState(() => _tujuan = v),
+              onChanged: _onTujuanChanged,
               decoration: InputDecoration(
                 hintText: 'Kota tujuan...',
                 prefixIcon: const Icon(Icons.location_on, size: 20),
@@ -179,7 +228,7 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
                         icon: const Icon(Icons.clear, size: 18),
                         onPressed: () {
                           _tujuanC.clear();
-                          setState(() => _tujuan = '');
+                          _onTujuanChanged('');
                         },
                       )
                     : null,
@@ -240,7 +289,12 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
                   'est': est,
                 });
                 Navigator.pop(ctx);
-                ref.invalidate(_tariffsProvider);
+                setState(() {
+                  _items = [];
+                  _page = 1;
+                  _hasMore = true;
+                });
+                await _fetch();
                 SoundPlayer.instance.playSuccess();
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(

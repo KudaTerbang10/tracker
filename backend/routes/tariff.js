@@ -7,14 +7,26 @@ const router = express.Router();
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { search } = req.query;
+    const { asal, tujuan, page = 1, limit = 20 } = req.query;
     let filter = {};
-    if (search) {
-      const re = new RegExp(search, 'i');
-      filter = { $or: [{ asal: re }, { tujuan: re }] };
-    }
-    const tariffs = await Tariff.find(filter).sort({ asal: 1, tujuan: 1 }).lean();
-    res.json({ data: tariffs.map(t => ({ tariff_id: t._id, key: t.key, asal: t.asal, tujuan: t.tujuan, min: t.min, perkg: t.perkg, est: t.est })) });
+    if (asal) filter.asal = { $regex: asal, $options: 'i' };
+    if (tujuan) filter.tujuan = { $regex: tujuan, $options: 'i' };
+
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, Math.min(2000, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [tariffs, total] = await Promise.all([
+      Tariff.find(filter).sort({ asal: 1, tujuan: 1 }).skip(skip).limit(limitNum).lean(),
+      Tariff.countDocuments(filter),
+    ]);
+
+    res.json({
+      data: tariffs.map(t => ({ tariff_id: t._id, key: t.key, asal: t.asal, tujuan: t.tujuan, min: t.min, perkg: t.perkg, est: t.est })),
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -36,7 +36,7 @@ class SyncRepository {
 
   Future<bool> syncTariffs() async {
     try {
-      final res = await _api.get(ApiConstants.tariffs);
+      final res = await _api.get(ApiConstants.tariffs, query: {'limit': 2000});
       final list = (res.data['data'] as List<dynamic>)
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();

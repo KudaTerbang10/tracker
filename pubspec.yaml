@@ -34,6 +34,7 @@ flutter:
   assets:
     - assets/sounds/
     - assets/pics/
+    - assets/tariff.json
   fonts:
     - family: hiralogo
       fonts:

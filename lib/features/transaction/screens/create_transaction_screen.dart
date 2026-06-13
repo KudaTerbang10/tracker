@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/barcode_widget.dart';
 import '../../../shared/utils/label_printer.dart';
 import '../../../shared/utils/sound_player.dart';
+import '../../../shared/utils/ongkir_service.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
@@ -30,9 +33,41 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
 
   bool _submitting = false;
   Transaction? _createdTransaction;
+  String? _kotaTujuan;
+  OngkirResult? _ongkirResult;
+  bool _originFound = true;
+
+  String? _originApiKota() {
+    final user = ref.read(authProvider).user;
+    final cabangKota = user?.lokasi?['kota'] as String?;
+    return OngkirService.cabangToKota(cabangKota);
+  }
+
+  void _calcOngkir() {
+    final asal = _originApiKota();
+    final tujuan = _kotaTujuan;
+    final beratText = _beratC.text.trim();
+    if (asal == null) { setState(() { _originFound = false; _ongkirResult = null; }); return; }
+    if (tujuan == null || tujuan.isEmpty || beratText.isEmpty) { setState(() { _ongkirResult = null; }); return; }
+    final berat = double.tryParse(beratText);
+    if (berat == null || berat <= 0) { setState(() { _ongkirResult = null; }); return; }
+    final result = OngkirService.hitung(asal, tujuan, berat);
+    setState(() {
+      _originFound = true;
+      _ongkirResult = result;
+      if (result != null) _biayaC.text = result.total.toString();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _beratC.addListener(_calcOngkir);
+  }
 
   @override
   void dispose() {
+    _beratC.removeListener(_calcOngkir);
     _pengirimNameC.dispose();
     _pengirimPhoneC.dispose();
     _pengirimAddrC.dispose();
@@ -95,6 +130,21 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                               maxLines: 2,
                               validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: _kotaTujuan,
+                              items: OngkirService.availableCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                              onChanged: (v) => setState(() { _kotaTujuan = v; _calcOngkir(); }),
+                              decoration: const InputDecoration(
+                                labelText: 'Kota Tujuan *',
+                                prefixIcon: Icon(Icons.location_city_rounded),
+                              ),
+                              validator: (v) => v == null ? 'Pilih kota tujuan' : null,
+                            ),
+                            if (!_originFound) ...[
+                              const SizedBox(height: 8),
+                              const Text('Kota asal tidak dapat ditentukan — atur di data cabang', style: TextStyle(color: Colors.red, fontSize: 11)),
+                            ],
                           ],
                         ),
                       ),
@@ -174,6 +224,61 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                               decoration: const InputDecoration(labelText: 'Biaya Kirim', prefixIcon: Icon(Icons.payments_rounded), prefixText: 'Rp '),
                               keyboardType: TextInputType.number,
                             ),
+                            if (_ongkirResult != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFE0E7FF)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Estimasi', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                        Text(_ongkirResult!.est, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('5 kg pertama', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                        Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_ongkirResult!.min),
+                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('/kg selanjutnya', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                        Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_ongkirResult!.perkg),
+                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                    const Divider(height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+                                        Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_ongkirResult!.total),
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF6366F1)),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

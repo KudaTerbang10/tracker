@@ -159,7 +159,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             _menuCard(
               Icons.bar_chart_rounded,
               'Analisis Traffic',
-              () => _comingSoon(),
+              () => context.go('/dashboard/traffic'),
               color: AppTheme.primary,
             ),
             const SizedBox(height: 8),
@@ -472,12 +472,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       );
     }
-  }
-
-  void _comingSoon() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Fitur dalam pengembangan')));
   }
 }
 

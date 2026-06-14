@@ -28,6 +28,7 @@ class ApiConstants {
   static const String analyticsSummary = '/analytics/summary';
   static const String analyticsPerCabang = '/analytics/per-cabang';
   static const String analyticsDrivers = '/analytics/drivers';
+  static const String analyticsRoutesTop = '/analytics/routes-top';
   static const String health = '/health';
   static const String tariffs = '/tariffs';
 }

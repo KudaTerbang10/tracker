@@ -83,6 +83,58 @@ router.get('/per-cabang', auth, rbac('super_admin'), async (req, res) => {
   }
 });
 
+router.get('/routes-top', auth, rbac('super_admin'), async (req, res) => {
+  try {
+    const month = parseInt(req.query.month);
+    const year = parseInt(req.query.year);
+    if (!month || !year || month < 1 || month > 12)
+      return res.status(400).json({ message: 'month (1-12) and year required' });
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const data = await Transaction.aggregate([
+      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      {
+        $group: {
+          _id: { asal: '$kode_gerai', tujuan: '$penerima.kota' },
+          total_resi: { $sum: 1 },
+          total_biaya: { $sum: '$paket.biaya_kirim' },
+        },
+      },
+      { $sort: { total_resi: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'cabangs',
+          localField: '_id.asal',
+          foreignField: 'kode',
+          as: 'cabang',
+        },
+      },
+      {
+        $addFields: {
+          asal_nama: { $ifNull: [{ $arrayElemAt: ['$cabang.name', 0] }, '$_id.asal'] },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          asal_kode: '$_id.asal',
+          asal_nama: 1,
+          tujuan_kota: '$_id.tujuan',
+          total_resi: 1,
+          total_biaya: 1,
+        },
+      },
+    ]);
+
+    res.json({ data, month, year });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/drivers', auth, rbac('super_admin'), async (req, res) => {
   try {
     const month = parseInt(req.query.month);

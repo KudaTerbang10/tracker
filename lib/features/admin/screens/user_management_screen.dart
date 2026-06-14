@@ -99,8 +99,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   }
                   if (_filter != 'all' && u.role != _filter) return false;
                   if (q.isNotEmpty) {
+                    final cabangName = u.cabangId != null ? (cabangNameById[u.cabangId] ?? '') : '';
                     if (!u.name.toLowerCase().contains(q) &&
-                        !u.email.toLowerCase().contains(q)) return false;
+                        !cabangName.toLowerCase().contains(q)) return false;
                   }
                   return true;
                 }).toList();
@@ -227,7 +228,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           controller: _searchC,
           onChanged: (v) => setState(() => _search = v),
           decoration: InputDecoration(
-            hintText: 'Cari nama atau email...',
+            hintText: 'Cari nama atau cabang...',
             prefixIcon: const Icon(Icons.search, size: 20),
             suffixIcon: _search.isNotEmpty
                 ? IconButton(

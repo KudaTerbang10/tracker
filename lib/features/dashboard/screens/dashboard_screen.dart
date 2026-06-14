@@ -158,8 +158,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (role == 'super_admin') ...[
             _menuCard(
               Icons.bar_chart_rounded,
-              'Analitik Traffic',
+              'Analisis Traffic',
               () => _comingSoon(),
+              color: AppTheme.primary,
+            ),
+            const SizedBox(height: 8),
+            _menuCard(
+              Icons.format_list_bulleted_rounded,
+              'Daftar Transaksi',
+              () => context.go('/dashboard/daftar-transaksi'),
               color: AppTheme.primary,
             ),
             const SizedBox(height: 8),
@@ -179,7 +186,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 8),
             _menuCard(
               Icons.payments_rounded,
-              'Tarif',
+              'Manajemen Tarif',
               () => context.go('/dashboard/tariffs'),
               color: AppTheme.primary,
             ),
@@ -224,7 +231,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ],
 
-          if (role != 'driver') ...[
+          if (role == 'admin_cabang') ...[
             const SizedBox(height: 8),
             _menuCard(
               Icons.format_list_bulleted_rounded,

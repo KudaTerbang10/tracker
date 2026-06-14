@@ -1019,6 +1019,8 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
     final years = List.generate(now.year - 2022 + 1, (i) => 2023 + i);
 
     return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       title: Text(widget.label),
       content: Column(
         mainAxisSize: MainAxisSize.min,

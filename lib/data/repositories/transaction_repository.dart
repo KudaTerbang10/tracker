@@ -74,4 +74,22 @@ class TransactionRepository {
       'totalPages': data['totalPages'],
     };
   }
+
+  Future<List<Map<String, dynamic>>> getPerCabangReport({required int month, required int year}) async {
+    final res = await _api.get(ApiConstants.analyticsPerCabang, query: {
+      'month': month.toString(),
+      'year': year.toString(),
+    });
+    final data = res.data['data'] as List<dynamic>;
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getDriverReport({required int month, required int year}) async {
+    final res = await _api.get(ApiConstants.analyticsDrivers, query: {
+      'month': month.toString(),
+      'year': year.toString(),
+    });
+    final data = res.data['data'] as List<dynamic>;
+    return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
 }

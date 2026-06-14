@@ -11,19 +11,12 @@ import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/utils/label_printer.dart';
+import '../../../shared/utils/branch_report_printer.dart';
+import '../../../shared/utils/driver_report_printer.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../core/constants/api_constants.dart';
-
-final _listProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, key) {
-  final parts = key.split('|');
-  final page = int.parse(parts[0]);
-  final tab = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null;
-  final status = parts.length > 2 && parts[2].isNotEmpty ? parts[2] : null;
-  final search = parts.length > 3 && parts[3].isNotEmpty ? parts[3] : null;
-  return ref.read(transactionRepositoryProvider).getList(page: page, tab: tab, status: status, search: search);
-});
 
 final _prosesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(transactionRepositoryProvider).getList(tab: 'current', limit: 999);
@@ -42,7 +35,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedStatus = '';
-  int _pageAll = 1;
 
   // Infinite scroll untuk history tab
   final _historyItems = <Transaction>[];
@@ -53,19 +45,19 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   DateTime? _startDate;
   DateTime? _endDate;
 
+  // Infinite scroll untuk super admin
+  final _superAdminItems = <Transaction>[];
+  int _superAdminPage = 1;
+  int _superAdminTotalPages = 1;
+  bool _superAdminLoadingMore = false;
+  final _superAdminScrollC = ScrollController();
+
   static const _statusFilters = [
     '',
     'diterima_cabang',
     'proses_kirim',
     'diterima',
   ];
-
-  String _listKey(int page, {String? tab, String? status, String? search}) =>
-      '$page|${tab ?? ''}|${status ?? ''}|${search ?? ''}';
-
-  void _applyFilter() {
-    ref.invalidate(_listProvider(_listKey(_pageAll, status: _selectedStatus, search: _searchQuery)));
-  }
 
   @override
   void initState() {
@@ -83,8 +75,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
           _loadHistory();
         }
       });
+    } else {
+      _superAdminScrollC.addListener(() {
+        if (_superAdminScrollC.position.pixels >= _superAdminScrollC.position.maxScrollExtent - 200) {
+          _loadSuperAdmin();
+        }
+      });
     }
     _loadHistory();
+    if (!_isAdminCabang) _loadSuperAdmin();
   }
 
   @override
@@ -92,7 +91,91 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     _tabController?.dispose();
     _searchController.dispose();
     _historyScrollC.dispose();
+    _superAdminScrollC.dispose();
     super.dispose();
+  }
+
+  Future<void> _showMonthYearPicker(String type) async {
+    final now = DateTime.now();
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (ctx) => _MonthYearPickerDialog(
+        initialMonth: now.month,
+        initialYear: now.year,
+        label: type == 'driver' ? 'Laporan Kerja Driver' : 'Laporan Per Cabang',
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    _generateReport(type: type, month: result['month']!, year: result['year']!);
+  }
+
+  Future<void> _generateReport({required String type, required int month, required int year}) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final repo = ref.read(transactionRepositoryProvider);
+      final List<Map<String, dynamic>> data;
+      if (type == 'driver') {
+        data = await repo.getDriverReport(month: month, year: year);
+      } else {
+        data = await repo.getPerCabangReport(month: month, year: year);
+      }
+
+      if (mounted) Navigator.of(context).pop();
+
+      if (data.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada data untuk bulan yang dipilih')),
+        );
+        return;
+      }
+
+      if (type == 'driver') {
+        await DriverReportPrinter.printReport(month: month, year: year, data: data);
+      } else {
+        await BranchReportPrinter.printReport(month: month, year: year, data: data);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil data: $e')),
+      );
+    }
+  }
+
+  Future<void> _loadSuperAdmin() async {
+    if (_superAdminLoadingMore || _superAdminPage > _superAdminTotalPages) return;
+    if (_superAdminPage == 1) _superAdminItems.clear();
+    _superAdminLoadingMore = true;
+    try {
+      final result = await ref.read(transactionRepositoryProvider).getList(
+        page: _superAdminPage,
+        status: _selectedStatus.isEmpty ? null : _selectedStatus,
+        search: _searchQuery.isEmpty ? null : _searchQuery,
+        limit: 20,
+      );
+      final list = result['data'] as List<Transaction>;
+      _superAdminTotalPages = result['totalPages'] as int;
+      _superAdminItems.addAll(list);
+      _superAdminPage++;
+    } finally {
+      _superAdminLoadingMore = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _resetSuperAdmin() {
+    _superAdminPage = 1;
+    _superAdminTotalPages = 1;
+    _superAdminItems.clear();
+    _loadSuperAdmin();
   }
 
   Future<void> _loadHistory() async {
@@ -129,7 +212,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       _searchController.text = code;
       setState(() {
         _searchQuery = code;
-        _pageAll = 1;
+        _resetSuperAdmin();
       });
     }
   }
@@ -143,6 +226,20 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       appBar: AppBar(
         title: const Text('Daftar Transaksi'),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        actions: [
+          if (!isAdminCabang)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.print_rounded),
+              tooltip: 'Cetak Laporan',
+              surfaceTintColor: Colors.transparent,
+              color: Colors.white,
+              onSelected: (v) => _showMonthYearPicker(v),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'cabang', child: Row(children: [Icon(Icons.store, size: 18), SizedBox(width: 10), Text('Laporan Per Cabang')])),
+                const PopupMenuItem(value: 'driver', child: Row(children: [Icon(Icons.directions_car, size: 18), SizedBox(width: 10), Text('Laporan Kerja Driver')])),
+              ],
+            ),
+        ],
         bottom: isAdminCabang
             ? TabBar(
                 controller: _tabController,
@@ -185,7 +282,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                         _searchController.clear();
                         setState(() {
                           _searchQuery = '';
-                          _pageAll = 1;
+                          _resetSuperAdmin();
                         });
                       },
                     ),
@@ -201,7 +298,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             onChanged: (v) {
               setState(() {
                 _searchQuery = v;
-                _pageAll = 1;
+                _resetSuperAdmin();
               });
             },
           ),
@@ -220,10 +317,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     label: Text(label),
                     selected: selected,
                     onSelected: (_) {
-                      _applyFilter();
                       setState(() {
                         _selectedStatus = s;
-                        _pageAll = 1;
+                        _resetSuperAdmin();
                       });
                     },
                     selectedColor: AppTheme.primary.withValues(alpha: 0.2),
@@ -234,69 +330,44 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             ),
           ),
         ),
-        Expanded(child: _buildPaginatedTab(_listKey(_pageAll, status: _selectedStatus, search: _searchQuery), dateFmt)),
+        Expanded(child: _buildSuperAdminList(dateFmt)),
       ],
     );
   }
 
-  Widget _buildPaginatedTab(String key, DateFormat dateFmt) {
-    final parts = key.split('|');
-    final page = int.parse(parts[0]);
-    final async = ref.watch(_listProvider(key));
+  Widget _buildSuperAdminList(DateFormat dateFmt) {
+    if (_superAdminItems.isEmpty && _superAdminLoadingMore) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (result) {
-        final list = result['data'] as List<Transaction>;
-        final totalPages = result['totalPages'] as int;
+    if (_superAdminItems.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text('Tidak ada transaksi', style: TextStyle(color: Colors.grey.shade500)),
+          ],
+        ),
+      );
+    }
 
-        if (list.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
-                const SizedBox(height: 12),
-                Text('Tidak ada transaksi', style: TextStyle(color: Colors.grey.shade500)),
-              ],
-            ),
+    return ListView.builder(
+      controller: _superAdminScrollC,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      itemCount: _superAdminItems.length + (_superAdminPage <= _superAdminTotalPages ? 1 : 0),
+      itemBuilder: (_, i) {
+        if (i == _superAdminItems.length) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           );
         }
-
-        return Column(
-          children: [
-            if (totalPages > 1)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: page > 1 ? () => setState(() => _pageAll = page - 1) : null,
-                    ),
-                    Text('Halaman $page dari $totalPages'),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: page < totalPages ? () => setState(() => _pageAll = page + 1) : null,
-                    ),
-                  ],
-                ),
-              ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: list.length,
-                itemBuilder: (_, i) => _buildItemCard(list[i], dateFmt, canDelete: false),
-              ),
-            ),
-          ],
-        );
+        return _buildItemCard(_superAdminItems[i], dateFmt, canDelete: false);
       },
     );
   }
-
   Widget _buildProsesTabBadge() {
     final async = ref.watch(_prosesProvider);
     final data = async.valueOrNull;
@@ -907,6 +978,90 @@ class _InfoCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _MonthYearPickerDialog extends StatefulWidget {
+  final int initialMonth;
+  final int initialYear;
+  final String label;
+
+  const _MonthYearPickerDialog({
+    required this.initialMonth,
+    required this.initialYear,
+    this.label = 'Cetak Laporan',
+  });
+
+  @override
+  State<_MonthYearPickerDialog> createState() => _MonthYearPickerDialogState();
+}
+
+class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
+  late int _month;
+  late int _year;
+
+  static const _months = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _month = widget.initialMonth;
+    _year = widget.initialYear;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final years = List.generate(now.year - 2022 + 1, (i) => 2023 + i);
+
+    return AlertDialog(
+      title: Text(widget.label),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<int>(
+            initialValue: _month,
+            decoration: const InputDecoration(
+              labelText: 'Bulan',
+              border: OutlineInputBorder(),
+            ),
+            items: List.generate(12, (i) {
+              return DropdownMenuItem(value: i + 1, child: Text(_months[i]));
+            }),
+            onChanged: (v) {
+              if (v != null) setState(() => _month = v);
+            },
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            initialValue: _year,
+            decoration: const InputDecoration(
+              labelText: 'Tahun',
+              border: OutlineInputBorder(),
+            ),
+            items: years.map((y) {
+              return DropdownMenuItem(value: y, child: Text(y.toString()));
+            }).toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _year = v);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop({'month': _month, 'year': _year}),
+          child: const Text('Cetak'),
+        ),
+      ],
     );
   }
 }

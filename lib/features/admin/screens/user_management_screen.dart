@@ -66,16 +66,19 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (users) {
+                final inactiveCount = users.where((u) => !u.isActive).length;
                 final counts = <String, int>{
-                  'all': users.length,
-                  'super_admin': users.where((u) => u.role == 'super_admin').length,
-                  'admin_cabang': users.where((u) => u.role == 'admin_cabang').length,
-                  'driver': users.where((u) => u.role == 'driver').length,
+                  'all': users.where((u) => u.isActive).length,
+                  'super_admin': users.where((u) => u.isActive && u.role == 'super_admin').length,
+                  'admin_cabang': users.where((u) => u.isActive && u.role == 'admin_cabang').length,
+                  'driver': users.where((u) => u.isActive && u.role == 'driver').length,
                   'unassigned': users.where((u) {
                     if (u.role != 'admin_cabang') return false;
+                    if (!u.isActive) return false;
                     if (u.cabangId == null || u.cabangId!.isEmpty) return true;
                     return !activeCabangIds.contains(u.cabangId);
                   }).length,
+                  'nonaktif': inactiveCount,
                 };
                 final filters = [
                   {'key': 'all', 'label': 'Semua'},
@@ -83,9 +86,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   {'key': 'admin_cabang', 'label': 'Admin Cabang'},
                   {'key': 'driver', 'label': 'Driver'},
                   if ((counts['unassigned'] ?? 0) > 0) {'key': 'unassigned', 'label': 'Belum Ditugaskan'},
+                  if (inactiveCount > 0) {'key': 'nonaktif', 'label': 'Nonaktif'},
                 ];
                 final q = _search.toLowerCase();
                 final filtered = users.where((u) {
+                  if (_filter == 'nonaktif') return !u.isActive;
+                  if (!u.isActive) return false;
                   if (_filter == 'unassigned') {
                     if (u.role != 'admin_cabang') return false;
                     if (u.cabangId == null || u.cabangId!.isEmpty) return true;
@@ -110,71 +116,91 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   itemBuilder: (_, i) {
                     final u = filtered[i];
                     final rColor = _roleColor(u.role);
+                    final isInactive = !u.isActive;
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       child: InkWell(
                         onTap: () => _showForm(context, ref, user: u),
-                        onLongPress: () => _confirmDelete(context, ref, u),
+                        onLongPress: () => _confirmToggleActive(context, ref, u),
                         borderRadius: BorderRadius.circular(16),
                         child: Padding(
                           padding: const EdgeInsets.all(14),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: rColor.withValues(alpha: 0.1),
-                                radius: 24,
-                                child: Icon(_roleIcon(u.role), color: rColor, size: 22),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            u.name,
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
-                                            overflow: TextOverflow.ellipsis,
+                          child: Opacity(
+                            opacity: isInactive ? 0.5 : 1.0,
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: (isInactive ? Colors.grey : rColor).withValues(alpha: 0.1),
+                                  radius: 24,
+                                  child: Icon(
+                                    isInactive ? Icons.person_off_rounded : _roleIcon(u.role),
+                                    color: isInactive ? Colors.grey : rColor,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          if (isInactive) ...[
+                                            Icon(Icons.block, size: 13, color: Colors.red.shade400),
+                                            const SizedBox(width: 4),
+                                          ],
+                                          Flexible(
+                                            child: Text(
+                                              u.name,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                                color: isInactive ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                                                decoration: isInactive ? TextDecoration.lineThrough : null,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: rColor.withValues(alpha: 0.08),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: rColor.withValues(alpha: 0.15), width: 0.5),
+                                            ),
+                                            child: Text(
+                                              u.roleLabel,
+                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: rColor),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        u.email,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isInactive ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: rColor.withValues(alpha: 0.08),
-                                            borderRadius: BorderRadius.circular(4),
-                                            border: Border.all(color: rColor.withValues(alpha: 0.15), width: 0.5),
-                                          ),
-                                          child: Text(
-                                            u.roleLabel,
-                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: rColor),
-                                          ),
+                                      ),
+                                      if (u.phone.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          u.phone,
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
                                         ),
                                       ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      u.email,
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                                    ),
-                                    if (u.phone.isNotEmpty) ...[
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        u.phone,
-                                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
-                                      ),
+                                      if (u.role == 'admin_cabang') ...[
+                                        const SizedBox(height: 4),
+                                        _cabangAssignmentRow(u, cabangNameById, activeCabangIds),
+                                      ],
                                     ],
-                                    if (u.role == 'admin_cabang') ...[
-                                      const SizedBox(height: 4),
-                                      _cabangAssignmentRow(u, cabangNameById, activeCabangIds),
-                                    ],
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const Icon(Icons.edit_outlined, color: Color(0xFF94A3B8), size: 18),
-                            ],
+                                const Icon(Icons.edit_outlined, color: Color(0xFF94A3B8), size: 18),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -437,30 +463,36 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, User user) {
+  void _confirmToggleActive(BuildContext context, WidgetRef ref, User user) {
     final currentUser = ref.read(authProvider).user;
     if (currentUser?.id == user.id) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat menghapus akun sendiri')),
+        const SnackBar(content: Text('Tidak dapat menonaktifkan akun sendiri')),
       );
       return;
     }
 
+    final isActive = user.isActive;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('Hapus Akun'),
-        content: Text('Yakin hapus akun "${user.name}" (${user.email})?\n\nAkun akan dinonaktifkan.'),
+        title: Text(isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun'),
+        content: Text(isActive
+            ? 'Yakin nonaktifkan akun "${user.name}" (${user.email})?'
+            : 'Aktifkan kembali akun "${user.name}" (${user.email})?'),
         actions: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                onPressed: () => _deleteUser(ctx, ref, user),
-                child: const Text('HAPUS'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isActive ? Colors.red : const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => _toggleActive(ctx, ref, user),
+                child: Text(isActive ? 'NONAKTIFKAN' : 'AKTIFKAN'),
               ),
               const SizedBox(height: 8),
               Center(
@@ -473,20 +505,30 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
-  Future<void> _deleteUser(BuildContext ctx, WidgetRef ref, User user) async {
+  Future<void> _toggleActive(BuildContext ctx, WidgetRef ref, User user) async {
     final navigator = Navigator.of(ctx);
     final messenger = ScaffoldMessenger.of(ctx);
     try {
-      await ApiService().delete('${ApiConstants.users}/${user.id}');
+      if (user.isActive) {
+        await ApiService().delete('${ApiConstants.users}/${user.id}');
+      } else {
+        await ApiService().put('${ApiConstants.users}/${user.id}', data: {'is_active': true});
+      }
       navigator.pop();
       ref.invalidate(_usersProvider);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Akun "${user.name}" berhasil dihapus')),
-      );
+      SoundPlayer.instance.playSuccess();
+      if (ctx.mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(user.isActive ? 'Akun "${user.name}" dinonaktifkan' : 'Akun "${user.name}" diaktifkan'),
+            backgroundColor: const Color(0xFF10B981),
+          ),
+        );
+      }
     } catch (e) {
       final msg = e is DioException
-          ? (e.response?.data?['message'] as String? ?? 'Gagal menghapus')
-          : 'Gagal menghapus';
+          ? (e.response?.data?['message'] as String? ?? 'Gagal')
+          : 'Gagal';
       messenger.showSnackBar(SnackBar(content: Text(msg)));
     }
   }

@@ -7,6 +7,7 @@ class User {
   final String role;
   final String? cabangId;
   final Map<String, dynamic>? lokasi;
+  final bool isActive;
 
   User({
     required this.id,
@@ -17,6 +18,7 @@ class User {
     required this.role,
     this.cabangId,
     this.lokasi,
+    this.isActive = true,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -28,6 +30,7 @@ class User {
     role: json['role'] as String,
     cabangId: json['cabang_id'] as String?,
     lokasi: json['lokasi'] as Map<String, dynamic>?,
+    isActive: json['is_active'] as bool? ?? true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -39,6 +42,7 @@ class User {
     'role': role,
     'cabang_id': cabangId,
     'lokasi': lokasi,
+    'is_active': isActive,
   };
 
   bool get isSuperAdmin => role == 'super_admin';

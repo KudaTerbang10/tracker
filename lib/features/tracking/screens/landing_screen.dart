@@ -284,7 +284,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       controller: beratC,
                       decoration: const InputDecoration(
                         labelText: 'Berat (kg)',
-                        prefixIcon: Icon(Icons.monitor_weight_outlined, size: 20),
+                        prefixIcon: Icon(Icons.scale, size: 20),
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (_) => hitung(),

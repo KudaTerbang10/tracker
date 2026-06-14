@@ -37,6 +37,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   String? _kotaTujuan;
   OngkirResult? _ongkirResult;
   bool _originFound = true;
+  int _autocompleteResetKey = 0;
+  bool _isFormattingAddr = false;
 
   String? _originApiKota() {
     final user = ref.read(authProvider).user;
@@ -64,11 +66,78 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   void initState() {
     super.initState();
     _beratC.addListener(_calcOngkir);
+    _pengirimNameC.addListener(_formatPengirimName);
+    _penerimaNameC.addListener(_formatPenerimaName);
+    _pengirimAddrC.addListener(_formatPengirimAddr);
+    _penerimaAddrC.addListener(_formatPenerimaAddr);
+  }
+
+  void _formatPengirimAddr() {
+    if (_isFormattingAddr) return;
+    _isFormattingAddr = true;
+    final formatted = _formatAddress(_pengirimAddrC.text);
+    if (formatted != _pengirimAddrC.text) {
+      _pengirimAddrC.text = formatted;
+      _pengirimAddrC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingAddr = false;
+  }
+
+  void _formatPenerimaAddr() {
+    if (_isFormattingAddr) return;
+    _isFormattingAddr = true;
+    final formatted = _formatAddress(_penerimaAddrC.text);
+    if (formatted != _penerimaAddrC.text) {
+      _penerimaAddrC.text = formatted;
+      _penerimaAddrC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingAddr = false;
+  }
+
+  void _formatPengirimName() {
+    if (_isFormattingAddr) return;
+    _isFormattingAddr = true;
+    final formatted = _formatAddress(_pengirimNameC.text);
+    if (formatted != _pengirimNameC.text) {
+      _pengirimNameC.text = formatted;
+      _pengirimNameC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingAddr = false;
+  }
+
+  void _formatPenerimaName() {
+    if (_isFormattingAddr) return;
+    _isFormattingAddr = true;
+    final formatted = _formatAddress(_penerimaNameC.text);
+    if (formatted != _penerimaNameC.text) {
+      _penerimaNameC.text = formatted;
+      _penerimaNameC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingAddr = false;
+  }
+
+  static String _formatAddress(String text) {
+    final words = text.split(' ');
+    final formatted = words.map((w) {
+      if (w.isEmpty) return w;
+      final lower = w.toLowerCase();
+      if (lower == 'rt' || lower == 'rw') return lower.toUpperCase();
+      final match = RegExp(r'^(rt|rw)(\d+)$', caseSensitive: false).firstMatch(w);
+      if (match != null) return '${match.group(1)!.toUpperCase()}${match.group(2)}';
+      // biarkan ALL UPPERCASE (PT, CV, dll), title-case-kan sisanya
+      if (!w.contains(RegExp(r'[a-z]'))) return w;
+      return w[0].toUpperCase() + w.substring(1).toLowerCase();
+    }).join(' ');
+    return formatted;
   }
 
   @override
   void dispose() {
     _beratC.removeListener(_calcOngkir);
+    _pengirimNameC.removeListener(_formatPengirimName);
+    _penerimaNameC.removeListener(_formatPenerimaName);
+    _pengirimAddrC.removeListener(_formatPengirimAddr);
+    _penerimaAddrC.removeListener(_formatPenerimaAddr);
     _pengirimNameC.dispose();
     _pengirimPhoneC.dispose();
     _pengirimAddrC.dispose();
@@ -133,15 +202,28 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                               validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                             const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              value: _kotaTujuan,
-                              items: OngkirService.availableCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                              onChanged: (v) => setState(() { _kotaTujuan = v; _calcOngkir(); }),
-                              decoration: const InputDecoration(
-                                labelText: 'Kota Tujuan *',
-                                prefixIcon: Icon(Icons.location_city_rounded),
-                              ),
-                              validator: (v) => v == null ? 'Pilih kota tujuan' : null,
+                            Autocomplete<String>(
+                              key: ValueKey(_autocompleteResetKey),
+                              optionsBuilder: (textEditingValue) {
+                                if (textEditingValue.text.isEmpty) return OngkirService.availableCities;
+                                return OngkirService.availableCities.where((c) =>
+                                  c.toLowerCase().contains(textEditingValue.text.toLowerCase()),
+                                );
+                              },
+                              initialValue: _kotaTujuan == null ? null : TextEditingValue(text: _kotaTujuan!),
+                              onSelected: (v) => setState(() { _kotaTujuan = v; _calcOngkir(); }),
+                              displayStringForOption: (v) => v,
+                              fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                                return TextFormField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Kota Tujuan *',
+                                    prefixIcon: Icon(Icons.location_city_rounded),
+                                  ),
+                                  validator: (v) => _kotaTujuan == null ? 'Pilih kota tujuan' : null,
+                                );
+                              },
                             ),
                             if (!_originFound) ...[
                               const SizedBox(height: 8),
@@ -451,6 +533,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     setState(() {
       _kotaTujuan = null;
       _ongkirResult = null;
+      _autocompleteResetKey++;
     });
   }
 

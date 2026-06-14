@@ -74,7 +74,7 @@ router.get('/per-cabang', auth, rbac('super_admin'), async (req, res) => {
       { $lookup: { from: 'cabangs', localField: '_id', foreignField: 'kode', as: 'cabang' } },
       { $addFields: { cabang_name: { $ifNull: [{ $arrayElemAt: ['$cabang.name', 0] }, '$_id'] } } },
       { $project: { _id: 0, kode_gerai: '$_id', cabang_name: 1, total_resi: 1, total_biaya: 1 } },
-      { $sort: { cabang_name: 1 } },
+      { $sort: { total_resi: -1 } },
     ]);
 
     res.json({ data, month, year });

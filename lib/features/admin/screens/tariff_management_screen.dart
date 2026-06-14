@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../data/datasources/remote/api_service.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../shared/utils/sound_player.dart';
 
 class TariffItem {
@@ -28,6 +30,22 @@ class TariffItem {
     perkg: json['perkg'] as int,
     est: json['est'] as String,
   );
+}
+
+class _RupiahFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) return TextEditingValue.empty;
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
+  }
 }
 
 class TariffManagementScreen extends ConsumerStatefulWidget {
@@ -117,8 +135,14 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kelola Tarif'),
+        title: const Text('Manajemen Tarif'),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF3B82F6),
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.add),
+        onPressed: () => _showAddForm(context),
       ),
       body: Column(
         children: [
@@ -246,70 +270,260 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
     );
   }
 
+  Widget _estRangeSlider(double lower, double upper, void Function(double, double) onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Estimasi: ${lower.toInt()} - ${upper.toInt()} Hari',
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        RangeSlider(
+          values: RangeValues(lower, upper),
+          min: 1,
+          max: 7,
+          divisions: 6,
+          labels: RangeLabels('${lower.toInt()} hr', '${upper.toInt()} hr'),
+          onChanged: (v) => onChanged(v.start, v.end),
+        ),
+      ],
+    );
+  }
+
+  String _estLabel(double lower, double upper) => '${lower.toInt()}-${upper.toInt()} HARI';
+
+  /// Parse "1-3 HARI" → (1, 3). Default (1, 3) if unparseable.
+  RangeValues _parseEst(String est) {
+    final parts = RegExp(r'(\d+)\s*-\s*(\d+)').firstMatch(est);
+    if (parts == null) return const RangeValues(1, 3);
+    final start = int.tryParse(parts.group(1) ?? '1') ?? 1;
+    final end = int.tryParse(parts.group(2) ?? '3') ?? 3;
+    return RangeValues(start.toDouble(), end.toDouble());
+  }
+
+  Future<void> _showAddForm(BuildContext context) async {
+    final citiesRes = await ApiService().get(ApiConstants.cabangKota);
+    final cities = List<String>.from(
+      (citiesRes.data['data'] as List<dynamic>).map((e) => e as String),
+    )..sort();
+
+    String? asal;
+    String? tujuan;
+    final minC = TextEditingController();
+    final perkgC = TextEditingController();
+    double estLower = 1;
+    double estUpper = 3;
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          title: const Text('Tambah Tarif'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAutocomplete(ctx, cities, 'Kota Asal', Icons.trip_origin, (v) => setDialogState(() => asal = v)),
+                const SizedBox(height: 12),
+                _buildAutocomplete(ctx, cities, 'Kota Tujuan', Icons.location_on, (v) => setDialogState(() => tujuan = v)),
+                const SizedBox(height: 12),
+                TextField(controller: minC, decoration: const InputDecoration(labelText: 'Tarif Awal 5 Kg', border: OutlineInputBorder(), prefixIcon: Icon(Icons.inventory_2)), keyboardType: TextInputType.number, inputFormatters: [_RupiahFormatter()]),
+                const SizedBox(height: 12),
+                TextField(controller: perkgC, decoration: const InputDecoration(labelText: 'Per kg', border: OutlineInputBorder(), prefixIcon: Icon(Icons.attach_money)), keyboardType: TextInputType.number, inputFormatters: [_RupiahFormatter()]),
+                const SizedBox(height: 8),
+                _estRangeSlider(estLower, estUpper, (l, u) => setDialogState(() { estLower = l; estUpper = u; })),
+              ],
+            ),
+          ),
+          actions: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), foregroundColor: Colors.white),
+                    onPressed: () async {
+                      if (asal == null || tujuan == null) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Pilih kota asal dan tujuan')));
+                        return;
+                      }
+                      final min = int.tryParse(minC.text.replaceAll('.', ''));
+                      final perkg = int.tryParse(perkgC.text.replaceAll('.', ''));
+                      if (min == null || perkg == null) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Isi semua field dengan benar')));
+                        return;
+                      }
+                      try {
+                        await ApiService().post('/tariffs', data: {
+                          'asal': asal, 'tujuan': tujuan, 'min': min, 'perkg': perkg, 'est': _estLabel(estLower, estUpper),
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        _reset();
+                        SoundPlayer.instance.playSuccess();
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Tarif berhasil ditambahkan'), backgroundColor: Color(0xFF10B981)),
+                          );
+                        }
+                      } on DioException catch (e) {
+                        final code = e.response?.statusCode;
+                        if (code == 409) {
+                          SoundPlayer.instance.playError();
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Rute sudah terdaftar'), backgroundColor: Colors.red),
+                          );
+                        } else {
+                          final msg = e.response?.data?['message'] as String? ?? 'Gagal menambah tarif';
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg)));
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    },
+                    child: const Text('Simpan'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAutocomplete(BuildContext ctx, List<String> cities, String label, IconData icon, void Function(String) onSelected) {
+    return Autocomplete<String>(
+      optionsBuilder: (value) {
+        if (value.text.isEmpty) return cities;
+        return cities.where((c) => c.toLowerCase().contains(value.text.toLowerCase()));
+      },
+      onSelected: onSelected,
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(icon),
+          ),
+        );
+      },
+    );
+  }
+
   String _formatRupiah(int amount) {
     return amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
   }
 
   void _showEditForm(BuildContext context, WidgetRef ref, TariffItem tariff) {
-    final minC = TextEditingController(text: tariff.min.toString());
-    final perkgC = TextEditingController(text: tariff.perkg.toString());
-    final estC = TextEditingController(text: tariff.est);
+    final minC = TextEditingController(text: _formatRupiah(tariff.min));
+    final perkgC = TextEditingController(text: _formatRupiah(tariff.perkg));
+    final range = _parseEst(tariff.est);
+    var estLower = range.start;
+    var estUpper = range.end;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text('Edit Tarif: ${tariff.asalCapitalized} → ${tariff.tujuanCapitalized}'),
-        content: SingleChildScrollView(
-          child: Column(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: minC, decoration: const InputDecoration(labelText: 'Min (5kg)'), keyboardType: TextInputType.number),
-              const SizedBox(height: 8),
-              TextField(controller: perkgC, decoration: const InputDecoration(labelText: 'Per kg'), keyboardType: TextInputType.number),
-              const SizedBox(height: 8),
-              TextField(controller: estC, decoration: const InputDecoration(labelText: 'Estimasi (contoh: 1-3 HARI)')),
+              const Text('Edit Tarif'),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: const Color(0xFF3B82F6).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                    child: Text(tariff.asalCapitalized, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF3B82F6))),
+                  ),
+                  const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Icon(Icons.arrow_forward, size: 14, color: Color(0xFF94A3B8))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: const Color(0xFF10B981).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                    child: Text(tariff.tujuanCapitalized, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF10B981))),
+                  ),
+                ],
+              ),
             ],
           ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () async {
-              final min = int.tryParse(minC.text);
-              final perkg = int.tryParse(perkgC.text);
-              final est = estC.text.trim();
-              if (min == null || perkg == null || est.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Isi semua field dengan benar')));
-                return;
-              }
-              try {
-                await ApiService().put('/tariffs/${tariff.id}', data: {
-                  'min': min,
-                  'perkg': perkg,
-                  'est': est,
-                });
-                Navigator.pop(ctx);
-                setState(() {
-                  _items = [];
-                  _page = 1;
-                  _hasMore = true;
-                });
-                await _fetch();
-                SoundPlayer.instance.playSuccess();
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Tarif berhasil diperbarui'), backgroundColor: Color(0xFF10B981)),
-                  );
-                }
-              } catch (e) {
-                final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-              }
-            },
-            child: const Text('Simpan'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: minC, decoration: const InputDecoration(labelText: 'Tarif Awal 5 Kg', border: OutlineInputBorder(), prefixIcon: Icon(Icons.inventory_2)), keyboardType: TextInputType.number, inputFormatters: [_RupiahFormatter()]),
+                const SizedBox(height: 8),
+                TextField(controller: perkgC, decoration: const InputDecoration(labelText: 'Per kg', border: OutlineInputBorder(), prefixIcon: Icon(Icons.attach_money)), keyboardType: TextInputType.number, inputFormatters: [_RupiahFormatter()]),
+                const SizedBox(height: 8),
+                _estRangeSlider(estLower, estUpper, (l, u) => setDialogState(() { estLower = l; estUpper = u; })),
+              ],
+            ),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL')),
-        ],
+          actions: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), foregroundColor: Colors.white),
+                    onPressed: () async {
+                      final min = int.tryParse(minC.text.replaceAll('.', ''));
+                      final perkg = int.tryParse(perkgC.text.replaceAll('.', ''));
+                      if (min == null || perkg == null) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Isi semua field dengan benar')));
+                        return;
+                      }
+                      try {
+                        await ApiService().put('/tariffs/${tariff.id}', data: {
+                          'min': min,
+                          'perkg': perkg,
+                          'est': _estLabel(estLower, estUpper),
+                        });
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        _reset();
+                        SoundPlayer.instance.playSuccess();
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(content: Text('Tarif berhasil diperbarui'), backgroundColor: Color(0xFF10B981)),
+                          );
+                        }
+                      } catch (e) {
+                        final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
+                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg)));
+                      }
+                    },
+                    child: const Text('Simpan'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Batal'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

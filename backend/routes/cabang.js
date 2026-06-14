@@ -55,4 +55,14 @@ router.delete('/:id', auth, rbac('super_admin'), async (req, res) => {
   }
 });
 
+router.get('/kota', auth, async (req, res) => {
+  try {
+    const cities = await Cabang.distinct('kota', { is_active: true, kota: { $ne: '' } });
+    cities.sort();
+    res.json({ data: cities });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

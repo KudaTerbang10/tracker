@@ -22,6 +22,7 @@ class ApiConstants {
   static const String drivers = '/drivers';
   static const String users = '/users';
   static const String cabangs = '/cabangs';
+  static const String cabangKota = '/cabangs/kota';
   static const String analyticsTraffic = '/analytics/traffic';
   static const String analyticsCustomers = '/analytics/customers-top';
   static const String analyticsSummary = '/analytics/summary';

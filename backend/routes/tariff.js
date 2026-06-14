@@ -32,6 +32,33 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+router.post('/', auth, rbac('super_admin'), async (req, res) => {
+  try {
+    const { asal, tujuan, min, perkg, est } = req.body;
+    if (!asal || !tujuan || min === undefined || perkg === undefined || !est) {
+      return res.status(400).json({ message: 'Semua field wajib diisi' });
+    }
+
+    const asalNorm = asal.toLowerCase().trim();
+    const tujuanNorm = tujuan.toLowerCase().trim();
+    const key = `${asalNorm}|${tujuanNorm}`;
+
+    // Cek duplikat via key dan juga via asal+tujuan langsung
+    const exists = await Tariff.findOne({
+      $or: [
+        { key },
+        { asal: asalNorm, tujuan: tujuanNorm },
+      ],
+    });
+    if (exists) return res.status(409).json({ message: 'Rute sudah terdaftar' });
+
+    const tariff = await Tariff.create({ key, asal: asalNorm, tujuan: tujuanNorm, min, perkg, est });
+    res.status(201).json({ tariff_id: tariff._id, key: tariff.key, asal: tariff.asal, tujuan: tariff.tujuan, min: tariff.min, perkg: tariff.perkg, est: tariff.est });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.put('/:id', auth, rbac('super_admin'), async (req, res) => {
   try {
     const { min, perkg, est } = req.body;

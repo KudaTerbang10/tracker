@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/barcode_widget.dart';
+import '../../../shared/widgets/location_picker.dart';
 import '../../../shared/utils/label_printer.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../../shared/utils/ongkir_service.dart';
@@ -35,6 +36,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   bool _submitting = false;
   Transaction? _createdTransaction;
   String? _kotaTujuan;
+  double? _penerimaLat;
+  double? _penerimaLng;
   OngkirResult? _ongkirResult;
   bool _originFound = true;
   int _autocompleteResetKey = 0;
@@ -230,15 +233,57 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                               const Text('Kota asal tidak dapat ditentukan — atur di data cabang', style: TextStyle(color: Colors.red, fontSize: 11)),
                             ],
                             const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _penerimaKecC,
-                              decoration: const InputDecoration(
-                                labelText: 'Kecamatan *',
-                                prefixIcon: Icon(Icons.map_rounded),
-                                hintText: 'Contoh: Margahayu',
-                              ),
-                              textCapitalization: TextCapitalization.sentences,
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _penerimaKecC,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Kecamatan *',
+                                      prefixIcon: Icon(Icons.map_rounded),
+                                      hintText: 'Contoh: Margahayu',
+                                    ),
+                                    textCapitalization: TextCapitalization.sentences,
+                                    validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: _penerimaLat != null
+                                        ? Colors.green.withValues(alpha: 0.1)
+                                        : AppTheme.primary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: IconButton(
+                                    onPressed: () async {
+                                      final result = await LocationPicker.show(
+                                        context,
+                                        latitude: _penerimaLat,
+                                        longitude: _penerimaLng,
+                                        address: _penerimaAddrC.text.isNotEmpty
+                                            ? _penerimaAddrC.text.trim()
+                                            : null,
+                                      );
+                                      if (result != null) {
+                                        setState(() {
+                                          _penerimaLat = result.latitude;
+                                          _penerimaLng = result.longitude;
+                                        });
+                                      }
+                                    },
+                                    icon: Icon(
+                                      _penerimaLat != null
+                                          ? Icons.location_on_rounded
+                                          : Icons.location_on_outlined,
+                                      color: _penerimaLat != null ? Colors.green : AppTheme.primary,
+                                    ),
+                                    tooltip: _penerimaLat != null
+                                        ? 'Lokasi telah dipilih'
+                                        : 'Pilih lokasi di peta',
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -532,6 +577,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _biayaC.clear();
     setState(() {
       _kotaTujuan = null;
+      _penerimaLat = null;
+      _penerimaLng = null;
       _ongkirResult = null;
       _autocompleteResetKey++;
     });
@@ -557,6 +604,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
           'jumlah_koli': int.tryParse(_koliC.text) ?? 1,
           'biaya_kirim': double.tryParse(_biayaC.text) ?? 0,
         },
+        lokasiPenerima: _penerimaLat != null && _penerimaLng != null
+            ? { 'type': 'Point', 'coordinates': [_penerimaLng, _penerimaLat] }
+            : null,
       );
       SoundPlayer.instance.playSuccess();
       setState(() => _createdTransaction = tx);

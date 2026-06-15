@@ -12,12 +12,14 @@ class TransactionRepository {
     required Map<String, dynamic> pengirim,
     required Map<String, dynamic> penerima,
     required Map<String, dynamic> paket,
+    Map<String, dynamic>? lokasiPenerima,
     String? catatan,
   }) async {
     final res = await _api.post(ApiConstants.transactions, data: {
       'pengirim': pengirim,
       'penerima': penerima,
       'paket': paket,
+      'lokasi_penerima': lokasiPenerima,
       'catatan': catatan,
     });
     return Transaction.fromJson(res.data as Map<String, dynamic>);

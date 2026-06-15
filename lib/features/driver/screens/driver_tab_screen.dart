@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -148,7 +150,6 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
 
   Widget _buildKirimTab() {
     final async = ref.watch(_kirimProvider);
-    final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -176,55 +177,85 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                   final tx = list[i];
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      leading: Icon(
-                        tx.statusSaatIni == 'diterima' ? Icons.check_circle : Icons.local_shipping,
-                        color: tx.statusSaatIni == 'diterima' ? Colors.green : Colors.orange,
-                      ),
-                      title: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis),
-                          ),
-                          const SizedBox(width: 4),
-                          ResiCopyButton(resi: tx.noResi),
-                        ],
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _showDetail(tx),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${tx.pengirimName} → ${tx.penerimaName}'),
-                            if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.local_shipping_rounded,
+                                  size: 16,
+                                  color: Colors.orange.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    tx.noResi,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 15,
+                                      letterSpacing: 1,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                ResiCopyButton(resi: tx.noResi),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${tx.pengirimName} → ${tx.penerimaName}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF475569),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.orange.withValues(alpha: 0.15),
+                                  ),
+                                ),
                                 child: Row(
                                   children: [
                                     Icon(Icons.tour, size: 14, color: Colors.orange.shade700),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: 6),
                                     Flexible(
                                       child: Text(
                                         () {
                                           final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
                                           final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
-                                          return tipe == 'penerima' ? 'Mengantar ke $nama (penerima)' : 'Mengantar ke $nama';
+                                          if (tipe == 'penerima') return 'Antar ke $nama (penerima)';
+                                          return 'Antar ke $nama';
                                         }(),
-                                        style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.orange.shade700,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                            ],
                           ],
                         ),
                       ),
-                      isThreeLine: true,
-                      trailing: StatusBadge(status: tx.statusSaatIni),
-                      onTap: () => _showDetail(tx),
                     ),
                   );
                   },
@@ -500,14 +531,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Expanded(
-                            child: _infoCard(
-                              'Penerima',
-                              tx.penerimaName,
-                              tx.penerima['phone'] as String? ?? '',
-                              tx.penerimaAddress,
-                              Icons.call_received_rounded,
-                              AppTheme.secondary,
-                            ),
+                            child: _penerimaCard(tx),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -525,7 +549,14 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     ),
                     const SizedBox(height: 12),
 
+                    // Map Card — only for delivery to recipient
+                    if (tx.tujuanSelanjutnya?['tipe'] == 'penerima') ...[
+                      const SizedBox(height: 12),
+                      _mapCard(tx),
+                    ],
+
                     // Specs Card
+                    const SizedBox(height: 12),
                     Card(
                       color: Colors.white,
                       child: Padding(
@@ -602,6 +633,167 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     );
   }
 
+  Widget _penerimaCard(Transaction tx) {
+    return Card(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: AppTheme.secondary.withValues(alpha: 0.08),
+            child: Row(
+              children: [
+                Icon(Icons.call_received_rounded, size: 14, color: AppTheme.secondary),
+                const SizedBox(width: 6),
+                const Text(
+                  'Penerima',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.penerimaName,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (tx.penerimaAddress.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Flexible(
+                      child: Text(
+                        tx.penerimaAddress,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if ((tx.penerima['phone'] as String? ?? '').isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.phone_iphone_rounded, size: 12, color: Color(0xFF64748B)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      tx.penerima['phone'] as String? ?? '',
+                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 11),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: tx.penerima['phone'] as String? ?? ''));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                      );
+                    },
+                    child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapCard(Transaction tx) {
+    final hasCoords = tx.penerimaLatitude != null && tx.penerimaLongitude != null;
+    return Card(
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        childrenPadding: EdgeInsets.zero,
+        initiallyExpanded: false,
+        enableFeedback: false,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        iconColor: Colors.red,
+        collapsedIconColor: Colors.red,
+        leading: const Icon(Icons.location_on_rounded, color: Colors.red, size: 18),
+        title: const Text(
+          'Lokasi Penerima (Klik Disini)',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+        ),
+        children: [
+          if (hasCoords)
+            SizedBox(
+              height: 220,
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+                  initialZoom: 15,
+                  maxZoom: 18,
+                  minZoom: 12,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.tracker',
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+                        width: 36,
+                        height: 36,
+                        child: const Icon(Icons.location_on_rounded, color: Colors.red, size: 36),
+                      ),
+                    ],
+                  ),
+                  CircleLayer(
+                    circles: [
+                      CircleMarker(
+                        point: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+                        radius: 1000,
+                        color: Colors.red.withValues(alpha: 0.08),
+                        borderColor: Colors.red.withValues(alpha: 0.3),
+                        borderStrokeWidth: 2,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(
+                child: Text(
+                  'Lokasi belum tersedia',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _infoCard(String title, String name, String phone, String address, IconData icon, Color accentColor) {
     return Card(
       color: Colors.white,
@@ -610,6 +802,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: accentColor.withValues(alpha: 0.08),
             child: Row(
@@ -628,6 +821,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Text(
                     name,
@@ -637,11 +831,13 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                   ),
                   if (address.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      address,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                    Flexible(
+                      child: Text(
+                        address,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ],

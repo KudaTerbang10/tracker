@@ -15,6 +15,7 @@ class Transaction {
   final String? driverUserId;
   final Map<String, dynamic>? tujuanSelanjutnya;
   final String? namaPenerimaAkhir;
+  final Map<String, dynamic>? lokasiPenerima;
   final List<TrackingLog> trackingLogs;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -34,6 +35,7 @@ class Transaction {
     this.driverUserId,
     this.tujuanSelanjutnya,
     this.namaPenerimaAkhir,
+    this.lokasiPenerima,
     required this.trackingLogs,
     required this.createdAt,
     required this.updatedAt,
@@ -54,6 +56,7 @@ class Transaction {
     driverUserId: json['driver_user_id'] as String?,
     tujuanSelanjutnya: json['tujuan_selanjutnya'] as Map<String, dynamic>?,
     namaPenerimaAkhir: json['nama_penerima_akhir'] as String?,
+    lokasiPenerima: json['lokasi_penerima'] as Map<String, dynamic>?,
     trackingLogs: (json['tracking_logs'] as List<dynamic>?)
         ?.map((e) => TrackingLog.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList() ?? [],
@@ -64,6 +67,16 @@ class Transaction {
   String get pengirimName => pengirim['name'] as String? ?? '';
   String get penerimaName => penerima['name'] as String? ?? '';
   String get penerimaAddress => penerima['address'] as String? ?? '';
+  double? get penerimaLatitude {
+    final coords = lokasiPenerima?['coordinates'] as List<dynamic>?;
+    if (coords != null && coords.length >= 2) return (coords[1] as num).toDouble();
+    return null;
+  }
+  double? get penerimaLongitude {
+    final coords = lokasiPenerima?['coordinates'] as List<dynamic>?;
+    if (coords != null && coords.length >= 2) return (coords[0] as num).toDouble();
+    return null;
+  }
   String get beratLabel => '${paket['berat_kg']?.toStringAsFixed(1) ?? '0'} kg';
   String get koliLabel => '${paket['jumlah_koli'] ?? '0'} koli';
   int get jumlahKoli => (paket['jumlah_koli'] as num?)?.toInt() ?? 0;

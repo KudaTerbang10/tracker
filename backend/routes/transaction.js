@@ -10,7 +10,7 @@ const router = express.Router();
 
 router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
   try {
-    const { pengirim, penerima, paket, catatan } = req.body;
+    const { pengirim, penerima, paket, catatan, lokasi_penerima } = req.body;
     if (!pengirim || !penerima || !paket) {
       return res.status(400).json({ message: 'Data pengirim, penerima, dan paket wajib diisi' });
     }
@@ -37,6 +37,7 @@ router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => 
       barcode_data: no_resi,
       pengirim,
       penerima,
+      lokasi_penerima: lokasi_penerima || null,
       paket: {
         berat_kg: paket.berat_kg,
         jumlah_koli: paket.jumlah_koli,

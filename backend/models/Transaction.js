@@ -47,6 +47,10 @@ const transactionSchema = new mongoose.Schema({
     kecamatan: { type: String, default: '' },
     kota: { type: String, default: '' },
   },
+  lokasi_penerima: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: null },
+  },
   paket: {
     berat_kg: { type: Number, required: true },
     jumlah_koli: { type: Number, required: true },
@@ -86,5 +90,6 @@ transactionSchema.index({ status_saat_ini: 1 });
 transactionSchema.index({ kode_gerai: 1, createdAt: -1 });
 transactionSchema.index({ 'tracking_logs.pelaku.user_id': 1 });
 transactionSchema.index({ 'tracking_logs.timestamp': -1 });
+transactionSchema.index({ lokasi_penerima: '2dsphere' });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

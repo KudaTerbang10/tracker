@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/theme/app_theme.dart';
@@ -41,6 +42,7 @@ class _ScannerDialogContent extends StatefulWidget {
 }
 
 class _ScannerDialogContentState extends State<_ScannerDialogContent> with SingleTickerProviderStateMixin {
+  bool get _isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
   MobileScannerController? _controller;
   String _lastCode = '';
   bool _processing = false;
@@ -50,10 +52,12 @@ class _ScannerDialogContentState extends State<_ScannerDialogContent> with Singl
   @override
   void initState() {
     super.initState();
-    _controller = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      returnImage: false,
-    );
+    if (!_isWindows) {
+      _controller = MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        returnImage: false,
+      );
+    }
     _tabController = TabController(length: 2, vsync: this);
   }
 
@@ -73,6 +77,9 @@ class _ScannerDialogContentState extends State<_ScannerDialogContent> with Singl
 
   @override
   Widget build(BuildContext context) {
+    if (_isWindows) {
+      return _buildManualDialog(context);
+    }
     return Dialog(
       insetPadding: EdgeInsets.zero,
       child: SizedBox(
@@ -126,6 +133,59 @@ class _ScannerDialogContentState extends State<_ScannerDialogContent> with Singl
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManualDialog(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.qr_code_scanner_rounded, size: 56, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'Input No. Resi',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Gunakan scanner USB atau ketik manual',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _manualC,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              style: const TextStyle(fontSize: 18, letterSpacing: 1.5, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                labelText: 'No. Resi',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.qr_code),
+              ),
+              onSubmitted: (_) => _submitManual(),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _submitManual,
+              icon: const Icon(Icons.check),
+              label: const Text('OK'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Tutup'),
             ),
           ],
         ),
@@ -219,6 +279,7 @@ class _BulkScannerContent extends StatefulWidget {
 }
 
 class _BulkScannerContentState extends State<_BulkScannerContent> with SingleTickerProviderStateMixin {
+  bool get _isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
   MobileScannerController? _controller;
   final List<String> _codes = [];
   bool _processing = false;
@@ -228,11 +289,13 @@ class _BulkScannerContentState extends State<_BulkScannerContent> with SingleTic
   @override
   void initState() {
     super.initState();
-    _controller = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      returnImage: false,
-    );
-    _tabController = TabController(length: 2, vsync: this);
+    if (!_isWindows) {
+      _controller = MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        returnImage: false,
+      );
+    }
+    _tabController = TabController(length: _isWindows ? 1 : 2, vsync: this);
   }
 
   @override
@@ -251,6 +314,9 @@ class _BulkScannerContentState extends State<_BulkScannerContent> with SingleTic
 
   @override
   Widget build(BuildContext context) {
+    if (_isWindows) {
+      return _buildWindowsBulkDialog(context);
+    }
     return Dialog(
       insetPadding: EdgeInsets.zero,
       child: SizedBox(
@@ -339,6 +405,121 @@ class _BulkScannerContentState extends State<_BulkScannerContent> with SingleTic
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWindowsBulkDialog(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.qr_code_scanner_rounded, size: 28, color: Colors.grey),
+                const SizedBox(width: 8),
+                const Text(
+                  'Input No. Resi',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Text(
+                  '${_codes.length} resi',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Scanner USB atau ketik manual, tekan Enter setiap resi',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _manualC,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(fontSize: 16, letterSpacing: 1.5, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      hintText: 'No. Resi',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onSubmitted: (v) {
+                      final code = v.trim().toUpperCase();
+                      if (code.isNotEmpty) {
+                        _addCode(code);
+                        _manualC.clear();
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    final code = _manualC.text.trim().toUpperCase();
+                    if (code.isNotEmpty) {
+                      _addCode(code);
+                      _manualC.clear();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(minimumSize: const Size(0, 44)),
+                  child: const Text('Tambah'),
+                ),
+              ],
+            ),
+            if (_codes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 160),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 2,
+                    children: _codes.asMap().entries.map((e) => Chip(
+                      label: Text(e.value, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                      deleteIcon: const Icon(Icons.close, size: 14),
+                      onDeleted: () => setState(() => _codes.removeAt(e.key)),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      labelPadding: const EdgeInsets.only(left: 6),
+                    )).toList(),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Tutup'),
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.of(context).pop(_codes.toList()),
+                  icon: const Icon(Icons.check),
+                  label: Text('SELESAI (${_codes.length})'),
+                ),
+              ],
             ),
           ],
         ),

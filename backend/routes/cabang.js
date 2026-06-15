@@ -8,7 +8,10 @@ const router = express.Router();
 router.get('/', auth, async (req, res) => {
   try {
     const cabangs = await Cabang.find().sort({ kode: 1 }).lean();
-    res.json({ data: cabangs.map(c => ({ cabang_id: c._id, kode: c.kode, name: c.name, address: c.address, phone: c.phone, kota: c.kota, is_active: c.is_active })) });
+    res.json({ data: cabangs.map(c => {
+      const [lng, lat] = c.lokasi?.coordinates ?? [];
+      return { cabang_id: c._id, kode: c.kode, name: c.name, address: c.address, phone: c.phone, kota: c.kota, is_active: c.is_active, latitude: lat ?? null, longitude: lng ?? null };
+    }) });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -16,10 +19,11 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/', auth, rbac('super_admin'), async (req, res) => {
   try {
-    const { kode, name, address, phone, kota } = req.body;
+    const { kode, name, address, phone, kota, latitude, longitude } = req.body;
     const exists = await Cabang.findOne({ kode });
     if (exists) return res.status(400).json({ message: 'Kode cabang sudah terdaftar' });
-    const cabang = await Cabang.create({ kode, name, address, phone, kota });
+    const lokasi = (latitude != null && longitude != null) ? { type: 'Point', coordinates: [longitude, latitude] } : undefined;
+    const cabang = await Cabang.create({ kode, name, address, phone, kota, ...(lokasi ? { lokasi } : {}) });
     res.status(201).json(cabang);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -28,13 +32,16 @@ router.post('/', auth, rbac('super_admin'), async (req, res) => {
 
 router.put('/:id', auth, rbac('super_admin'), async (req, res) => {
   try {
-    const { kode, name, address, phone, kota, is_active } = req.body;
+    const { kode, name, address, phone, kota, latitude, longitude, is_active } = req.body;
     const update = {};
     if (kode !== undefined) update.kode = kode;
     if (name !== undefined) update.name = name;
     if (address !== undefined) update.address = address;
     if (phone !== undefined) update.phone = phone;
     if (kota !== undefined) update.kota = kota;
+    if (latitude !== undefined && longitude !== undefined) {
+      update.lokasi = { type: 'Point', coordinates: [longitude, latitude] };
+    }
     if (is_active !== undefined) update.is_active = is_active;
 
     const cabang = await Cabang.findByIdAndUpdate(req.params.id, update, { new: true }).lean();

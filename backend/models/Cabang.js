@@ -7,6 +7,10 @@ const cabangSchema = new mongoose.Schema({
   phone: { type: String, required: true },
   kota: { type: String, default: '' },
   is_active: { type: Boolean, default: true },
+  lokasi: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: [] },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Cabang', cabangSchema);

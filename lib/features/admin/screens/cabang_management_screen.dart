@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -13,8 +14,10 @@ class Cabang {
   final String phone;
   final String kota;
   final bool isActive;
+  final double? latitude;
+  final double? longitude;
 
-  Cabang({required this.id, required this.kode, required this.name, required this.address, required this.phone, required this.kota, required this.isActive});
+  Cabang({required this.id, required this.kode, required this.name, required this.address, required this.phone, required this.kota, required this.isActive, this.latitude, this.longitude});
 
   factory Cabang.fromJson(Map<String, dynamic> json) => Cabang(
     id: json['cabang_id'] as String? ?? json['_id'] as String,
@@ -24,7 +27,16 @@ class Cabang {
     phone: json['phone'] as String? ?? '',
     kota: json['kota'] as String? ?? '',
     isActive: json['is_active'] as bool? ?? true,
+    latitude: (json['latitude'] as num?)?.toDouble(),
+    longitude: (json['longitude'] as num?)?.toDouble(),
   );
+
+  String get latLngString {
+    if (latitude != null && longitude != null) {
+      return '${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}';
+    }
+    return '';
+  }
 }
 
 final _cabangsProvider = FutureProvider.autoDispose<List<Cabang>>((ref) async {
@@ -326,6 +338,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
     final addressC = TextEditingController(text: cabang?.address ?? '');
     final phoneC = TextEditingController(text: cabang?.phone ?? '');
     final kotaC = TextEditingController(text: cabang?.kota ?? '');
+    final latLngC = TextEditingController(text: cabang?.latLngString ?? '');
 
     showDialog(
       context: context,
@@ -345,6 +358,25 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
               TextField(controller: phoneC, decoration: const InputDecoration(labelText: 'Kontak'), keyboardType: TextInputType.phone),
               const SizedBox(height: 8),
               TextField(controller: kotaC, decoration: const InputDecoration(labelText: 'Kota')),
+              const SizedBox(height: 8),
+              TextField(
+                controller: latLngC,
+                decoration: InputDecoration(
+                  labelText: 'Latitude, Longitude',
+                  hintText: '-6.234567, 106.891234',
+                  suffixIcon: latLngC.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.copy, size: 18),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: latLngC.text));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Tersalin'), duration: Duration(seconds: 1)),
+                            );
+                          },
+                        )
+                      : null,
+                ),
+              ),
             ],
           ),
         ),
@@ -352,12 +384,22 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
           ElevatedButton(
             onPressed: () async {
               try {
+                double? lat, lng;
+                final parts = latLngC.text.trim().split(RegExp(r'\s*,\s*'));
+                if (parts.length == 2) {
+                  lat = double.tryParse(parts[0]);
+                  lng = double.tryParse(parts[1]);
+                }
                 final data = <String, dynamic>{
                   'kode': kodeC.text.toUpperCase(),
                   'name': nameC.text,
                   'address': addressC.text,
                   'phone': phoneC.text,
                   'kota': kotaC.text,
+                  if (lat != null && lng != null) ...{
+                    'latitude': lat,
+                    'longitude': lng,
+                  },
                 };
                 if (isEdit) {
                   await ApiService().put('/cabangs/${cabang.id}', data: data);

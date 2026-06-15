@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../data/datasources/remote/api_service.dart';
 import '../../../shared/utils/sound_player.dart';
+import '../../../shared/widgets/location_picker.dart';
 
 class Cabang {
   final String id;
@@ -364,8 +365,11 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                 decoration: InputDecoration(
                   labelText: 'Latitude, Longitude',
                   hintText: '-6.234567, 106.891234',
-                  suffixIcon: latLngC.text.isNotEmpty
-                      ? IconButton(
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (latLngC.text.isNotEmpty)
+                        IconButton(
                           icon: const Icon(Icons.copy, size: 18),
                           onPressed: () {
                             Clipboard.setData(ClipboardData(text: latLngC.text));
@@ -373,8 +377,28 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                               const SnackBar(content: Text('Tersalin'), duration: Duration(seconds: 1)),
                             );
                           },
-                        )
-                      : null,
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.location_on_rounded, size: 20),
+                        onPressed: () async {
+                          double? lat, lng;
+                          final parts = latLngC.text.trim().split(RegExp(r'\s*,\s*'));
+                          if (parts.length == 2) {
+                            lat = double.tryParse(parts[0]);
+                            lng = double.tryParse(parts[1]);
+                          }
+                          final result = await LocationPicker.show(
+                            context,
+                            latitude: lat,
+                            longitude: lng,
+                          );
+                          if (result != null) {
+                            latLngC.text = '${result.latitude.toStringAsFixed(6)}, ${result.longitude.toStringAsFixed(6)}';
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

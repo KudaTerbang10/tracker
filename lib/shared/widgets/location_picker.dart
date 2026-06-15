@@ -202,16 +202,6 @@ class _LocationPickerState extends State<LocationPicker> {
                     initialCenter: _center,
                     initialZoom: _marker != null ? 16 : 5,
                     onTap: _onMapTapped,
-                    onMapEvent: (event) {
-                      if (event is MapEventMoveEnd) {
-                        final center = _mapController.camera.center;
-                        setState(() {
-                          _center = center;
-                          _marker = center;
-                        });
-                        _reverseGeocode(center);
-                      }
-                    },
                   ),
                   children: [
                     TileLayer(

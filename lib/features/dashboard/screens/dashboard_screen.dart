@@ -11,6 +11,115 @@ final _connectionProvider = FutureProvider<bool>(
   (ref) => ref.read(syncRepositoryProvider).checkConnection(),
 );
 
+class _DashboardMenuItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color iconColor;
+  final Color pastelColor;
+
+  _DashboardMenuItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.iconColor,
+    required this.pastelColor,
+  });
+}
+
+List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context) {
+  switch (role) {
+    case 'super_admin':
+      return [
+        _DashboardMenuItem(
+          icon: Icons.bar_chart_rounded,
+          label: 'Analisis Traffic',
+          onTap: () => context.go('/dashboard/traffic'),
+          iconColor: const Color(0xFF2563EB),
+          pastelColor: const Color(0xFFDBEAFE),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.format_list_bulleted_rounded,
+          label: 'Daftar Transaksi',
+          onTap: () => context.go('/dashboard/daftar-transaksi'),
+          iconColor: const Color(0xFF7C3AED),
+          pastelColor: const Color(0xFFE9D5FF),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.people_alt_rounded,
+          label: 'Manajemen Akun',
+          onTap: () => context.go('/dashboard/users'),
+          iconColor: const Color(0xFFDB2777),
+          pastelColor: const Color(0xFFFCE7F3),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.business_rounded,
+          label: 'Manajemen Cabang',
+          onTap: () => context.go('/dashboard/cabangs'),
+          iconColor: const Color(0xFF059669),
+          pastelColor: const Color(0xFFD1FAE5),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.payments_rounded,
+          label: 'Manajemen Tarif',
+          onTap: () => context.go('/dashboard/tariffs'),
+          iconColor: const Color(0xFFD97706),
+          pastelColor: const Color(0xFFFEF3C7),
+        ),
+      ];
+    case 'admin_cabang':
+      return [
+        _DashboardMenuItem(
+          icon: Icons.add_box_rounded,
+          label: 'Input Transaksi Baru',
+          onTap: () => context.go('/dashboard/transaksi-baru'),
+          iconColor: const Color(0xFFEA580C),
+          pastelColor: const Color(0xFFFFEDD5),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.format_list_bulleted_rounded,
+          label: 'Daftar Transaksi',
+          onTap: () => context.go('/dashboard/daftar-transaksi'),
+          iconColor: const Color(0xFF475569),
+          pastelColor: const Color(0xFFF1F5F9),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.move_to_inbox_rounded,
+          label: 'Scan Barang Datang',
+          onTap: () => context.go('/dashboard/scan-datang'),
+          iconColor: const Color(0xFF0D9488),
+          pastelColor: const Color(0xFFCCFBF1),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.unarchive_rounded,
+          label: 'Scan Barang Keluar',
+          onTap: () => context.go('/dashboard/scan-keluar'),
+          iconColor: const Color(0xFF4F46E5),
+          pastelColor: const Color(0xFFE0E7FF),
+        ),
+      ];
+    case 'driver':
+      return [
+        _DashboardMenuItem(
+          icon: Icons.check_circle_rounded,
+          label: 'Scan Barang Diterima',
+          onTap: () => context.go('/dashboard/scan-diterima'),
+          iconColor: const Color(0xFF16A34A),
+          pastelColor: const Color(0xFFDCFCE7),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.list_alt_rounded,
+          label: 'Daftar Transaksi Driver',
+          onTap: () => context.go('/dashboard/driver-tab'),
+          iconColor: const Color(0xFF0284C7),
+          pastelColor: const Color(0xFFE0F2FE),
+        ),
+      ];
+    default:
+      return [];
+  }
+}
+
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
   @override
@@ -27,9 +136,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final user = auth.user;
     final role = user?.role ?? '';
     final connectionAsync = ref.watch(_connectionProvider);
+    final menuItems = _getMenuItemsForRole(role, context);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         automaticallyImplyLeading: false,
         title: Row(
           children: [
@@ -39,7 +152,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             Text(
               user?.lokasi?['nama'] as String? ?? 'Dashboard',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
             ),
           ],
         ),
@@ -143,134 +256,89 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _greetingCard(user),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           const Text(
             'MENU NAVIGASI',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: Color(0xFF64748B),
-              letterSpacing: 1,
+              letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          
+          if (menuItems.isNotEmpty)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                int crossAxisCount;
+                if (constraints.maxWidth > 800) {
+                  crossAxisCount = 4;
+                } else if (constraints.maxWidth > 600) {
+                  crossAxisCount = 3;
+                } else {
+                  crossAxisCount = 2;
+                }
 
-          if (role == 'super_admin') ...[
-            _menuCard(
-              Icons.bar_chart_rounded,
-              'Analisis Traffic',
-              () => context.go('/dashboard/traffic'),
-              color: AppTheme.primary,
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: menuItems.length,
+                  itemBuilder: (context, index) {
+                    final item = menuItems[index];
+                    return _gridMenuCard(
+                      item.icon,
+                      item.label,
+                      item.onTap,
+                      iconColor: item.iconColor,
+                      pastelColor: item.pastelColor,
+                    );
+                  },
+                );
+              },
             ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.format_list_bulleted_rounded,
-              'Daftar Transaksi',
-              () => context.go('/dashboard/daftar-transaksi'),
-              color: AppTheme.primary,
-            ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.people_alt_rounded,
-              'Manajemen Akun',
-              () => context.go('/dashboard/users'),
-              color: AppTheme.primary,
-            ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.business_rounded,
-              'Manajemen Cabang',
-              () => context.go('/dashboard/cabangs'),
-              color: AppTheme.primary,
-            ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.payments_rounded,
-              'Manajemen Tarif',
-              () => context.go('/dashboard/tariffs'),
-              color: AppTheme.primary,
-            ),
-          ],
-
-          if (role == 'admin_cabang') ...[
-            _menuCard(
-              Icons.add_box_rounded,
-              'Input Transaksi Baru',
-              () => context.go('/dashboard/transaksi-baru'),
-              color: Colors.orange.shade700,
-            ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.move_to_inbox_rounded,
-              'Scan Barang Datang',
-              () => context.go('/dashboard/scan-datang'),
-              color: Colors.teal.shade700,
-            ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.unarchive_rounded,
-              'Scan Barang Keluar',
-              () => context.go('/dashboard/scan-keluar'),
-              color: Colors.indigo.shade700,
-            ),
-          ],
-
-          if (role == 'driver') ...[
-            _menuCard(
-              Icons.check_circle_rounded,
-              'Scan Barang Diterima',
-              () => context.go('/dashboard/scan-diterima'),
-              color: Colors.green.shade700,
-            ),
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.list_alt_rounded,
-              'Daftar Transaksi Driver',
-              () => context.go('/dashboard/driver-tab'),
-              color: Colors.blue.shade700,
-            ),
-          ],
-
-          if (role == 'admin_cabang') ...[
-            const SizedBox(height: 8),
-            _menuCard(
-              Icons.format_list_bulleted_rounded,
-              'Daftar Transaksi',
-              () => context.go('/dashboard/daftar-transaksi'),
-              color: const Color(0xFF475569),
-            ),
-          ],
+            
           const SizedBox(height: 24),
 
           Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.grey.shade200, width: 1),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   connectionAsync.when(
                     data: (ok) => Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: (ok ? Colors.green : Colors.red).withValues(
-                          alpha: 0.1,
-                        ),
+                        color: (ok ? Colors.green : Colors.red).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         ok ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
                         color: ok ? Colors.green : Colors.red,
-                        size: 20,
+                        size: 22,
                       ),
                     ),
                     loading: () => const SizedBox(
-                      width: 36,
-                      height: 36,
+                      width: 42,
+                      height: 42,
                       child: Center(
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
                     error: (_, __) => Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
@@ -278,11 +346,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: const Icon(
                         Icons.cloud_off_rounded,
                         color: Colors.red,
-                        size: 20,
+                        size: 22,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,6 +365,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             fontSize: 14,
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           'Hira Express',
                           style: Theme.of(context).textTheme.bodySmall
@@ -309,6 +378,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -317,13 +387,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _greetingCard(User? user) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 61, 64, 255),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.25),
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -337,23 +411,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Halo, ${user?.name ?? 'User'}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                    children: [
+                      Text(
+                        'Halo, ${user?.name ?? 'User'}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      user?.email ?? '',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
+                      const SizedBox(height: 4),
+                      Text(
+                        user?.email ?? '',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
                     ],
                   ),
                 ),
@@ -364,15 +438,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     user?.roleLabel ?? '',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -390,12 +465,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     size: 14,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    user!.lokasi!['name'] as String? ?? '',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      user!.lokasi!['name'] as String? ?? '',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -407,41 +486,53 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _menuCard(
+  Widget _gridMenuCard(
     IconData icon,
     String label,
     VoidCallback onTap, {
-    Color? color,
+    required Color iconColor,
+    required Color pastelColor,
   }) {
-    final activeColor = color ?? AppTheme.primary;
     return Card(
+      elevation: 0,
+      color: pastelColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: iconColor.withValues(alpha: 0.2), width: 1),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
-                backgroundColor: activeColor.withValues(alpha: 0.1),
-                radius: 20,
-                child: Icon(icon, color: activeColor, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F172A),
-                    fontSize: 14,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: iconColor.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
+                child: Icon(icon, color: iconColor, size: 28),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF94A3B8),
-                size: 20,
+              const SizedBox(height: 14),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF334155),
+                  fontSize: 13,
+                  height: 1.3,
+                ),
               ),
             ],
           ),

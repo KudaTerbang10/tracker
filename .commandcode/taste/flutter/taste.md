@@ -1,0 +1,10 @@
+# flutter
+- When styling TextField widgets, refer to and match the styling used in the transaksi baru (new transaction) page for visual consistency. Confidence: 0.80
+- Use square-shaped cards (aspect ratio 1:1) instead of rectangular cards for dashboard grid items. Confidence: 0.75
+- For web layouts: Make right column fill full screen height and place action buttons (login, cek tarif) inside the main card to avoid them being isolated at the bottom. Confidence: 0.70
+- When using LayoutBuilder with percentage-based height calculations, always check if maxHeight is finite or provide a maximum constraint to avoid 'h=Infinity' errors. Confidence: 0.75
+- Center icons in card headers and use larger sizes for better visual prominence. Confidence: 0.65
+- Avoid using ternary operators with variables inside `const` constructors (e.g., `const EdgeInsets.all(isMobile ? 16 : 20)`) as they cause "Not a constant expression" errors; use `EdgeInsets.all(...)` without `const` or use conditional logic outside the widget. Confidence: 0.75
+- For the tracking card on landing page: Make card height 50% of available container height for a more compact appearance. Confidence: 0.60
+- For About Us section images: Use smaller fixed heights (mobile: 180px, web: 280px) and `BoxFit.contain` to prevent important parts of the image from being cropped. Confidence: 0.70
+- Ensure contact information cards (address, phone, email) have consistent heights and align properly for a visually pleasing layout. Confidence: 0.70

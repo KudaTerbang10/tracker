@@ -15,3 +15,4 @@
 - For `flutter_map` layouts: Remove `CameraConstraint` to allow the map to be freely zoomable and pannable. Confidence: 0.75
 - For map markers with text labels: Place name labels ABOVE the marker circle (for both recipient and branch markers) to prevent bottom overflow, not below or removed. Confidence: 0.75
 - For the blue cabang marker on the driver route map: Prefix the label with "Cabang" + cabang name (e.g., "Cabang Denpasar" not just "Denpasar"). Confidence: 0.70
+- Use `Icons.store_rounded` for the cabang/branch marker icon on the driver route map (not `Icons.flag_rounded` or other icons). Confidence: 0.65

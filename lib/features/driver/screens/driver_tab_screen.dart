@@ -189,20 +189,132 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: list.length + (routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty ? 1 : 0),
-          itemBuilder: (_, i) {
-            final hasRoute = routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
-            if (hasRoute) {
-              if (i == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 4),
-                  child: DriverRouteMap(routeData: routeAsync.valueOrNull!),
-                );
-              }
-            }
-                  final tx = list[hasRoute ? i - 1 : i];
+        final hasRoute = routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isWide = screenWidth >= 600;
+
+        if (isWide) {
+          // Web / landscape: map 75% tinggi, card horizontal 25%
+          return Column(
+            children: [
+              // Map — 75% tinggi
+              Expanded(
+                flex: 75,
+                child: hasRoute
+                    ? DriverRouteMap(routeData: routeAsync.valueOrNull!, compact: true)
+                    : const Center(
+                        child: Text(
+                          'Tidak ada rute',
+                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                        ),
+                      ),
+              ),
+              // Card horizontal — 25% tinggi
+              Expanded(
+                flex: 25,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final tx = list[i];
+                    return SizedBox(
+                      width: screenWidth * 0.23,
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => _showDetail(tx),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF97316),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${i + 1}',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        tx.noResi,
+                                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0F172A)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${tx.pengirimName} → ${tx.penerimaName}',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                                const Spacer(),
+                                if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.orange.withValues(alpha: 0.15)),
+                                    ),
+                                    child: Text(
+                                      () {
+                                        final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
+                                        final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
+                                        return tipe == 'penerima' ? 'Antar ke $nama' : 'Antar ke $nama';
+                                      }(),
+                                      style: TextStyle(fontSize: 10, color: Colors.orange.shade700, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+
+        // Mobile portrait: map di atas, list card vertical di bawah
+        return Column(
+          children: [
+            if (hasRoute)
+              SizedBox(
+                height: 250,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: DriverRouteMap(routeData: routeAsync.valueOrNull!, compact: true),
+                ),
+              ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: list.length,
+                itemBuilder: (_, i) {
+                  final tx = list[i];
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -216,21 +328,12 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                           children: [
                             Row(
                               children: [
-                                Icon(
-                                  Icons.local_shipping_rounded,
-                                  size: 16,
-                                  color: Colors.orange.shade700,
-                                ),
+                                Icon(Icons.local_shipping_rounded, size: 16, color: Colors.orange.shade700),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     tx.noResi,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                      letterSpacing: 1,
-                                      color: Color(0xFF0F172A),
-                                    ),
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 1, color: Color(0xFF0F172A)),
                                   ),
                                 ),
                                 ResiCopyButton(resi: tx.noResi),
@@ -239,10 +342,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                             const SizedBox(height: 6),
                             Text(
                               '${tx.pengirimName} → ${tx.penerimaName}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF475569),
-                              ),
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
                               overflow: TextOverflow.ellipsis,
                             ),
                             if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty) ...[
@@ -253,9 +353,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                 decoration: BoxDecoration(
                                   color: Colors.orange.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.orange.withValues(alpha: 0.15),
-                                  ),
+                                  border: Border.all(color: Colors.orange.withValues(alpha: 0.15)),
                                 ),
                                 child: Row(
                                   children: [
@@ -266,14 +364,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                         () {
                                           final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
                                           final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
-                                          if (tipe == 'penerima') return 'Antar ke $nama (penerima)';
-                                          return 'Antar ke $nama';
+                                          return tipe == 'penerima' ? 'Antar ke $nama (penerima)' : 'Antar ke $nama';
                                         }(),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.orange.shade700,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w600),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -286,8 +379,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                       ),
                     ),
                   );
-                  },
-                );
+                },
+              ),
+            ),
+          ],
+        );
               },
             );
           }

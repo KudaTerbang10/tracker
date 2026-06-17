@@ -5,12 +5,17 @@ import '../utils/route_optimizer.dart';
 
 class DriverRouteMap extends StatelessWidget {
   final RouteData routeData;
+  final bool compact;
 
-  const DriverRouteMap({super.key, required this.routeData});
+  const DriverRouteMap({super.key, required this.routeData, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
     if (routeData.isEmpty) return const SizedBox.shrink();
+
+    if (compact) {
+      return _buildMap();
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -119,7 +124,7 @@ class DriverRouteMap extends StatelessWidget {
             SizedBox(
               width: 76,
               child: Text(
-                'Cabang ${routeData.startName}',
+                routeData.startName,
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -202,8 +207,10 @@ class DriverRouteMap extends StatelessWidget {
 
     return FlutterMap(
       options: MapOptions(
-        initialCenter: bounds.center,
-        initialZoom: 12,
+        initialCameraFit: CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.all(40),
+        ),
         maxZoom: 18,
         minZoom: 4,
         interactionOptions: const InteractionOptions(

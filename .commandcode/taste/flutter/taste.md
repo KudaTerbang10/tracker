@@ -12,3 +12,6 @@
 - For map camera fitting on "Cari Cabang Terdekat" feature: Fit bounds between user location and the single nearest cabang only, not all cabang in radius. Confidence: 0.65
 - For zero-network local data features: load from Hive cache first, fallback to bundled JSON asset (follow the `OngkirService`/`CabangLokasiService` pattern). Confidence: 0.70
 - For cabang/branch cards in the landing page grid: Use a fixed height of 175px instead of `IntrinsicHeight` or `childAspectRatio` to prevent text overflow. Confidence: 0.75
+- For `flutter_map` layouts: Remove `CameraConstraint` to allow the map to be freely zoomable and pannable. Confidence: 0.75
+- For map markers with text labels: Place name labels ABOVE the marker circle (for both recipient and branch markers) to prevent bottom overflow, not below or removed. Confidence: 0.75
+- For the blue cabang marker on the driver route map: Prefix the label with "Cabang" + cabang name (e.g., "Cabang Denpasar" not just "Denpasar"). Confidence: 0.70

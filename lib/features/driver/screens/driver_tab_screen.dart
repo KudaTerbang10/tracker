@@ -13,6 +13,8 @@ import '../../../core/utils/datetime_utils.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/route_provider.dart';
+import '../widgets/driver_route_map.dart';
 
 final _kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', limit: 999);
@@ -149,6 +151,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
 
   Widget _buildKirimTab() {
     final async = ref.watch(_kirimProvider);
+    final routeAsync = ref.watch(routeProvider);
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -171,9 +174,18 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          itemCount: list.length,
+          itemCount: list.length + (routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty ? 1 : 0),
           itemBuilder: (_, i) {
-                  final tx = list[i];
+            final hasRoute = routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
+            if (hasRoute) {
+              if (i == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 4),
+                  child: DriverRouteMap(routeData: routeAsync.valueOrNull!),
+                );
+              }
+            }
+                  final tx = list[hasRoute ? i - 1 : i];
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

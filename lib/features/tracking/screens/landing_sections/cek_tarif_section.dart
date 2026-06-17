@@ -42,7 +42,6 @@ class _CekTarifSectionState extends State<CekTarifSection> {
     return KeyedSubtree(
       key: widget.sectionKey,
       child: Container(
-        color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
         child: Center(
           child: ConstrainedBox(

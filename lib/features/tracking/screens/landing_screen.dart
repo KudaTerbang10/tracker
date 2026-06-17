@@ -16,6 +16,7 @@ class LandingScreen extends StatefulWidget {
 
 class _LandingScreenState extends State<LandingScreen> {
   final _scrollController = ScrollController();
+  bool _showScrollTop = false;
 
   final _homeKey = GlobalKey();
   final _cekResiKey = GlobalKey();
@@ -27,6 +28,15 @@ class _LandingScreenState extends State<LandingScreen> {
 
   // Ref ke CabangSection agar bisa trigger cari lokasi dari navbar/drawer
   final _cabangSectionKey = GlobalKey<CabangSectionState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      final show = _scrollController.offset > 400;
+      if (show != _showScrollTop) setState(() => _showScrollTop = show);
+    });
+  }
 
   @override
   void dispose() {
@@ -73,14 +83,21 @@ class _LandingScreenState extends State<LandingScreen> {
               CekResiSection(sectionKey: _cekResiKey),
               CekTarifSection(sectionKey: _cekTarifKey),
               CabangSection(key: _cabangSectionKey, sectionKey: _cabangKey),
-              AboutSection(sectionKey: _aboutKey),
               ServicesSection(sectionKey: _servicesKey),
+              AboutSection(sectionKey: _aboutKey),
               ContactSection(sectionKey: _contactKey),
               const FooterSection(),
             ],
           ),
         ),
       ),
+      floatingActionButton: _showScrollTop
+          ? FloatingActionButton.small(
+              onPressed: () => _scrollController.animateTo(0, duration: const Duration(milliseconds: 500), curve: Curves.easeOut),
+              backgroundColor: AppTheme.primary,
+              child: const Icon(Icons.arrow_upward_rounded, color: Colors.white),
+            )
+          : null,
     );
   }
 
@@ -105,13 +122,13 @@ class _LandingScreenState extends State<LandingScreen> {
               )),
             ]
           : [
-              _navLink('Beranda', _homeKey),
-              _navLink('Cek Resi', _cekResiKey),
-              _navLink('Cek Tarif', _cekTarifKey),
-              _navLink('Cabang', _cabangKey),
-              _navLink('Tentang', _aboutKey),
-              _navLink('Layanan', _servicesKey),
-              _navLink('Kontak', _contactKey),
+              _navLink('Beranda', _homeKey, Icons.home_rounded),
+              _navLink('Cek Resi', _cekResiKey, Icons.search_rounded),
+              _navLink('Cek Tarif', _cekTarifKey, Icons.receipt_long_rounded),
+              _navLink('Cabang', _cabangKey, Icons.store_rounded),
+              _navLink('Layanan', _servicesKey, Icons.miscellaneous_services_rounded),
+              _navLink('Tentang', _aboutKey, Icons.info_outline_rounded),
+              _navLink('Kontak', _contactKey, Icons.mail_outline_rounded),
               const SizedBox(width: 8),
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
@@ -129,12 +146,19 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _navLink(String text, GlobalKey key) {
+  Widget _navLink(String text, GlobalKey key, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: TextButton(
         onPressed: () => _scrollToSection(key),
-        child: Text(text, style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 15)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF475569)),
+            const SizedBox(width: 4),
+            Text(text, style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 15)),
+          ],
+        ),
       ),
     );
   }
@@ -153,13 +177,13 @@ class _LandingScreenState extends State<LandingScreen> {
               ]),
             ),
             const Divider(height: 1),
-            _drawerLink('Beranda', _homeKey),
-            _drawerLink('Cek Resi', _cekResiKey),
-            _drawerLink('Cek Tarif', _cekTarifKey),
-            _drawerLink('Cabang', _cabangKey),
-            _drawerLink('Tentang', _aboutKey),
-            _drawerLink('Layanan', _servicesKey),
-            _drawerLink('Kontak', _contactKey),
+            _drawerLink('Beranda', _homeKey, Icons.home_rounded),
+            _drawerLink('Cek Resi', _cekResiKey, Icons.search_rounded),
+            _drawerLink('Cek Tarif', _cekTarifKey, Icons.receipt_long_rounded),
+            _drawerLink('Cabang', _cabangKey, Icons.store_rounded),
+            _drawerLink('Layanan', _servicesKey, Icons.miscellaneous_services_rounded),
+            _drawerLink('Tentang', _aboutKey, Icons.info_outline_rounded),
+            _drawerLink('Kontak', _contactKey, Icons.mail_outline_rounded),
             const Spacer(),
             Padding(
               padding: const EdgeInsets.all(24.0),
@@ -180,8 +204,9 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _drawerLink(String text, GlobalKey key) {
+  Widget _drawerLink(String text, GlobalKey key, IconData icon) {
     return ListTile(
+      leading: Icon(icon, color: const Color(0xFF475569)),
       title: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
       onTap: () => _scrollToSection(key),
     );

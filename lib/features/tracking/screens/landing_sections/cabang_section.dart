@@ -143,6 +143,7 @@ class CabangSectionState extends State<CabangSection> {
     return KeyedSubtree(
       key: widget.sectionKey,
       child: Container(
+        color: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
         child: Column(
           children: [

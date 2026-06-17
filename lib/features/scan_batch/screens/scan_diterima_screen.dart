@@ -10,6 +10,7 @@ import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/utils/sound_player.dart';
+import '../../auth/providers/auth_provider.dart';
 
 class ScanDiterimaScreen extends ConsumerStatefulWidget {
   const ScanDiterimaScreen({super.key});
@@ -363,6 +364,23 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       final res = await ApiService().get('${ApiConstants.track}/$code');
       final tx = Transaction.fromJson(res.data as Map<String, dynamic>);
 
+      // Validasi: hanya driver yg ditugaskan ke transaksi ini yg boleh scan
+      final currentUserId = ref.read(authProvider).user?.id;
+      if (tx.driverUserId != currentUserId) {
+        SoundPlayer.instance.playError();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Anda bukan driver yang bertugas untuk transaksi ini'),
+              backgroundColor: AppTheme.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
       SoundPlayer.instance.playScan();
       setState(() => _tx = tx);
     } catch (e) {
@@ -397,22 +415,38 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
 
       if (mounted) {
         final berhasil = result['berhasil'] as int? ?? 0;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$berhasil berhasil'),
-            backgroundColor: const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        final gagal = result['gagal'] as int? ?? 0;
+
         if (berhasil > 0) {
           SoundPlayer.instance.playSuccess();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$berhasil berhasil'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          setState(() {
+            _tx = null;
+            _namaC.clear();
+            _catatanC.clear();
+          });
+        } else {
+          SoundPlayer.instance.playError();
+          final results = result['results'] as List<dynamic>? ?? [];
+          final msg = results.isNotEmpty
+              ? (results[0] as Map)['error']?.toString() ?? 'Gagal'
+              : 'Gagal memperbarui status';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              backgroundColor: AppTheme.error,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
         }
-        setState(() {
-          _tx = null;
-          _namaC.clear();
-          _catatanC.clear();
-        });
       }
     } catch (e) {
       SoundPlayer.instance.playError();

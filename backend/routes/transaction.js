@@ -115,6 +115,13 @@ router.post('/batch-status', auth, async (req, res) => {
         }
       }
 
+      if (status_baru === 'diterima' && req.user.role === 'driver') {
+        if (tx.driver_user_id?.toString() !== req.user._id.toString()) {
+          results.push({ no_resi, status: 'error', error: 'Anda bukan driver yang bertugas untuk transaksi ini' });
+          continue;
+        }
+      }
+
       results.push({ no_resi, status: 'ok' });
       validIds.push(tx._id);
     }
@@ -266,6 +273,10 @@ router.get('/', auth, async (req, res) => {
       const tab = req.query.tab || 'current';
       if (tab === 'history') {
         filter['tracking_logs.driver_ditugaskan.user_id'] = req.user._id;
+        // Jangan tampilkan transaksi yang sedang aktif dipegang driver ini
+        filter.$nor = [
+          { driver_user_id: req.user._id, status_saat_ini: 'proses_kirim' },
+        ];
       } else {
         filter.driver_user_id = req.user._id;
       }

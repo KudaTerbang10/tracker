@@ -73,8 +73,8 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           icon: Icons.add_box_rounded,
           label: 'Input Transaksi Baru',
           onTap: () => context.go('/dashboard/transaksi-baru'),
-          iconColor: const Color(0xFFEA580C),
-          pastelColor: const Color(0xFFFFEDD5),
+          iconColor: const Color(0xFF2563EB),
+          pastelColor: const Color(0xFFDBEAFE),
         ),
         _DashboardMenuItem(
           icon: Icons.format_list_bulleted_rounded,
@@ -94,8 +94,8 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           icon: Icons.unarchive_rounded,
           label: 'Scan Barang Keluar',
           onTap: () => context.go('/dashboard/scan-keluar'),
-          iconColor: const Color(0xFF4F46E5),
-          pastelColor: const Color(0xFFE0E7FF),
+          iconColor: const Color(0xFFDC2626),
+          pastelColor: const Color(0xFFFEE2E2),
         ),
       ];
     case 'driver':
@@ -104,15 +104,15 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           icon: Icons.check_circle_rounded,
           label: 'Scan Barang Diterima',
           onTap: () => context.go('/dashboard/scan-diterima'),
-          iconColor: const Color(0xFF16A34A),
-          pastelColor: const Color(0xFFDCFCE7),
+          iconColor: const Color(0xFF059669),
+          pastelColor: const Color(0xFFD1FAE5),
         ),
         _DashboardMenuItem(
           icon: Icons.list_alt_rounded,
           label: 'Daftar Transaksi Driver',
           onTap: () => context.go('/dashboard/driver-tab'),
-          iconColor: const Color(0xFF0284C7),
-          pastelColor: const Color(0xFFE0F2FE),
+          iconColor: const Color(0xFFD97706),
+          pastelColor: const Color(0xFFFEF3C7),
         ),
       ];
     default:

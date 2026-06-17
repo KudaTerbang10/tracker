@@ -67,7 +67,6 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     _riwayatLoadingMore = true;
     try {
       final result = await ref.read(transactionRepositoryProvider).getList(
-        status: 'diterima,diterima_cabang',
         tab: 'history',
         page: _riwayatPage,
         startDate: _startDate,

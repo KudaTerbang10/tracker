@@ -42,6 +42,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   bool _originFound = true;
   int _autocompleteResetKey = 0;
   bool _isFormattingAddr = false;
+  bool _isFormattingPhone = false;
 
   String? _originApiKota() {
     final user = ref.read(authProvider).user;
@@ -71,8 +72,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _beratC.addListener(_calcOngkir);
     _pengirimNameC.addListener(_formatPengirimName);
     _penerimaNameC.addListener(_formatPenerimaName);
+    _pengirimPhoneC.addListener(_formatPengirimPhone);
+    _penerimaPhoneC.addListener(_formatPenerimaPhone);
     _pengirimAddrC.addListener(_formatPengirimAddr);
     _penerimaAddrC.addListener(_formatPenerimaAddr);
+    _penerimaKecC.addListener(_formatPenerimaKec);
   }
 
   void _formatPengirimAddr() {
@@ -86,6 +90,22 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _isFormattingAddr = false;
   }
 
+  void _formatPenerimaKec() {
+    if (_isFormattingAddr) return;
+    _isFormattingAddr = true;
+    final text = _penerimaKecC.text;
+    // Split kata, kapital huruf pertama tiap kata
+    final formatted = text.split(' ').map((w) {
+      if (w.isEmpty) return w;
+      return w[0].toUpperCase() + w.substring(1).toLowerCase();
+    }).join(' ');
+    if (formatted != text) {
+      _penerimaKecC.text = formatted;
+      _penerimaKecC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingAddr = false;
+  }
+
   void _formatPenerimaAddr() {
     if (_isFormattingAddr) return;
     _isFormattingAddr = true;
@@ -95,6 +115,45 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
       _penerimaAddrC.selection = TextSelection.collapsed(offset: formatted.length);
     }
     _isFormattingAddr = false;
+  }
+
+  void _formatPengirimPhone() {
+    if (_isFormattingPhone) return;
+    _isFormattingPhone = true;
+    final formatted = _formatPhoneDisplay(_pengirimPhoneC.text);
+    if (formatted != _pengirimPhoneC.text) {
+      _pengirimPhoneC.text = formatted;
+      _pengirimPhoneC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingPhone = false;
+  }
+
+  void _formatPenerimaPhone() {
+    if (_isFormattingPhone) return;
+    _isFormattingPhone = true;
+    final formatted = _formatPhoneDisplay(_penerimaPhoneC.text);
+    if (formatted != _penerimaPhoneC.text) {
+      _penerimaPhoneC.text = formatted;
+      _penerimaPhoneC.selection = TextSelection.collapsed(offset: formatted.length);
+    }
+    _isFormattingPhone = false;
+  }
+
+  static String _formatPhoneDisplay(String text) {
+    // Hanya ambil digit
+    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    // Format strip tiap 4 digit hanya untuk nomor yg diawali 08 (nomor HP)
+    if (digits.startsWith('08')) {
+      final buf = StringBuffer();
+      for (int i = 0; i < digits.length; i++) {
+        if (i > 0 && i % 4 == 0) buf.write('-');
+        buf.write(digits[i]);
+      }
+      return buf.toString();
+    }
+    // Nomor non-HP (kantor/rumah) — biarkan apa adanya
+    return digits;
   }
 
   void _formatPengirimName() {
@@ -139,8 +198,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _beratC.removeListener(_calcOngkir);
     _pengirimNameC.removeListener(_formatPengirimName);
     _penerimaNameC.removeListener(_formatPenerimaName);
+    _pengirimPhoneC.removeListener(_formatPengirimPhone);
+    _penerimaPhoneC.removeListener(_formatPenerimaPhone);
     _pengirimAddrC.removeListener(_formatPengirimAddr);
     _penerimaAddrC.removeListener(_formatPenerimaAddr);
+    _penerimaKecC.removeListener(_formatPenerimaKec);
     _pengirimNameC.dispose();
     _pengirimPhoneC.dispose();
     _pengirimAddrC.dispose();
@@ -243,7 +305,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                       prefixIcon: Icon(Icons.map_rounded),
                                       hintText: 'Contoh: Margahayu',
                                     ),
-                                    textCapitalization: TextCapitalization.sentences,
+                                    textCapitalization: TextCapitalization.none,
                                     validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                                   ),
                                 ),
@@ -261,8 +323,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                         context,
                                         latitude: _penerimaLat,
                                         longitude: _penerimaLng,
-                                        address: _penerimaAddrC.text.isNotEmpty
-                                            ? _penerimaAddrC.text.trim()
+                                        address: _penerimaKecC.text.isNotEmpty
+                                            ? _penerimaKecC.text.trim()
                                             : null,
                                       );
                                       if (result != null) {
@@ -591,10 +653,10 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     try {
       final repo = ref.read(transactionRepositoryProvider);
       final tx = await repo.create(
-        pengirim: { 'name': _pengirimNameC.text.trim(), 'phone': _pengirimPhoneC.text.trim(), 'address': _pengirimAddrC.text.trim() },
+        pengirim: { 'name': _pengirimNameC.text.trim(), 'phone': _pengirimPhoneC.text.replaceAll(RegExp(r'[^0-9]'), ''), 'address': _pengirimAddrC.text.trim() },
         penerima: {
           'name': _penerimaNameC.text.trim(),
-          'phone': _penerimaPhoneC.text.trim(),
+          'phone': _penerimaPhoneC.text.replaceAll(RegExp(r'[^0-9]'), ''),
           'address': _penerimaAddrC.text.trim(),
           'kecamatan': _penerimaKecC.text.trim(),
           'kota': _kotaTujuan ?? '',

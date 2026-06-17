@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 
 import 'landing_sections/home_section.dart';
+import 'landing_sections/cek_resi_section.dart';
 import 'landing_sections/cabang_section.dart';
 import 'landing_sections/cek_tarif_section.dart';
 import 'landing_sections/info_sections.dart';
@@ -17,6 +18,7 @@ class _LandingScreenState extends State<LandingScreen> {
   final _scrollController = ScrollController();
 
   final _homeKey = GlobalKey();
+  final _cekResiKey = GlobalKey();
   final _cabangKey = GlobalKey();
   final _cekTarifKey = GlobalKey();
   final _aboutKey = GlobalKey();
@@ -67,7 +69,8 @@ class _LandingScreenState extends State<LandingScreen> {
           controller: _scrollController,
           child: Column(
             children: [
-              KeyedSubtree(key: _homeKey, child: HomeSection(isMobile: isMobile, onLihatCabang: () => _scrollToSection(_cabangKey))),
+              KeyedSubtree(key: _homeKey, child: HomeSection(isMobile: isMobile)),
+              CekResiSection(sectionKey: _cekResiKey),
               CekTarifSection(sectionKey: _cekTarifKey),
               CabangSection(key: _cabangSectionKey, sectionKey: _cabangKey),
               AboutSection(sectionKey: _aboutKey),
@@ -103,6 +106,7 @@ class _LandingScreenState extends State<LandingScreen> {
             ]
           : [
               _navLink('Beranda', _homeKey),
+              _navLink('Cek Resi', _cekResiKey),
               _navLink('Cek Tarif', _cekTarifKey),
               _navLink('Cabang', _cabangKey),
               _navLink('Tentang', _aboutKey),
@@ -150,6 +154,7 @@ class _LandingScreenState extends State<LandingScreen> {
             ),
             const Divider(height: 1),
             _drawerLink('Beranda', _homeKey),
+            _drawerLink('Cek Resi', _cekResiKey),
             _drawerLink('Cek Tarif', _cekTarifKey),
             _drawerLink('Cabang', _cabangKey),
             _drawerLink('Tentang', _aboutKey),

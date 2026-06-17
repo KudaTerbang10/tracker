@@ -1,7 +1,6 @@
 # Taste (Continuously Learned by [CommandCode][cmd])
 
 [cmd]: https://commandcode.ai/
-
 
 # communication
 - Respond in Indonesian (Bahasa Indonesia) when interacting with this user. Confidence: 0.80
@@ -17,3 +16,6 @@
 
 # flutter
 See [flutter/taste.md](flutter/taste.md)
+
+# layout
+- For hero sections with carousel: The carousel should span full screen width left-to-right, with hero content (logo, text, buttons, tracking card) overlaying on top of it rather than being beside or below it. Confidence: 0.70

@@ -9,5 +9,6 @@
 - For About Us section images: Use smaller fixed heights (mobile: 180px, web: 280px) and `BoxFit.contain` to prevent important parts of the image from being cropped. Confidence: 0.70
 - Ensure contact information cards (address, phone, email) have consistent heights and align properly for a visually pleasing layout. Confidence: 0.70
 - Use OpenStreetMap via `flutter_map` for map features (e.g., "Cari Cabang Terdekat", location picker). Confidence: 0.60
+- For map camera fitting on "Cari Cabang Terdekat" feature: Fit bounds between user location and the single nearest cabang only, not all cabang in radius. Confidence: 0.65
 - For zero-network local data features: load from Hive cache first, fallback to bundled JSON asset (follow the `OngkirService`/`CabangLokasiService` pattern). Confidence: 0.70
 - For cabang/branch cards in the landing page grid: Use a fixed height of 150px instead of `IntrinsicHeight` or `childAspectRatio` to prevent text overflow. Confidence: 0.65

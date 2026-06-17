@@ -168,7 +168,37 @@ class CabangSectionState extends State<CabangSection> {
                   options: MapOptions(
                     initialCenter: userLatLng, initialZoom: 13,
                     interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
-                    onMapReady: () { _cabangMapReady = true; },
+                    onMapReady: () {
+                      _cabangMapReady = true;
+                      // Fit camera ke user + 1 cabang terdekat
+                      if (_cabangTerdekat.isNotEmpty) {
+                        final nearest = _cabangTerdekat.first.cabang;
+                        final bounds = LatLngBounds(
+                          LatLng(
+                            _userPosition!.latitude < nearest.latitude!
+                                ? _userPosition!.latitude
+                                : nearest.latitude!,
+                            _userPosition!.longitude < nearest.longitude!
+                                ? _userPosition!.longitude
+                                : nearest.longitude!,
+                          ),
+                          LatLng(
+                            _userPosition!.latitude > nearest.latitude!
+                                ? _userPosition!.latitude
+                                : nearest.latitude!,
+                            _userPosition!.longitude > nearest.longitude!
+                                ? _userPosition!.longitude
+                                : nearest.longitude!,
+                          ),
+                        );
+                        _cabangMapController.fitCamera(
+                          CameraFit.bounds(
+                            bounds: bounds,
+                            padding: const EdgeInsets.all(50),
+                          ),
+                        );
+                      }
+                    },
                   ),
                   children: [
                     TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.example.tracker'),

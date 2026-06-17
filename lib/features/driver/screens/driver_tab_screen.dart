@@ -14,6 +14,7 @@ import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/route_provider.dart';
+import '../utils/route_optimizer.dart';
 import '../widgets/driver_route_map.dart';
 
 final _kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
@@ -158,6 +159,22 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (result) {
         final list = result['data'] as List<Transaction>;
+
+        // Urutkan berdasarkan jarak dari cabang (terdekat → terjauh)
+        final cabangPos = routeAsync.valueOrNull?.start;
+        if (cabangPos != null) {
+          list.sort((a, b) {
+            final aLat = a.penerimaLatitude;
+            final aLng = a.penerimaLongitude;
+            final bLat = b.penerimaLatitude;
+            final bLng = b.penerimaLongitude;
+            if (aLat == null || aLng == null) return 1;
+            if (bLat == null || bLng == null) return -1;
+            final da = haversine(cabangPos, LatLng(aLat, aLng));
+            final db = haversine(cabangPos, LatLng(bLat, bLng));
+            return da.compareTo(db);
+          });
+        }
 
         if (list.isEmpty) {
           return Center(

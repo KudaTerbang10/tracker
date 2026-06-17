@@ -68,8 +68,8 @@ class _LandingScreenState extends State<LandingScreen> {
           child: Column(
             children: [
               KeyedSubtree(key: _homeKey, child: HomeSection(isMobile: isMobile, onLihatCabang: () => _scrollToSection(_cabangKey))),
-              CabangSection(key: _cabangSectionKey, sectionKey: _cabangKey),
               CekTarifSection(sectionKey: _cekTarifKey),
+              CabangSection(key: _cabangSectionKey, sectionKey: _cabangKey),
               AboutSection(sectionKey: _aboutKey),
               ServicesSection(sectionKey: _servicesKey),
               ContactSection(sectionKey: _contactKey),
@@ -103,8 +103,8 @@ class _LandingScreenState extends State<LandingScreen> {
             ]
           : [
               _navLink('Beranda', _homeKey),
-              _navLink('Cabang', _cabangKey),
               _navLink('Cek Tarif', _cekTarifKey),
+              _navLink('Cabang', _cabangKey),
               _navLink('Tentang', _aboutKey),
               _navLink('Layanan', _servicesKey),
               _navLink('Kontak', _contactKey),
@@ -150,8 +150,8 @@ class _LandingScreenState extends State<LandingScreen> {
             ),
             const Divider(height: 1),
             _drawerLink('Beranda', _homeKey),
-            _drawerLink('Cabang', _cabangKey),
             _drawerLink('Cek Tarif', _cekTarifKey),
+            _drawerLink('Cabang', _cabangKey),
             _drawerLink('Tentang', _aboutKey),
             _drawerLink('Layanan', _servicesKey),
             _drawerLink('Kontak', _contactKey),

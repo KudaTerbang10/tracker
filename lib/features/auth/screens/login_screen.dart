@@ -79,83 +79,88 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 32),
 
                     // Login Card
-                    Card(
-                      color: Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextFormField(
-                              controller: _emailC,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                hintText: 'email@contoh.com',
-                                prefixIcon: Icon(Icons.email_outlined, color: AppTheme.primary),
-                              ),
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (v) => (v == null || v.isEmpty) ? 'Email wajib diisi' : null,
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _passC,
-                              obscureText: _obscure,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                hintText: 'Masukkan password',
-                                prefixIcon: const Icon(Icons.lock_outlined, color: AppTheme.primary),
-                                suffixIcon: IconButton(
-                                  icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF64748B)),
-                                  onPressed: () => setState(() => _obscure = !_obscure),
+                    Center(
+                      child: SizedBox(
+                        width: 420,
+                        child: Card(
+                          color: Colors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                TextFormField(
+                                  controller: _emailC,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Email',
+                                    hintText: 'email@contoh.com',
+                                    prefixIcon: Icon(Icons.email_outlined, color: AppTheme.primary),
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (v) => (v == null || v.isEmpty) ? 'Email wajib diisi' : null,
                                 ),
-                              ),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
-                            ),
-                            if (authState.error != null) ...[
-                              const SizedBox(height: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.error.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 18),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        authState.error!,
-                                        style: const TextStyle(color: AppTheme.error, fontSize: 13, fontWeight: FontWeight.w500),
-                                      ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _passC,
+                                  obscureText: _obscure,
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    hintText: 'Masukkan password',
+                                    prefixIcon: const Icon(Icons.lock_outlined, color: AppTheme.primary),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF64748B)),
+                                      onPressed: () => setState(() => _obscure = !_obscure),
                                     ),
-                                  ],
+                                  ),
+                                  validator: (v) => (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
                                 ),
-                              ),
-                            ],
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: isLoading ? null : _login,
-                                child: isLoading
-                                    ? const SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                      )
-                                    : Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: const [
-                                          Icon(Icons.login_rounded, size: 18),
-                                          SizedBox(width: 8),
-                                          Text('Masuk'),
-                                        ],
-                                      ),
-                              ),
+                                if (authState.error != null) ...[
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.error.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            authState.error!,
+                                            style: const TextStyle(color: AppTheme.error, fontSize: 13, fontWeight: FontWeight.w500),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: isLoading ? null : _login,
+                                    child: isLoading
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                          )
+                                        : Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: const [
+                                              Icon(Icons.login_rounded, size: 18),
+                                              SizedBox(width: 8),
+                                              Text('Masuk'),
+                                            ],
+                                          ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),

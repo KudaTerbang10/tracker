@@ -61,7 +61,25 @@ class CabangLokasiService {
   static Future<void> init() async {
     if (_initialized) return;
 
-    // 1. Coba fetch dari API publik dulu
+    // 1. Hive cache dulu (instan, zero network)
+    final cached = HiveCache.getCabangs();
+    if (cached.isNotEmpty) {
+      _cabangs = cached.map((e) => CabangLokasi.fromMap(e)).toList();
+    } else {
+      // 2. Fallback ke bundled JSON
+      final json = await rootBundle.loadString('assets/cabangs.json');
+      final list = jsonDecode(json) as List<dynamic>;
+      _cabangs = list
+          .map((e) => CabangLokasi.fromMap(e as Map<String, dynamic>))
+          .toList();
+    }
+    _initialized = true;
+
+    // 3. Refresh dari API publik di background (tidak blocking)
+    _refreshFromApi();
+  }
+
+  static Future<void> _refreshFromApi() async {
     try {
       final dio = Dio(BaseOptions(
         baseUrl: ApiConstants.baseUrl,
@@ -74,28 +92,10 @@ class CabangLokasiService {
           .toList();
       if (list.isNotEmpty) {
         _cabangs = list;
-        _initialized = true;
-        return;
       }
     } catch (_) {
-      // Gagal fetch, lanjut fallback
+      // Abaikan, data Hive/JSON sudah cukup
     }
-
-    // 2. Fallback ke Hive cache
-    final cached = HiveCache.getCabangs();
-    if (cached.isNotEmpty) {
-      _cabangs = cached.map((e) => CabangLokasi.fromMap(e)).toList();
-      _initialized = true;
-      return;
-    }
-
-    // 3. Fallback terakhir ke bundled JSON
-    final json = await rootBundle.loadString('assets/cabangs.json');
-    final list = jsonDecode(json) as List<dynamic>;
-    _cabangs = list
-        .map((e) => CabangLokasi.fromMap(e as Map<String, dynamic>))
-        .toList();
-    _initialized = true;
   }
 
   static void updateFromHive() {

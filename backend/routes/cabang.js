@@ -5,9 +5,9 @@ const rbac = require('../middleware/rbac');
 
 const router = express.Router();
 
-router.get('/', auth, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const cabangs = await Cabang.find().sort({ kode: 1 }).lean();
+    const cabangs = await Cabang.find({ is_active: true }).sort({ kode: 1 }).lean();
     res.json({ data: cabangs.map(c => {
       const [lng, lat] = c.lokasi?.coordinates ?? [];
       return { cabang_id: c._id, kode: c.kode, name: c.name, address: c.address, phone: c.phone, kota: c.kota, is_active: c.is_active, latitude: lat ?? null, longitude: lng ?? null };

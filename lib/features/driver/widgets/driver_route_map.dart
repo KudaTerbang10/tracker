@@ -152,9 +152,8 @@ class DriverRouteMap extends StatelessWidget {
       ),
     );
 
-    // Penerima markers (numbered)
+    // Stop markers (numbered untuk penerima, warehouse icon untuk cabang)
     for (final stop in routeData.orderedStops) {
-      final number = stop.orderIndex + 1;
       markers.add(
         Marker(
           point: stop.coordinates,
@@ -170,35 +169,47 @@ class DriverRouteMap extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFFDC2626),
-                    shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+                    color: const Color(0xFFF97316),
+                    shadows: const [Shadow(color: Colors.white, blurRadius: 3)],
                   ),
                 ),
               ),
               const SizedBox(height: 2),
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDC2626),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                ),
-                child: Center(
-                  child: Text(
-                    '$number',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
+              if (stop.isCabang)
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF97316),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                  ),
+                  child: const Icon(Icons.store_rounded, color: Colors.white, size: 16),
+                )
+              else
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF97316),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${stop.orderIndex + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

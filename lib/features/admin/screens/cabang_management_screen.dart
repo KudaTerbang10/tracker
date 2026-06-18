@@ -20,17 +20,31 @@ class Cabang {
 
   Cabang({required this.id, required this.kode, required this.name, required this.address, required this.phone, required this.kota, required this.isActive, this.latitude, this.longitude});
 
-  factory Cabang.fromJson(Map<String, dynamic> json) => Cabang(
-    id: json['cabang_id'] as String? ?? json['_id'] as String,
-    kode: json['kode'] as String,
-    name: json['name'] as String,
-    address: json['address'] as String? ?? '',
-    phone: json['phone'] as String? ?? '',
-    kota: json['kota'] as String? ?? '',
-    isActive: json['is_active'] as bool? ?? true,
-    latitude: (json['latitude'] as num?)?.toDouble(),
-    longitude: (json['longitude'] as num?)?.toDouble(),
-  );
+  factory Cabang.fromJson(Map<String, dynamic> json) {
+    double? lat, lng;
+    final lokasi = json['lokasi'] as Map<String, dynamic>?;
+    if (lokasi != null && lokasi['type'] == 'Point') {
+      final coords = lokasi['coordinates'] as List<dynamic>?;
+      if (coords != null && coords.length == 2) {
+        lng = (coords[0] as num).toDouble();
+        lat = (coords[1] as num).toDouble();
+      }
+    } else {
+      lat = (json['latitude'] as num?)?.toDouble();
+      lng = (json['longitude'] as num?)?.toDouble();
+    }
+    return Cabang(
+      id: json['cabang_id'] as String? ?? json['_id'] as String,
+      kode: json['kode'] as String,
+      name: json['name'] as String,
+      address: json['address'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      kota: json['kota'] as String? ?? '',
+      isActive: json['is_active'] as bool? ?? true,
+      latitude: lat,
+      longitude: lng,
+    );
+  }
 
   String get latLngString {
     if (latitude != null && longitude != null) {

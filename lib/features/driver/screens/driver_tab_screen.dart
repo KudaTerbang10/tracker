@@ -16,6 +16,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/route_provider.dart';
 import '../utils/route_optimizer.dart';
 import '../widgets/driver_route_map.dart';
+import '../../../shared/utils/cabang_lokasi_service.dart';
 
 final _kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', limit: 999);
@@ -164,10 +165,23 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
         final cabangPos = routeAsync.valueOrNull?.start;
         if (cabangPos != null) {
           list.sort((a, b) {
-            final aLat = a.penerimaLatitude;
-            final aLng = a.penerimaLongitude;
-            final bLat = b.penerimaLatitude;
-            final bLng = b.penerimaLongitude;
+            double? aLat, aLng, bLat, bLng;
+            if (a.tujuanSelanjutnya?['tipe'] == 'cabang') {
+              final c = CabangLokasiService.findByName(a.tujuanSelanjutnya!['nama'] as String? ?? '');
+              aLat = c?.latitude;
+              aLng = c?.longitude;
+            } else {
+              aLat = a.penerimaLatitude;
+              aLng = a.penerimaLongitude;
+            }
+            if (b.tujuanSelanjutnya?['tipe'] == 'cabang') {
+              final c = CabangLokasiService.findByName(b.tujuanSelanjutnya!['nama'] as String? ?? '');
+              bLat = c?.latitude;
+              bLng = c?.longitude;
+            } else {
+              bLat = b.penerimaLatitude;
+              bLng = b.penerimaLongitude;
+            }
             if (aLat == null || aLng == null) return 1;
             if (bLat == null || bLng == null) return -1;
             final da = haversine(cabangPos, LatLng(aLat, aLng));
@@ -278,7 +292,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                       () {
                                         final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
                                         final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
-                                        return tipe == 'penerima' ? 'Antar ke $nama' : 'Antar ke $nama';
+                                        return tipe == 'cabang' ? 'Antar ke Cabang $nama' : 'Antar ke $nama';
                                       }(),
                                       style: TextStyle(fontSize: 10, color: Colors.orange.shade700, fontWeight: FontWeight.w600),
                                       overflow: TextOverflow.ellipsis,
@@ -364,7 +378,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                         () {
                                           final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
                                           final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
-                                          return tipe == 'penerima' ? 'Antar ke $nama (penerima)' : 'Antar ke $nama';
+                                          return tipe == 'cabang' ? 'Antar ke Cabang $nama' : 'Antar ke $nama (penerima)';
                                         }(),
                                         style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w600),
                                         overflow: TextOverflow.ellipsis,
@@ -550,7 +564,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                             final tujuan = _tujuanUntukDriver(tx, currentUserId);
                                             final nama = tujuan?['nama']?.toString() ?? '';
                                             final tipe = tujuan?['tipe']?.toString() ?? '';
-                                            return tipe == 'penerima' ? 'Mengantar ke $nama (penerima)' : 'Mengantar ke $nama';
+                                            return tipe == 'cabang' ? 'Mengantar ke Cabang $nama' : 'Mengantar ke $nama (penerima)';
                                           }(),
                                           style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
                                           overflow: TextOverflow.ellipsis,
@@ -673,8 +687,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     ),
                     const SizedBox(height: 12),
 
-                    // Map Card — only for delivery to recipient
-                    if (tx.tujuanSelanjutnya?['tipe'] == 'penerima') ...[
+                    // Map Card — tampilkan lokasi tujuan (penerima atau cabang)
+                    if (tx.tujuanSelanjutnya?['tipe'] == 'penerima' || tx.tujuanSelanjutnya?['tipe'] == 'cabang') ...[
                       const SizedBox(height: 12),
                       _mapCard(tx),
                     ],
@@ -842,7 +856,24 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
   }
 
   Widget _mapCard(Transaction tx) {
-    final hasCoords = tx.penerimaLatitude != null && tx.penerimaLongitude != null;
+    double? lat, lng;
+    String titleText;
+    final isCabang = tx.tujuanSelanjutnya?['tipe'] == 'cabang';
+
+    if (isCabang) {
+      final cabang = CabangLokasiService.findByName(tx.tujuanSelanjutnya!['nama'] as String? ?? '');
+      if (cabang != null) {
+        lat = cabang.latitude;
+        lng = cabang.longitude;
+      }
+      titleText = 'Lokasi Cabang Tujuan (Klik Disini)';
+    } else {
+      lat = tx.penerimaLatitude;
+      lng = tx.penerimaLongitude;
+      titleText = 'Lokasi Penerima (Klik Disini)';
+    }
+
+    final hasCoords = lat != null && lng != null;
     return Card(
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
@@ -856,9 +887,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
         iconColor: Colors.red,
         collapsedIconColor: Colors.red,
         leading: const Icon(Icons.location_on_rounded, color: Colors.red, size: 18),
-        title: const Text(
-          'Lokasi Penerima (Klik Disini)',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+        title: Text(
+          titleText,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
         ),
         children: [
           if (hasCoords)
@@ -866,7 +897,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               height: 220,
               child: FlutterMap(
                 options: MapOptions(
-                  initialCenter: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+                  initialCenter: LatLng(lat!, lng!),
                   initialZoom: 15,
                   maxZoom: 18,
                   minZoom: 12,
@@ -882,17 +913,17 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                   MarkerLayer(
                     markers: [
                       Marker(
-                        point: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+                        point: LatLng(lat!, lng!),
                         width: 36,
                         height: 36,
-                        child: const Icon(Icons.location_on_rounded, color: Colors.red, size: 36),
+                        child: Icon(isCabang ? Icons.store_rounded : Icons.location_on_rounded, color: Colors.red, size: 36),
                       ),
                     ],
                   ),
                   CircleLayer(
                     circles: [
                       CircleMarker(
-                        point: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+                        point: LatLng(lat!, lng!),
                         radius: 1000,
                         color: Colors.red.withValues(alpha: 0.08),
                         borderColor: Colors.red.withValues(alpha: 0.3),

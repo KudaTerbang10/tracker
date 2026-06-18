@@ -3,20 +3,32 @@ import 'package:latlong2/latlong.dart';
 import '../../../data/models/transaction.dart';
 
 class RouteStop {
-  final Transaction transaction;
+  final List<Transaction> transactions;
   final LatLng coordinates;
+  final bool isCabang;
   int orderIndex;
 
-  RouteStop({
-    required this.transaction,
-    required this.coordinates,
-    this.orderIndex = 0,
-  });
-
+  Transaction get transaction => transactions.first;
   String get label => 'Tujuan ${orderIndex + 1}';
-  String get name => transaction.penerimaName;
-  String get address => transaction.penerimaAddress;
-  String get noResi => transaction.noResi;
+  String get name {
+    if (isCabang) {
+      return transactions.first.tujuanSelanjutnya?['nama'] as String? ?? transactions.first.penerimaName;
+    }
+    return transactions.first.penerimaName;
+  }
+  String get address => transactions.first.penerimaAddress;
+  String get noResi => transactions.first.noResi;
+
+  RouteStop({
+    required Transaction transaction,
+    required this.coordinates,
+    this.isCabang = false,
+    this.orderIndex = 0,
+  }) : transactions = [transaction];
+
+  void addTransaction(Transaction tx) {
+    transactions.add(tx);
+  }
 }
 
 class RouteData {

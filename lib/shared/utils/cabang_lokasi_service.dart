@@ -27,6 +27,18 @@ class CabangLokasi {
   });
 
   factory CabangLokasi.fromMap(Map<String, dynamic> json) {
+    double? lat, lng;
+    final lokasi = json['lokasi'] as Map<String, dynamic>?;
+    if (lokasi != null && lokasi['type'] == 'Point') {
+      final coords = lokasi['coordinates'] as List<dynamic>?;
+      if (coords != null && coords.length == 2) {
+        lng = (coords[0] as num).toDouble();
+        lat = (coords[1] as num).toDouble();
+      }
+    } else {
+      lat = (json['latitude'] as num?)?.toDouble();
+      lng = (json['longitude'] as num?)?.toDouble();
+    }
     return CabangLokasi(
       cabangId: json['cabang_id'] as String? ?? json['_id'] as String,
       kode: json['kode'] as String? ?? '',
@@ -34,8 +46,8 @@ class CabangLokasi {
       address: json['address'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       kota: json['kota'] as String? ?? '',
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
+      latitude: lat,
+      longitude: lng,
     );
   }
 
@@ -61,18 +73,25 @@ class CabangLokasiService {
   static Future<void> init() async {
     if (_initialized) return;
 
-    // 1. Hive cache dulu (instan, zero network)
-    final cached = HiveCache.getCabangs();
-    if (cached.isNotEmpty) {
-      _cabangs = cached.map((e) => CabangLokasi.fromMap(e)).toList();
-    } else {
-      // 2. Fallback ke bundled JSON
-      final json = await rootBundle.loadString('assets/cabangs.json');
-      final list = jsonDecode(json) as List<dynamic>;
-      _cabangs = list
-          .map((e) => CabangLokasi.fromMap(e as Map<String, dynamic>))
-          .toList();
+    try {
+      // 1. Hive cache dulu (instan, zero network)
+      final cached = HiveCache.getCabangs();
+      if (cached.isNotEmpty) {
+        _cabangs = cached.map((e) => CabangLokasi.fromMap(e)).toList();
+        _initialized = true;
+        _refreshFromApi();
+        return;
+      }
+    } catch (_) {
+      // Hive belum siap, lanjut ke fallback JSON
     }
+
+    // 2. Fallback ke bundled JSON
+    final json = await rootBundle.loadString('assets/cabangs.json');
+    final list = jsonDecode(json) as List<dynamic>;
+    _cabangs = list
+        .map((e) => CabangLokasi.fromMap(e as Map<String, dynamic>))
+        .toList();
     _initialized = true;
 
     // 3. Refresh dari API publik di background (tidak blocking)
@@ -107,6 +126,16 @@ class CabangLokasiService {
 
   static List<CabangLokasi> get allCabangs =>
       List.unmodifiable(_cabangs ?? []);
+
+  /// Cari cabang berdasarkan nama (case-insensitive, trimmed)
+  static CabangLokasi? findByName(String name) {
+    if (_cabangs == null) return null;
+    final q = name.toLowerCase().trim();
+    for (final c in _cabangs!) {
+      if (c.name.toLowerCase().trim() == q) return c;
+    }
+    return null;
+  }
 
   /// Haversine formula
   static double _hitungJarak(double lat1, double lon1, double lat2, double lon2) {

@@ -14,6 +14,7 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
     final user = ref.watch(authProvider).user;
     if (user == null) return null;
 
+    // Data transaksi yang masih dalam proses kirim
     final result = await ref.read(transactionRepositoryProvider).getList(
       status: 'proses_kirim',
       limit: 999,
@@ -31,7 +32,6 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
       }
     }
     if (cabangMap.isEmpty) {
-      // Fallback: load langsung dari JSON
       try {
         final jsonStr = await rootBundle.loadString('assets/cabangs.json');
         final list = json.decode(jsonStr) as List<dynamic>;
@@ -50,6 +50,7 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
 
     LatLng? origin;
     String originName = 'Lokasi Awal';
+    bool originIsCabang = true;
     final stops = <RouteStop>[];
     final cabangStopMap = <String, RouteStop>{};
 
@@ -80,20 +81,43 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
 
     if (stops.isEmpty) return null;
 
-    // Cari cabang asal dari tracking_logs (keluar_cabang terakhir)
-    for (final tx in transactions) {
-      if (tx.driverUserId != user.id) continue;
-      for (final log in tx.trackingLogs.reversed) {
-        if (log.status == 'keluar_cabang') {
-          final namaCabang = log.lokasiName.trim().toLowerCase();
-          if (namaCabang.isNotEmpty && cabangMap.containsKey(namaCabang)) {
-            origin = cabangMap[namaCabang];
-            originName = log.lokasiName;
-            break;
-          }
+    // Cek apakah driver sudah pernah menyelesaikan pengiriman sebelumnya
+    // Jika ya, pakai titik terakhir sebagai origin agar rute lanjut dari sana
+    try {
+      final deliveredResult = await ref.read(transactionRepositoryProvider).getList(
+        tab: 'history',
+        status: 'diterima',
+        limit: 1,
+      );
+      final deliveredList = deliveredResult['data'] as List<Transaction>;
+      if (deliveredList.isNotEmpty) {
+        final last = deliveredList.first;
+        if (last.penerimaLatitude != null && last.penerimaLongitude != null) {
+          origin = LatLng(last.penerimaLatitude!, last.penerimaLongitude!);
+          originName = last.penerimaName;
+          originIsCabang = false;
         }
       }
-      if (origin != null) break;
+    } catch (_) {
+      // Abaikan, lanjut cari dari tracking_logs
+    }
+
+    // Jika belum ada kiriman selesai, cari cabang asal dari tracking_logs
+    if (origin == null) {
+      for (final tx in transactions) {
+        if (tx.driverUserId != user.id) continue;
+        for (final log in tx.trackingLogs.reversed) {
+          if (log.status == 'keluar_cabang') {
+            final namaCabang = log.lokasiName.trim().toLowerCase();
+            if (namaCabang.isNotEmpty && cabangMap.containsKey(namaCabang)) {
+              origin = cabangMap[namaCabang];
+              originName = log.lokasiName;
+              break;
+            }
+          }
+        }
+        if (origin != null) break;
+      }
     }
 
     // Fallback: pakai stop pertama sebagai origin
@@ -111,6 +135,7 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
     return RouteData(
       start: origin!,
       startName: originName,
+      startIsCabang: originIsCabang,
       orderedStops: ordered,
       totalDistanceKm: total,
     );

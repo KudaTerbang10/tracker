@@ -7,7 +7,11 @@ class DriverRouteMap extends StatelessWidget {
   final RouteData routeData;
   final bool compact;
 
-  const DriverRouteMap({super.key, required this.routeData, this.compact = false});
+  const DriverRouteMap({
+    super.key,
+    required this.routeData,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +37,11 @@ class DriverRouteMap extends StatelessWidget {
             color: Colors.blue.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.route_rounded, color: Color(0xFF2563EB), size: 22),
+          child: const Icon(
+            Icons.route_rounded,
+            color: Color(0xFF2563EB),
+            size: 22,
+          ),
         ),
         title: Text(
           'Rute Pengiriman (${routeData.stopCount} tujuan)',
@@ -58,12 +66,7 @@ class DriverRouteMap extends StatelessWidget {
             ),
           ],
         ),
-        children: [
-          SizedBox(
-            height: 300,
-            child: _buildMap(),
-          ),
-        ],
+        children: [SizedBox(height: 300, child: _buildMap())],
       ),
     );
   }
@@ -82,7 +85,11 @@ class DriverRouteMap extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -90,13 +97,24 @@ class DriverRouteMap extends StatelessWidget {
   }
 
   Widget _buildMap() {
-    final allPoints = [routeData.start, ...routeData.orderedStops.map((s) => s.coordinates)];
+    final allPoints = [
+      routeData.start,
+      ...routeData.orderedStops.map((s) => s.coordinates),
+    ];
 
     // Hitung bounds
-    double minLat = allPoints.map((p) => p.latitude).reduce((a, b) => a < b ? a : b);
-    double maxLat = allPoints.map((p) => p.latitude).reduce((a, b) => a > b ? a : b);
-    double minLng = allPoints.map((p) => p.longitude).reduce((a, b) => a < b ? a : b);
-    double maxLng = allPoints.map((p) => p.longitude).reduce((a, b) => a > b ? a : b);
+    double minLat = allPoints
+        .map((p) => p.latitude)
+        .reduce((a, b) => a < b ? a : b);
+    double maxLat = allPoints
+        .map((p) => p.latitude)
+        .reduce((a, b) => a > b ? a : b);
+    double minLng = allPoints
+        .map((p) => p.longitude)
+        .reduce((a, b) => a < b ? a : b);
+    double maxLng = allPoints
+        .map((p) => p.longitude)
+        .reduce((a, b) => a > b ? a : b);
 
     // Padding
     final padLat = (maxLat - minLat) * 0.15 + 0.005;
@@ -107,12 +125,16 @@ class DriverRouteMap extends StatelessWidget {
     );
 
     // Polyline points: cabang → stop1 → stop2 → ...
-    final polyPoints = [routeData.start, ...routeData.orderedStops.map((s) => s.coordinates)];
+    final polyPoints = [
+      routeData.start,
+      ...routeData.orderedStops.map((s) => s.coordinates),
+    ];
 
     // Build markers
     final markers = <Marker>[];
 
-    // Cabang marker
+    // Origin marker
+    final isOriginCabang = routeData.startIsCabang;
     markers.add(
       Marker(
         point: routeData.start,
@@ -128,11 +150,13 @@ class DriverRouteMap extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E40AF),
-                  shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+                  color: isOriginCabang
+                      ? const Color(0xFF1E40AF)
+                      : const Color(0xFF10B981),
+                  shadows: const [Shadow(color: Colors.white, blurRadius: 3)],
                 ),
               ),
             ),
@@ -143,9 +167,11 @@ class DriverRouteMap extends StatelessWidget {
                 color: const Color(0xFF2563EB),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 4),
+                ],
               ),
-              child: const Icon(Icons.store_rounded, color: Colors.white, size: 16),
+              child: const Icon(Icons.flag_rounded, color: Colors.white, size: 16),
             ),
           ],
         ),
@@ -185,9 +211,15 @@ class DriverRouteMap extends StatelessWidget {
                     color: const Color(0xFFF97316),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 4),
+                    ],
                   ),
-                  child: const Icon(Icons.store_rounded, color: Colors.white, size: 16),
+                  child: const Icon(
+                    Icons.store_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 )
               else
                 Container(
@@ -197,7 +229,9 @@ class DriverRouteMap extends StatelessWidget {
                     color: const Color(0xFFF97316),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 4),
+                    ],
                   ),
                   child: Center(
                     child: Text(

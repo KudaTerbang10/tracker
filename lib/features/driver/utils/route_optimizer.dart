@@ -34,12 +34,14 @@ class RouteStop {
 class RouteData {
   final LatLng start;
   final String startName;
+  final bool startIsCabang;
   final List<RouteStop> orderedStops;
   final double totalDistanceKm;
 
   RouteData({
     required this.start,
     required this.startName,
+    this.startIsCabang = true,
     required this.orderedStops,
     required this.totalDistanceKm,
   });

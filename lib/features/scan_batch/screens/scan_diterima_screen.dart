@@ -22,6 +22,7 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
   final _namaC = TextEditingController();
   final _catatanC = TextEditingController();
   bool _submitting = false;
+  bool _capitalizing = false;
   Transaction? _tx;
 
   @override
@@ -300,6 +301,21 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
           // Form fields
           TextField(
             controller: _namaC,
+            textCapitalization: TextCapitalization.words,
+            onChanged: (v) {
+              if (_capitalizing) return;
+              _capitalizing = true;
+              final titled = _toTitleCase(v);
+              if (titled != v) {
+                _namaC.value = TextEditingValue(
+                  text: titled,
+                  selection: TextSelection.collapsed(
+                    offset: titled.length,
+                  ),
+                );
+              }
+              _capitalizing = false;
+            },
             decoration: const InputDecoration(
               labelText: 'Nama Penerima *',
               hintText: 'Masukkan nama yang menerima',
@@ -461,5 +477,13 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1);
+    }).join(' ');
   }
 }

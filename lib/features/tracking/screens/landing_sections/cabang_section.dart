@@ -13,6 +13,52 @@ class CabangSection extends StatefulWidget {
   State<CabangSection> createState() => CabangSectionState();
 }
 
+class _CabangGrid extends StatelessWidget {
+  final int crossAxisCount;
+  final double padding;
+  final List<Widget> cards;
+
+  const _CabangGrid({
+    required this.crossAxisCount,
+    required this.padding,
+    required this.cards,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final gap = 16.0;
+    final rows = <Widget>[];
+
+    for (var i = 0; i < cards.length; i += crossAxisCount) {
+      final end = (i + crossAxisCount > cards.length) ? cards.length : i + crossAxisCount;
+      final rowCards = cards.sublist(i, end);
+      final lastRow = i + crossAxisCount >= cards.length;
+
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: lastRow ? 0 : gap),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: List.generate(rowCards.length, (j) {
+                final isLast = j == rowCards.length - 1;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: isLast ? 0 : gap),
+                    child: rowCards[j],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(children: rows);
+  }
+}
+
 class CabangSectionState extends State<CabangSection> {
   bool _locating = false;
   bool _locationError = false;
@@ -155,7 +201,7 @@ class CabangSectionState extends State<CabangSection> {
             ),
             if (!_locating && !_locationError && _cabangTerdekat.isNotEmpty) ...[
               const SizedBox(height: 24),
-              _buildCabangGrid(isMobile),
+              _buildCabangGrid(),
             ],
           ],
         ),
@@ -412,40 +458,26 @@ class CabangSectionState extends State<CabangSection> {
     );
   }
 
-  Widget _buildCabangGrid(bool isMobile) {
+  Widget _buildCabangGrid() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final padding = isMobile ? 0.0 : 24.0;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: padding),
       child: isMobile
           ? Column(
               children: _cabangTerdekat
-                  .map(
-                    (ct) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: SizedBox(
-                        width: double.infinity,
+                  .map((ct) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
                         child: _cabangCard(ct),
-                      ),
-                    ),
-                  )
+                      ))
                   .toList(),
             )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final w = (constraints.maxWidth - 16 * 3) / 4;
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: _cabangTerdekat
-                      .map(
-                        (ct) => SizedBox(
-                          width: w,
-                          height: 175,
-                          child: _cabangCard(ct),
-                        ),
-                      )
-                      .toList(),
-                );
-              },
+          : _CabangGrid(
+              crossAxisCount: screenWidth >= 1200 ? 4 : 2,
+              padding: padding,
+              cards: _cabangTerdekat.map((ct) => _cabangCard(ct)).toList(),
             ),
     );
   }

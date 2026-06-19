@@ -11,6 +11,8 @@ import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../driver/providers/route_provider.dart';
+import '../../driver/screens/driver_tab_screen.dart';
 
 class ScanDiterimaScreen extends ConsumerStatefulWidget {
   const ScanDiterimaScreen({super.key});
@@ -443,6 +445,9 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
               duration: const Duration(seconds: 2),
             ),
           );
+          // Refresh data driver dan rute
+          ref.invalidate(routeProvider);
+          ref.invalidate(kirimProvider);
           setState(() {
             _tx = null;
             _namaC.clear();

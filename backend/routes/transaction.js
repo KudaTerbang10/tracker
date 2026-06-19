@@ -35,6 +35,7 @@ router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => 
       no_resi,
       kode_gerai: kodeGerai,
       barcode_data: no_resi,
+      current_cabang_id: req.user.cabang_id,
       pengirim,
       penerima,
       lokasi_penerima: lokasi_penerima || null,
@@ -68,6 +69,11 @@ router.post('/batch-status', auth, async (req, res) => {
       return res.status(400).json({ message: 'no_resi_list dan status_baru wajib diisi' });
     }
 
+    // Validasi role sekali di awal
+    if (!canRoleSetStatus(req.user.role, status_baru)) {
+      return res.status(403).json({ message: `Role ${req.user.role} tidak memiliki akses untuk status ${status_baru}` });
+    }
+
     const transactions = await Transaction.find({ no_resi: { $in: no_resi_list } }).lean();
     const txMap = new Map(transactions.map(tx => [tx.no_resi, tx]));
 
@@ -86,23 +92,30 @@ router.post('/batch-status', auth, async (req, res) => {
     const hasAnyDriver = driver || (nama_driver_manual && nama_driver_manual.trim().length > 0);
     const finalStatus = (status_baru === 'keluar_cabang' && hasAnyDriver) ? 'proses_kirim' : status_baru;
 
+    // Ambil lokasi user SEKALI di luar loop
+    const userLokasi = await getLokasiForUser(req.user);
+
+    // Build Map untuk O(1) lookup
     const results = [];
-    const validIds = [];
+    const resultsMap = new Map();
+    const validTxMap = new Map();
+
+    const pushResult = (no_resi, status, error) => {
+      const item = { no_resi, status, ...(error && { error }) };
+      results.push(item);
+      if (status === 'ok') resultsMap.set(no_resi, item);
+      return item;
+    };
 
     for (const no_resi of no_resi_list) {
       const tx = txMap.get(no_resi);
       if (!tx) {
-        results.push({ no_resi, status: 'error', error: 'Transaksi tidak ditemukan' });
-        continue;
-      }
-
-      if (!canRoleSetStatus(req.user.role, status_baru)) {
-        results.push({ no_resi, status: 'error', error: `Role ${req.user.role} tidak memiliki akses untuk status ${status_baru}` });
+        pushResult(no_resi, 'error', 'Transaksi tidak ditemukan');
         continue;
       }
 
       if (tx.status_saat_ini === finalStatus) {
-        results.push({ no_resi, status: 'error', error: `Barang ${no_resi} sudah discan sebelumnya` });
+        pushResult(no_resi, 'error', `Barang ${no_resi} sudah discan sebelumnya`);
         continue;
       }
 
@@ -110,37 +123,42 @@ router.post('/batch-status', auth, async (req, res) => {
         const hasDriver = driver || (nama_driver_manual && nama_driver_manual.trim().length > 0);
         const hasTujuan = (tipe_tujuan === 'penerima') || (tipe_tujuan === 'cabang' && (cabangTujuan || (cabang_nama_manual && cabang_nama_manual.trim().length > 0)));
         if (!hasDriver || !tipe_tujuan || !hasTujuan) {
-          results.push({ no_resi, status: 'error', error: 'Driver dan tujuan wajib diisi' });
+          pushResult(no_resi, 'error', 'Driver dan tujuan wajib diisi');
           continue;
         }
       }
 
       if (status_baru === 'diterima' && req.user.role === 'driver') {
         if (tx.driver_user_id?.toString() !== req.user._id.toString()) {
-          results.push({ no_resi, status: 'error', error: 'Anda bukan driver yang bertugas untuk transaksi ini' });
+          pushResult(no_resi, 'error', 'Anda bukan driver yang bertugas untuk transaksi ini');
           continue;
         }
       }
 
-      results.push({ no_resi, status: 'ok' });
-      validIds.push(tx._id);
+      pushResult(no_resi, 'ok');
+      validTxMap.set(tx._id.toString(), tx);
     }
+
+    const validIds = [...validTxMap.keys()];
 
     if (validIds.length > 0) {
       const bulkOps = [];
-      for (const txId of validIds) {
-        const tx = transactions.find(t => t._id.toString() === txId.toString());
+
+      for (const [txIdStr, tx] of validTxMap) {
         const log = {
           status: status_baru,
           pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
-          lokasi: await getLokasiForUser(req.user),
+          lokasi: userLokasi,
           timestamp: new Date(),
         };
 
-        const setFields = { status_saat_ini: status_baru, updated_at: new Date() };
+        const setFields = { status_saat_ini: status_baru, updatedAt: new Date(), updated_at: new Date() };
         const pushLogs = [log];
 
         if (status_baru === 'keluar_cabang') {
+          // current_cabang_id null — barang dalam perjalanan, belum sampai tujuan
+          setFields.current_cabang_id = null;
+
           const driverName = driver ? driver.name : (nama_driver_manual || '');
           const driverPhone = driver ? driver.phone : '';
           const driverId = driver ? driver._id : null;
@@ -157,7 +175,7 @@ router.post('/batch-status', auth, async (req, res) => {
             if (cabangName) {
               setFields.tujuan_selanjutnya = { tipe: 'cabang', cabang_id: cabangTujuan ? cabangTujuan._id : null, nama: cabangName };
               log.tujuan = { tipe: 'cabang', nama: cabangName };
-              const dariLokasi = log.lokasi.nama || 'lokasi';
+              const dariLokasi = userLokasi.nama || 'lokasi';
               log.deskripsi = `Paket keluar dari ${dariLokasi} menuju ${cabangName}${driverName ? `, dibawa oleh ${driverName}` : ''}`;
 
               if (driverName) {
@@ -175,7 +193,7 @@ router.post('/batch-status', auth, async (req, res) => {
           } else if (tipe_tujuan === 'penerima') {
             setFields.tujuan_selanjutnya = { tipe: 'penerima', nama: tx.penerima.name };
             log.tujuan = { tipe: 'penerima', nama: tx.penerima.name };
-            const dariLokasi = log.lokasi.nama || 'lokasi';
+            const dariLokasi = userLokasi.nama || 'lokasi';
             log.deskripsi = `Paket keluar dari ${dariLokasi}, diantar langsung ke ${tx.penerima.name}${driverName ? ` oleh ${driverName}` : ''}`;
 
             if (driverName) {
@@ -191,9 +209,10 @@ router.post('/batch-status', auth, async (req, res) => {
             }
           }
         } else if (status_baru === 'diterima_cabang') {
-          const lokasi = await getLokasiForUser(req.user);
-          log.deskripsi = `Paket diterima di ${lokasi.nama}`;
+          setFields.current_cabang_id = userLokasi?.cabang_id || null;
+          log.deskripsi = `Paket diterima di ${userLokasi.nama}`;
         } else if (status_baru === 'diterima') {
+          setFields.current_cabang_id = null;
           const namaPenerimaFinal = nama_penerima || tx.penerima.name;
           log.nama_penerima = namaPenerimaFinal;
           log.deskripsi = `Paket telah diterima oleh ${namaPenerimaFinal}${catatan ? ` (${catatan})` : ''}`;
@@ -202,7 +221,7 @@ router.post('/batch-status', auth, async (req, res) => {
 
         bulkOps.push({
           updateOne: {
-            filter: { _id: tx._id, status_saat_ini: tx.status_saat_ini },
+            filter: { _id: new mongoose.Types.ObjectId(txIdStr), status_saat_ini: tx.status_saat_ini },
             update: { $set: setFields, $push: { tracking_logs: { $each: pushLogs } } },
           },
         });
@@ -210,19 +229,21 @@ router.post('/batch-status', auth, async (req, res) => {
 
       const bulkResult = await Transaction.bulkWrite(bulkOps, { ordered: false });
 
-      const updatedIds = new Set(
-        (await Transaction.find({
-          _id: { $in: validIds },
-          status_saat_ini: finalStatus,
-        }, { _id: 1 }).lean()).map(d => d._id.toString())
-      );
+      // Deteksi conflict pakai matchedCount — 1 query tambahan cuma kalau mismatch
+      if (bulkResult.matchedCount < validIds.length) {
+        const currentDocs = await Transaction.find(
+          { _id: { $in: validIds } },
+          { _id: 1, no_resi: 1, status_saat_ini: 1 }
+        ).lean();
 
-      for (const r of results) {
-        if (r.status === 'ok') {
-          const tx = transactions.find(t => t.no_resi === r.no_resi);
-          if (tx && !updatedIds.has(tx._id.toString())) {
-            r.status = 'error';
-            r.error = `Barang ${r.no_resi} sudah discan oleh admin lain`;
+        for (const doc of currentDocs) {
+          const tx = validTxMap.get(doc._id.toString());
+          if (tx && tx.status_saat_ini !== doc.status_saat_ini) {
+            const r = resultsMap.get(tx.no_resi);
+            if (r) {
+              r.status = 'error';
+              r.error = `Barang ${tx.no_resi} sudah discan oleh admin lain`;
+            }
           }
         }
       }
@@ -246,28 +267,14 @@ router.get('/', auth, async (req, res) => {
     const filter = {};
 
     if (req.user.role === 'admin_cabang') {
-      const cabangId = req.user.cabang_id;
+      const cabangId = new mongoose.Types.ObjectId(req.user.cabang_id);
       const tab = req.query.tab || 'current';
 
       if (tab === 'history') {
-        filter.$and = [
-          { 'tracking_logs.lokasi.cabang_id': new mongoose.Types.ObjectId(cabangId) },
-          {
-            $expr: {
-              $ne: [
-                { $arrayElemAt: ['$tracking_logs.lokasi.cabang_id', -1] },
-                new mongoose.Types.ObjectId(cabangId),
-              ],
-            },
-          },
-        ];
+        filter['tracking_logs.lokasi.cabang_id'] = cabangId;
+        filter.current_cabang_id = { $ne: cabangId };
       } else {
-        filter.$expr = {
-          $eq: [
-            { $arrayElemAt: ['$tracking_logs.lokasi.cabang_id', -1] },
-            new mongoose.Types.ObjectId(cabangId),
-          ],
-        };
+        filter.current_cabang_id = cabangId;
       }
     } else if (req.user.role === 'driver') {
       const tab = req.query.tab || 'current';
@@ -292,9 +299,10 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (search) {
+      const upper = search.toUpperCase();
       filter.$or = [
-        { no_resi: { $regex: search, $options: 'i' } },
-        { barcode_data: { $regex: search, $options: 'i' } },
+        { no_resi: { $regex: `^${upper}` } },
+        { barcode_data: { $regex: `^${upper}` } },
       ];
     }
 

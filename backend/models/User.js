@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema({
   is_active: { type: Boolean, default: true },
 }, { timestamps: true });
 
+userSchema.index({ role: 1, cabang_id: 1 });
+userSchema.index({ phone: 1 });
+userSchema.index({ name: 'text', email: 'text' });
+
 userSchema.methods.comparePassword = async function (candidate) {
   return candidate === this.password;
 };

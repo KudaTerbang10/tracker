@@ -83,6 +83,9 @@ const transactionSchema = new mongoose.Schema({
 
   nama_penerima_akhir: { type: String, default: null },
 
+  // Denormalized — lokasi cabang terakhir untuk query cepat tanpa $expr
+  current_cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
+
   tracking_logs: [trackingLogSchema],
 }, { timestamps: true });
 
@@ -91,5 +94,13 @@ transactionSchema.index({ kode_gerai: 1, createdAt: -1 });
 transactionSchema.index({ 'tracking_logs.pelaku.user_id': 1 });
 transactionSchema.index({ 'tracking_logs.timestamp': -1 });
 transactionSchema.index({ lokasi_penerima: '2dsphere' });
+
+// 🔍 Performa query driver & admin
+transactionSchema.index({ driver_user_id: 1 });
+transactionSchema.index({ 'tracking_logs.driver_ditugaskan.user_id': 1 });
+transactionSchema.index({ 'tracking_logs.lokasi.cabang_id': 1 });
+transactionSchema.index({ createdAt: -1 });
+transactionSchema.index({ barcode_data: 1 });
+transactionSchema.index({ current_cabang_id: 1, status_saat_ini: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

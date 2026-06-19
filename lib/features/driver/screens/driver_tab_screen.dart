@@ -18,7 +18,7 @@ import '../utils/route_optimizer.dart';
 import '../widgets/driver_route_map.dart';
 import '../../../shared/utils/cabang_lokasi_service.dart';
 
-final _kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
+final kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', limit: 999);
 });
 
@@ -94,7 +94,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    final kirimAsync = ref.watch(_kirimProvider);
+    final kirimAsync = ref.watch(kirimProvider);
     final kirimData = kirimAsync.valueOrNull;
     final kirimCount = kirimData != null ? (kirimData['data'] as List<dynamic>).length : 0;
 
@@ -152,7 +152,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
   }
 
   Widget _buildKirimTab() {
-    final async = ref.watch(_kirimProvider);
+    final async = ref.watch(kirimProvider);
     final routeAsync = ref.watch(routeProvider);
 
     return async.when(

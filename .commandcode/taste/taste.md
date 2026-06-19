@@ -27,6 +27,7 @@ See [flutter/taste.md](flutter/taste.md)
 # domain
 - Multiple drivers can be assigned to the same package sequentially across different legs of its journey (e.g., Driver A from gudang A → gudang B, Driver B from gudang B → penerima). The top-level `driver_user_id` always reflects only the **current** assigned driver, while `tracking_logs[].driver_ditugaskan` stores the history of all drivers who handled it. Confidence: 0.80
 - Users refer to the orange count badge on the "Perlu Dikirim" tab as the "task icon banner" — it shows the count of delivery tasks. Confidence: 0.90
+- The `current_cabang_id` lifecycle during shipment tracking: `keluar_cabang`/`proses_kirim` → set to `null` (in-transit, no cabang has it); `diterima_cabang` → set to the receiving cabang's ID; `diterima` (final) → set to `null`. This ensures shipments appear only in the correct cabang's Current tab based on physical possession. Confidence: 0.75
 
 # phone-formatting
 - For phone numbers starting with "08" in form displays: Format with dash (-) every 4 digits for readability (e.g., 0812-3456-7890), but only in the UI — store raw digits without formatting in the database. Confidence: 0.70

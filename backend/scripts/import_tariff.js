@@ -20,19 +20,32 @@ async function importTariff() {
 
     const entries = Object.entries(data);
     let imported = 0;
+    const BATCH_SIZE = 500;
 
-    for (const [key, value] of entries) {
-      const [asal, tujuan] = key.split('|');
-      if (!asal || !tujuan) {
-        console.warn(`Skipping invalid key: ${key}`);
-        continue;
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const bulkOps = [];
+
+      for (const [key, value] of batch) {
+        const [asal, tujuan] = key.split('|');
+        if (!asal || !tujuan) {
+          console.warn(`Skipping invalid key: ${key}`);
+          continue;
+        }
+        bulkOps.push({
+          updateOne: {
+            filter: { key },
+            update: { $set: { key, asal, tujuan, min: value.min, perkg: value.perkg, est: value.est } },
+            upsert: true,
+          },
+        });
       }
-      await Tariff.findOneAndUpdate(
-        { key },
-        { key, asal, tujuan, min: value.min, perkg: value.perkg, est: value.est },
-        { upsert: true, new: true }
-      );
-      imported++;
+
+      if (bulkOps.length > 0) {
+        const result = await Tariff.bulkWrite(bulkOps, { ordered: false });
+        imported += result.upsertedCount + result.matchedCount;
+        console.log(`  Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${result.upsertedCount + result.matchedCount} processed`);
+      }
     }
 
     console.log(`Imported ${imported} of ${entries.length} tariffs`);

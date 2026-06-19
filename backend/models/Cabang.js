@@ -13,4 +13,8 @@ const cabangSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+cabangSchema.index({ kota: 1 });
+cabangSchema.index({ name: 1 });
+cabangSchema.index({ lokasi: '2dsphere' });
+
 module.exports = mongoose.model('Cabang', cabangSchema);

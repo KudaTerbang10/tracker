@@ -87,10 +87,12 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
       final deliveredResult = await ref.read(transactionRepositoryProvider).getList(
         tab: 'history',
         status: 'diterima',
-        limit: 1,
+        limit: 999,
       );
       final deliveredList = deliveredResult['data'] as List<Transaction>;
       if (deliveredList.isNotEmpty) {
+        // Sort by updatedAt (waktu discan) — terbaru dulu
+        deliveredList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
         final last = deliveredList.first;
         if (last.penerimaLatitude != null && last.penerimaLongitude != null) {
           origin = LatLng(last.penerimaLatitude!, last.penerimaLongitude!);

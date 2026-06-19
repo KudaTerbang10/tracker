@@ -82,17 +82,18 @@ router.post('/import', auth, rbac('super_admin'), async (req, res) => {
       return res.status(400).json({ message: 'Data tarif kosong atau tidak valid' });
     }
 
-    let imported = 0;
-    for (const t of tariffs) {
-      await Tariff.findOneAndUpdate(
-        { key: t.key },
-        { key: t.key, asal: t.asal, tujuan: t.tujuan, min: t.min, perkg: t.perkg, est: t.est },
-        { upsert: true, new: true }
-      );
-      imported++;
-    }
+    const bulkOps = tariffs.map(t => ({
+      updateOne: {
+        filter: { key: t.key },
+        update: { $set: { key: t.key, asal: t.asal, tujuan: t.tujuan, min: t.min, perkg: t.perkg, est: t.est } },
+        upsert: true,
+      },
+    }));
 
-    res.json({ message: `Berhasil mengimpor ${imported} tarif`, count: imported });
+    const result = await Tariff.bulkWrite(bulkOps, { ordered: false });
+    const total = result.upsertedCount + result.matchedCount;
+
+    res.json({ message: `Berhasil mengimpor ${total} tarif`, count: total });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

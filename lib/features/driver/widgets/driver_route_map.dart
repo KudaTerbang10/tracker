@@ -295,52 +295,55 @@ class DriverRouteMap extends StatelessWidget {
       );
     }
 
-    // Ikon truk di tengah rute
-    final first = polyPoints.first;
-    final last = polyPoints.last;
-    final midPoint = LatLng(
-      (first.latitude + last.latitude) / 2,
-      (first.longitude + last.longitude) / 2,
-    );
-    final angle = atan2(last.latitude - first.latitude, last.longitude - first.longitude);
-    markers.add(
-      Marker(
-        point: midPoint,
-        width: 36,
-        height: 36,
-        child: Tooltip(
-          message: driverName ?? 'Driver',
-          child: GestureDetector(
-            onTap: () {
-              if (driverName != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(driverName!),
-                    behavior: SnackBarBehavior.floating,
-                    duration: const Duration(seconds: 2),
+    // Ikon truk di tengah rute — hanya jika semua stop adalah cabang (antar cabang)
+    final allCabang = routeData.orderedStops.every((s) => s.isCabang);
+    if (allCabang) {
+      final first = polyPoints.first;
+      final last = polyPoints.last;
+      final midPoint = LatLng(
+        (first.latitude + last.latitude) / 2,
+        (first.longitude + last.longitude) / 2,
+      );
+      final angle = atan2(last.latitude - first.latitude, last.longitude - first.longitude);
+      markers.add(
+        Marker(
+          point: midPoint,
+          width: 36,
+          height: 36,
+          child: Tooltip(
+            message: driverName ?? 'Driver',
+            child: GestureDetector(
+              onTap: () {
+                if (driverName != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(driverName!),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()..setEntry(0, 0, cos(angle) < 0 ? -1 : 1),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF2563EB), width: 2),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 4),
+                    ],
                   ),
-                );
-              }
-            },
-            child: Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()..setEntry(0, 0, cos(angle) < 0 ? -1 : 1),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF2563EB), width: 2),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 4),
-                  ],
+                  child: const Icon(Icons.local_shipping_rounded, size: 22, color: Color(0xFF2563EB)),
                 ),
-                child: const Icon(Icons.local_shipping_rounded, size: 22, color: Color(0xFF2563EB)),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
 
     return FlutterMap(
       options: MapOptions(

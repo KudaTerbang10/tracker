@@ -25,3 +25,4 @@
 - On the driver route map: Render route lines as straight lines (no curvature/bend/bezier) between waypoints — do not use curved or bent line concepts for route rendering. Confidence: 0.85
 - For the driver route map: Place truck icons at the midpoint of straight line segments between consecutive cabang points (not just curved segments), keeping the horizontal flip logic for direction orientation. Confidence: 0.70
 - For bottom sheet UI patterns: Use actual bottom sheet navigation (`showModalBottomSheet` or similar) instead of modifying a full-page Scaffold to resemble a bottom sheet. Confidence: 0.65
+- On the driver "Perlu Dikirim" tab (mobile portrait view): Use `Icons.person_pin_circle_rounded` (person icon) instead of `Icons.local_shipping_rounded` (truck icon) when the next destination type is 'penerima' (recipient) — only keep truck icon for 'cabang' (branch) destinations. Confidence: 0.70

@@ -15,10 +15,9 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
     if (user == null) return null;
 
     // Data transaksi yang masih dalam proses kirim
-    final result = await ref.read(transactionRepositoryProvider).getList(
-      status: 'proses_kirim',
-      limit: 999,
-    );
+    final result = await ref
+        .read(transactionRepositoryProvider)
+        .getList(status: 'proses_kirim', limit: 999);
     final transactions = result['data'] as List<Transaction>;
 
     // Siapkan direktori cabang: dari memory cache, fallback ke file
@@ -41,7 +40,10 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
           if (lokasi != null && lokasi['type'] == 'Point') {
             final coords = lokasi['coordinates'] as List<dynamic>?;
             if (coords != null && coords.length == 2) {
-              cabangMap[name] = LatLng((coords[1] as num).toDouble(), (coords[0] as num).toDouble());
+              cabangMap[name] = LatLng(
+                (coords[1] as num).toDouble(),
+                (coords[0] as num).toDouble(),
+              );
             }
           }
         }
@@ -58,21 +60,30 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
       if (tx.driverUserId != user.id) continue;
 
       final tipeTujuan = tx.tujuanSelanjutnya?['tipe'] as String?;
-      final namaTujuan = (tx.tujuanSelanjutnya?['nama'] as String?)?.trim().toLowerCase() ?? '';
+      final namaTujuan =
+          (tx.tujuanSelanjutnya?['nama'] as String?)?.trim().toLowerCase() ??
+          '';
 
       if (tipeTujuan == 'penerima') {
-        if (tx.penerimaLatitude == null || tx.penerimaLongitude == null) continue;
-        stops.add(RouteStop(
-          transaction: tx,
-          coordinates: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
-        ));
+        if (tx.penerimaLatitude == null || tx.penerimaLongitude == null)
+          continue;
+        stops.add(
+          RouteStop(
+            transaction: tx,
+            coordinates: LatLng(tx.penerimaLatitude!, tx.penerimaLongitude!),
+          ),
+        );
       } else if (tipeTujuan == 'cabang' && namaTujuan.isNotEmpty) {
         final coord = cabangMap[namaTujuan];
         if (coord == null) continue;
         if (cabangStopMap.containsKey(namaTujuan)) {
           cabangStopMap[namaTujuan]!.addTransaction(tx);
         } else {
-          final stop = RouteStop(transaction: tx, coordinates: coord, isCabang: true);
+          final stop = RouteStop(
+            transaction: tx,
+            coordinates: coord,
+            isCabang: true,
+          );
           cabangStopMap[namaTujuan] = stop;
           stops.add(stop);
         }
@@ -81,30 +92,49 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
 
     if (stops.isEmpty) return null;
 
-    // Cek apakah driver sudah pernah menyelesaikan pengiriman sebelumnya
-    // Jika ya, pakai titik terakhir sebagai origin agar rute lanjut dari sana
-    try {
-      final deliveredResult = await ref.read(transactionRepositoryProvider).getList(
-        tab: 'history',
-        status: 'diterima',
-        limit: 999,
-      );
-      final deliveredList = deliveredResult['data'] as List<Transaction>;
-      if (deliveredList.isNotEmpty) {
-        // Sort by updatedAt (waktu discan) — terbaru dulu
-        deliveredList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-        final last = deliveredList.first;
-        if (last.penerimaLatitude != null && last.penerimaLongitude != null) {
-          origin = LatLng(last.penerimaLatitude!, last.penerimaLongitude!);
-          originName = last.penerimaName;
-          originIsCabang = false;
+    // Tentukan origin:
+    // - Cabang → Cabang: prioritas keluar_cabang (titik keberangkatan)
+    // - Ada penerima: completed delivery terakhir → keluar_cabang → fallback
+    final allCabang = stops.every((s) => s.isCabang);
+
+    if (allCabang) {
+      // Cabang → Cabang: cari cabang asal dari tracking_logs
+      for (final tx in transactions) {
+        if (tx.driverUserId != user.id) continue;
+        for (final log in tx.trackingLogs.reversed) {
+          if (log.status == 'keluar_cabang') {
+            final namaCabang = log.lokasiName.trim().toLowerCase();
+            if (namaCabang.isNotEmpty && cabangMap.containsKey(namaCabang)) {
+              origin = cabangMap[namaCabang];
+              originName = log.lokasiName;
+              break;
+            }
+          }
         }
+        if (origin != null) break;
       }
-    } catch (_) {
-      // Abaikan, lanjut cari dari tracking_logs
     }
 
-    // Jika belum ada kiriman selesai, cari cabang asal dari tracking_logs
+    // Cabang → Penerima: cek riwayat pengiriman terakhir driver
+    if (origin == null) {
+      try {
+        final deliveredResult = await ref
+            .read(transactionRepositoryProvider)
+            .getList(tab: 'history', status: 'diterima', limit: 999);
+        final deliveredList = deliveredResult['data'] as List<Transaction>;
+        if (deliveredList.isNotEmpty) {
+          deliveredList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          final last = deliveredList.first;
+          if (last.penerimaLatitude != null && last.penerimaLongitude != null) {
+            origin = LatLng(last.penerimaLatitude!, last.penerimaLongitude!);
+            originName = last.penerimaName;
+            originIsCabang = false;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Fallback: tracking_logs keluar_cabang
     if (origin == null) {
       for (final tx in transactions) {
         if (tx.driverUserId != user.id) continue;
@@ -129,9 +159,13 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
 
     final ordered = nearestNeighbor(origin!, stops);
 
+    final stopDistances = <double>[];
     var total = haversine(origin!, ordered.first.coordinates);
+    stopDistances.add(total);
     for (var i = 1; i < ordered.length; i++) {
-      total += haversine(ordered[i - 1].coordinates, ordered[i].coordinates);
+      final d = haversine(ordered[i - 1].coordinates, ordered[i].coordinates);
+      total += d;
+      stopDistances.add(total);
     }
 
     return RouteData(
@@ -140,6 +174,7 @@ final routeProvider = FutureProvider.autoDispose<RouteData?>((ref) async {
       startIsCabang: originIsCabang,
       orderedStops: ordered,
       totalDistanceKm: total,
+      stopDistances: stopDistances,
     );
   } catch (_) {
     return null;

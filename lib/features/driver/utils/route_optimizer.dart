@@ -11,11 +11,11 @@ class RouteStop {
   Transaction get transaction => transactions.first;
   String get name {
     if (isCabang) {
-      return transactions.first.tujuanSelanjutnya?['nama'] as String? ?? transactions.first.penerimaName;
+      return transactions.first.tujuanSelanjutnya?['nama'] as String? ??
+          transactions.first.penerimaName;
     }
     return transactions.first.penerimaName;
   }
-
 
   RouteStop({
     required Transaction transaction,
@@ -35,6 +35,9 @@ class RouteData {
   final bool startIsCabang;
   final List<RouteStop> orderedStops;
   final double totalDistanceKm;
+  final List<double>? _stopDistances;
+
+  List<double> get stopDistances => _stopDistances ?? [];
 
   RouteData({
     required this.start,
@@ -42,7 +45,8 @@ class RouteData {
     this.startIsCabang = true,
     required this.orderedStops,
     required this.totalDistanceKm,
-  });
+    List<double>? stopDistances,
+  }) : _stopDistances = stopDistances;
 
   bool get isEmpty => orderedStops.isEmpty;
   int get stopCount => orderedStops.length;
@@ -54,7 +58,8 @@ double haversine(LatLng a, LatLng b) {
   final dLon = _toRad(b.longitude - a.longitude);
   final lat1 = _toRad(a.latitude);
   final lat2 = _toRad(b.latitude);
-  final h = sin(dLat / 2) * sin(dLat / 2) +
+  final h =
+      sin(dLat / 2) * sin(dLat / 2) +
       cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
   return 2 * R * asin(sqrt(h));
 }

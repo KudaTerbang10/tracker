@@ -5,6 +5,7 @@
 
 # communication
 - Respond in Indonesian (Bahasa Indonesia) when interacting with this user. Confidence: 0.80
+- When the user specifies exactly which UI element(s) to change, only modify those specific elements — do not change related/neighboring elements (icons, colors, chips) unless explicitly requested. Confidence: 0.65
 
 # search
 - For user management search: Search by name and cabang name only, not by email. Confidence: 0.70

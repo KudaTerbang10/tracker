@@ -18,4 +18,6 @@
 - For the blue cabang marker on the driver route map: Prefix the label with "Cabang" + cabang name (e.g., "Cabang Denpasar" not just "Denpasar"). Confidence: 0.70
 - Use `Icons.store_rounded` for the cabang/branch marker icon on the driver route map (not `Icons.flag_rounded` or other icons). Confidence: 0.65
 - When the route origin point is from the last "scan diterima" (recipient location), use a location/home icon instead of `Icons.store_rounded` to distinguish it from a branch/cabang origin. Confidence: 0.65
+- For segment distance markers (km labels) on the driver route map: Position them at the edge/side of the route line, not overlapping/midline the line itself. Confidence: 0.70
 - For responsive web/tablet layouts with `LayoutBuilder` constrained forms: Also wrap the bottom action buttons (scan, confirm, submit) inside the same `LayoutBuilder` or a separate centered container so they follow the same max-width as the form content, not the full screen width. Confidence: 0.70
+- For cabang/branch name labels on the driver route map and other displays: Show the full name without truncation/ellipsis ("...") — do not cut off the end of the name. Confidence: 0.75

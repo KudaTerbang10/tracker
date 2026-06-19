@@ -19,7 +19,9 @@ import '../widgets/driver_route_map.dart';
 import '../../../shared/utils/cabang_lokasi_service.dart';
 
 final kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
-  return ref.read(transactionRepositoryProvider).getList(status: 'proses_kirim', limit: 999);
+  return ref
+      .read(transactionRepositoryProvider)
+      .getList(status: 'proses_kirim', limit: 999);
 });
 
 class DriverTabScreen extends ConsumerStatefulWidget {
@@ -28,8 +30,12 @@ class DriverTabScreen extends ConsumerStatefulWidget {
   ConsumerState<DriverTabScreen> createState() => _DriverTabScreenState();
 }
 
-class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTickerProviderStateMixin {
+class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  // scroll card horizontal
+  final _cardScrollController = ScrollController();
 
   // infinite scroll riwayat
   final _riwayatItems = <Transaction>[];
@@ -51,7 +57,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
       }
     });
     _riwayatScrollC.addListener(() {
-      if (_riwayatScrollC.position.pixels >= _riwayatScrollC.position.maxScrollExtent - 200) {
+      if (_riwayatScrollC.position.pixels >=
+          _riwayatScrollC.position.maxScrollExtent - 200) {
         _loadRiwayat();
       }
     });
@@ -61,6 +68,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
   @override
   void dispose() {
     _tabController.dispose();
+    _cardScrollController.dispose();
     _riwayatScrollC.dispose();
     super.dispose();
   }
@@ -70,12 +78,14 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     if (_riwayatPage == 1) _riwayatItems.clear();
     _riwayatLoadingMore = true;
     try {
-      final result = await ref.read(transactionRepositoryProvider).getList(
-        tab: 'history',
-        page: _riwayatPage,
-        startDate: _startDate,
-        endDate: _endDate,
-      );
+      final result = await ref
+          .read(transactionRepositoryProvider)
+          .getList(
+            tab: 'history',
+            page: _riwayatPage,
+            startDate: _startDate,
+            endDate: _endDate,
+          );
       _riwayatTotalPages = result['totalPages'] as int;
       _riwayatItems.addAll(result['data'] as List<Transaction>);
       _riwayatPage++;
@@ -96,12 +106,17 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
   Widget build(BuildContext context) {
     final kirimAsync = ref.watch(kirimProvider);
     final kirimData = kirimAsync.valueOrNull;
-    final kirimCount = kirimData != null ? (kirimData['data'] as List<dynamic>).length : 0;
+    final kirimCount = kirimData != null
+        ? (kirimData['data'] as List<dynamic>).length
+        : 0;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -113,14 +128,21 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                   if (kirimCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade400,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '$kirimCount',
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
@@ -133,10 +155,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildKirimTab(),
-          _buildRiwayatTab(),
-        ],
+        children: [_buildKirimTab(), _buildRiwayatTab()],
       ),
     );
   }
@@ -167,7 +186,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
           list.sort((a, b) {
             double? aLat, aLng, bLat, bLng;
             if (a.tujuanSelanjutnya?['tipe'] == 'cabang') {
-              final c = CabangLokasiService.findByName(a.tujuanSelanjutnya!['nama'] as String? ?? '');
+              final c = CabangLokasiService.findByName(
+                a.tujuanSelanjutnya!['nama'] as String? ?? '',
+              );
               aLat = c?.latitude;
               aLng = c?.longitude;
             } else {
@@ -175,7 +196,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               aLng = a.penerimaLongitude;
             }
             if (b.tujuanSelanjutnya?['tipe'] == 'cabang') {
-              final c = CabangLokasiService.findByName(b.tujuanSelanjutnya!['nama'] as String? ?? '');
+              final c = CabangLokasiService.findByName(
+                b.tujuanSelanjutnya!['nama'] as String? ?? '',
+              );
               bLat = c?.latitude;
               bLng = c?.longitude;
             } else {
@@ -190,6 +213,20 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
           });
         }
 
+        // Build stop distance map for card display
+        final stopDistanceMap = <String, double>{};
+        final rd = routeAsync.valueOrNull;
+        if (rd != null) {
+          for (var i = 0; i < rd.orderedStops.length; i++) {
+            final dist = rd.stopDistances.length > i
+                ? rd.stopDistances[i]
+                : 0.0;
+            for (final t in rd.orderedStops[i].transactions) {
+              stopDistanceMap[t.noResi] = dist;
+            }
+          }
+        }
+
         if (list.isEmpty) {
           return Center(
             child: Column(
@@ -197,13 +234,17 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               children: [
                 Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                 const SizedBox(height: 12),
-                Text('Tidak ada data', style: TextStyle(color: Colors.grey.shade500)),
+                Text(
+                  'Tidak ada data',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
               ],
             ),
           );
         }
 
-        final hasRoute = routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
+        final hasRoute =
+            routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
         final screenWidth = MediaQuery.of(context).size.width;
         final isWide = screenWidth >= 600;
 
@@ -215,97 +256,228 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               Expanded(
                 flex: 75,
                 child: hasRoute
-                    ? DriverRouteMap(routeData: routeAsync.valueOrNull!, compact: true)
+                    ? DriverRouteMap(
+                        routeData: routeAsync.valueOrNull!,
+                        compact: true,
+                      )
                     : const Center(
                         child: Text(
                           'Tidak ada rute',
-                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 12,
+                          ),
                         ),
                       ),
               ),
               // Card horizontal — 25% tinggi
               Expanded(
                 flex: 25,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  itemCount: list.length,
-                  itemBuilder: (_, i) {
-                    final tx = list[i];
-                    return SizedBox(
-                      width: screenWidth * 0.23,
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () => _showDetail(tx),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 20,
-                                      height: 20,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFF97316),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '${i + 1}',
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        tx.noResi,
-                                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0F172A)),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  '${tx.pengirimName} → ${tx.penerimaName}',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 2,
-                                ),
-                                const Spacer(),
-                                if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty)
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withValues(alpha: 0.08),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.orange.withValues(alpha: 0.15)),
-                                    ),
-                                    child: Text(
-                                      () {
-                                        final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
-                                        final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
-                                        return tipe == 'cabang' ? 'Antar ke Cabang $nama' : 'Antar ke $nama';
-                                      }(),
-                                      style: TextStyle(fontSize: 10, color: Colors.orange.shade700, fontWeight: FontWeight.w600),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                child: Row(
+                  children: [
+                    // Left arrow
+                    if (list.length > 1)
+                      SizedBox(
+                        width: 28,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(
+                            Icons.chevron_left_rounded,
+                            size: 20,
+                            color: Color(0xFF475569),
                           ),
+                          tooltip: 'Geser ke kiri',
+                          onPressed: () {
+                            final offset =
+                                _cardScrollController.position.pixels -
+                                screenWidth * 0.23;
+                            _cardScrollController.animateTo(
+                              offset.clamp(
+                                0.0,
+                                _cardScrollController.position.maxScrollExtent,
+                              ),
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
+                    // Cards
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _cardScrollController,
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 6,
+                        ),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) {
+                          final tx = list[i];
+                          return SizedBox(
+                            width: screenWidth * 0.23,
+                            child: Card(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(10),
+                                onTap: () => _showDetail(tx),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            width: 20,
+                                            height: 20,
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFFF97316),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                '${i + 1}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              tx.noResi,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 12,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '${tx.pengirimName} → ${tx.penerimaName}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF475569),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 2,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.straighten_rounded,
+                                            size: 11,
+                                            color: const Color(0xFF64748B),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Spacer(),
+                                      if (tx.tujuanSelanjutnya != null &&
+                                          (tx.tujuanSelanjutnya!['nama']
+                                                      ?.toString() ??
+                                                  '')
+                                              .isNotEmpty)
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withValues(
+                                              alpha: 0.08,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withValues(
+                                                alpha: 0.15,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            () {
+                                              final nama =
+                                                  tx.tujuanSelanjutnya!['nama']
+                                                      ?.toString() ??
+                                                  '';
+                                              final tipe =
+                                                  tx.tujuanSelanjutnya!['tipe']
+                                                      ?.toString() ??
+                                                  '';
+                                              return tipe == 'cabang'
+                                                  ? 'Antar ke Cabang $nama'
+                                                  : 'Antar ke $nama';
+                                            }(),
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange.shade700,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Right arrow
+                    if (list.length > 1)
+                      SizedBox(
+                        width: 28,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: Color(0xFF475569),
+                          ),
+                          tooltip: 'Geser ke kanan',
+                          onPressed: () {
+                            final offset =
+                                _cardScrollController.position.pixels +
+                                screenWidth * 0.23;
+                            _cardScrollController.animateTo(
+                              offset.clamp(
+                                0.0,
+                                _cardScrollController.position.maxScrollExtent,
+                              ),
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          },
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -320,7 +492,10 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                 height: 250,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: DriverRouteMap(routeData: routeAsync.valueOrNull!, compact: true),
+                  child: DriverRouteMap(
+                    routeData: routeAsync.valueOrNull!,
+                    compact: true,
+                  ),
                 ),
               ),
             Expanded(
@@ -331,7 +506,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                   final tx = list[i];
                   return Card(
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () => _showDetail(tx),
@@ -342,12 +519,21 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.local_shipping_rounded, size: 16, color: Colors.orange.shade700),
+                                Icon(
+                                  Icons.local_shipping_rounded,
+                                  size: 16,
+                                  color: Colors.orange.shade700,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     tx.noResi,
-                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 1, color: Color(0xFF0F172A)),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 15,
+                                      letterSpacing: 1,
+                                      color: Color(0xFF0F172A),
+                                    ),
                                   ),
                                 ),
                                 ResiCopyButton(resi: tx.noResi),
@@ -356,38 +542,88 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                             const SizedBox(height: 6),
                             Text(
                               '${tx.pengirimName} → ${tx.penerimaName}',
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF475569),
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (tx.tujuanSelanjutnya != null && (tx.tujuanSelanjutnya!['nama']?.toString() ?? '').isNotEmpty) ...[
+                            if (tx.tujuanSelanjutnya != null &&
+                                (tx.tujuanSelanjutnya!['nama']?.toString() ??
+                                        '')
+                                    .isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.orange.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.orange.withValues(alpha: 0.15)),
+                                  border: Border.all(
+                                    color: Colors.orange.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.tour, size: 14, color: Colors.orange.shade700),
+                                    Icon(
+                                      Icons.tour,
+                                      size: 14,
+                                      color: Colors.orange.shade700,
+                                    ),
                                     const SizedBox(width: 6),
                                     Flexible(
                                       child: Text(
                                         () {
-                                          final nama = tx.tujuanSelanjutnya!['nama']?.toString() ?? '';
-                                          final tipe = tx.tujuanSelanjutnya!['tipe']?.toString() ?? '';
-                                          return tipe == 'cabang' ? 'Antar ke Cabang $nama' : 'Antar ke $nama (penerima)';
+                                          final nama =
+                                              tx.tujuanSelanjutnya!['nama']
+                                                  ?.toString() ??
+                                              '';
+                                          final tipe =
+                                              tx.tujuanSelanjutnya!['tipe']
+                                                  ?.toString() ??
+                                              '';
+                                          return tipe == 'cabang'
+                                              ? 'Antar ke Cabang $nama'
+                                              : 'Antar ke $nama (penerima)';
                                         }(),
-                                        style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.orange.shade700,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                            ] else ...[
+                              const SizedBox(height: 8),
                             ],
+                            // Distance info
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.straighten_rounded,
+                                  size: 12,
+                                  color: const Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi awal',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: const Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -398,9 +634,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
             ),
           ],
         );
-              },
-            );
-          }
+      },
+    );
+  }
 
   Widget _buildRiwayatTab() {
     final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
@@ -436,23 +672,45 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                       surfaceTintColor: Colors.white,
                       headerBackgroundColor: const Color(0xFF6366F1),
                       headerForegroundColor: Colors.white,
-                      todayBackgroundColor: WidgetStateProperty.all(const Color(0xFFEEF2FF)),
-                      todayForegroundColor: WidgetStateProperty.all(const Color(0xFF6366F1)),
-                      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.selected)) return const Color(0xFF6366F1);
+                      todayBackgroundColor: WidgetStateProperty.all(
+                        const Color(0xFFEEF2FF),
+                      ),
+                      todayForegroundColor: WidgetStateProperty.all(
+                        const Color(0xFF6366F1),
+                      ),
+                      dayBackgroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected))
+                          return const Color(0xFF6366F1);
                         return Colors.transparent;
                       }),
-                      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.selected)) return Colors.white;
+                      dayForegroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected))
+                          return Colors.white;
                         return const Color(0xFF0F172A);
                       }),
-                      dayOverlayColor: WidgetStateProperty.all(Colors.transparent),
+                      dayOverlayColor: WidgetStateProperty.all(
+                        Colors.transparent,
+                      ),
                       rangePickerBackgroundColor: Colors.white,
                       rangeSelectionBackgroundColor: const Color(0xFFEEF2FF),
-                      dayShape: WidgetStateProperty.all(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8)))),
+                      dayShape: WidgetStateProperty.all(
+                        const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(8)),
+                        ),
+                      ),
                     ),
-                    dialogTheme: const DialogThemeData(backgroundColor: Colors.white, surfaceTintColor: Colors.white),
-                    inputDecorationTheme: const InputDecorationTheme(filled: true, fillColor: Colors.white),
+                    dialogTheme: const DialogThemeData(
+                      backgroundColor: Colors.white,
+                      surfaceTintColor: Colors.white,
+                    ),
+                    inputDecorationTheme: const InputDecorationTheme(
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
                   ),
                   child: child!,
                 ),
@@ -474,7 +732,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.date_range, size: 16, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.date_range,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -483,7 +745,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                           : 'Filter riwayat berdasarkan tanggal',
                       style: TextStyle(
                         fontSize: 12,
-                        color: _startDate != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                        color: _startDate != null
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                   ),
@@ -496,7 +760,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                           _resetRiwayat();
                         });
                       },
-                      child: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
                   ],
                 ],
@@ -512,19 +780,26 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     children: [
                       Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
-                      Text('Tidak ada riwayat', style: TextStyle(color: Colors.grey.shade500)),
+                      Text(
+                        'Tidak ada riwayat',
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
                     ],
                   ),
                 )
               : ListView.builder(
                   controller: _riwayatScrollC,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _riwayatItems.length + (_riwayatPage <= _riwayatTotalPages ? 1 : 0),
+                  itemCount:
+                      _riwayatItems.length +
+                      (_riwayatPage <= _riwayatTotalPages ? 1 : 0),
                   itemBuilder: (_, i) {
                     if (i == _riwayatItems.length) {
                       return const Padding(
                         padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       );
                     }
                     final tx = _riwayatItems[i];
@@ -532,14 +807,25 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
                         leading: Icon(
-                          tx.statusSaatIni == 'diterima' ? Icons.check_circle : Icons.local_shipping,
-                          color: tx.statusSaatIni == 'diterima' ? Colors.green : Colors.orange,
+                          tx.statusSaatIni == 'diterima'
+                              ? Icons.check_circle
+                              : Icons.local_shipping,
+                          color: tx.statusSaatIni == 'diterima'
+                              ? Colors.green
+                              : Colors.orange,
                         ),
                         title: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Flexible(
-                              child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                tx.noResi,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             ResiCopyButton(resi: tx.noResi),
@@ -556,24 +842,47 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.tour, size: 14, color: Colors.orange.shade700),
+                                      Icon(
+                                        Icons.tour,
+                                        size: 14,
+                                        color: Colors.orange.shade700,
+                                      ),
                                       const SizedBox(width: 4),
                                       Flexible(
                                         child: Text(
                                           () {
-                                            final tujuan = _tujuanUntukDriver(tx, currentUserId);
-                                            final nama = tujuan?['nama']?.toString() ?? '';
-                                            final tipe = tujuan?['tipe']?.toString() ?? '';
-                                            return tipe == 'cabang' ? 'Mengantar ke Cabang $nama' : 'Mengantar ke $nama (penerima)';
+                                            final tujuan = _tujuanUntukDriver(
+                                              tx,
+                                              currentUserId,
+                                            );
+                                            final nama =
+                                                tujuan?['nama']?.toString() ??
+                                                '';
+                                            final tipe =
+                                                tujuan?['tipe']?.toString() ??
+                                                '';
+                                            return tipe == 'cabang'
+                                                ? 'Mengantar ke Cabang $nama'
+                                                : 'Mengantar ke $nama (penerima)';
                                           }(),
-                                          style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.orange.shade700,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                              Text(
+                                dateFmt.format(toJakarta(tx.createdAt)),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -589,8 +898,12 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     );
   }
 
-    void _showDetail(Transaction tx) {
-    final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+  void _showDetail(Transaction tx) {
+    final fmt = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
     final showDriver = tx.namaDriver != null;
 
     showModalBottomSheet(
@@ -634,9 +947,16 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                               children: [
                                 const Text(
                                   'Nomor Resi Pengiriman',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
                                 ),
-                                StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                                StatusBadge(
+                                  status: tx.statusSaatIni,
+                                  fontSize: 10,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -668,9 +988,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(
-                            child: _penerimaCard(tx),
-                          ),
+                          Expanded(child: _penerimaCard(tx)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: _infoCard(
@@ -688,7 +1006,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     const SizedBox(height: 12),
 
                     // Map Card — tampilkan lokasi tujuan (penerima atau cabang)
-                    if (tx.tujuanSelanjutnya?['tipe'] == 'penerima' || tx.tujuanSelanjutnya?['tipe'] == 'cabang') ...[
+                    if (tx.tujuanSelanjutnya?['tipe'] == 'penerima' ||
+                        tx.tujuanSelanjutnya?['tipe'] == 'cabang') ...[
                       const SizedBox(height: 12),
                       _mapCard(tx),
                     ],
@@ -698,15 +1017,44 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     Card(
                       color: Colors.white,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 8,
+                        ),
                         child: Row(
                           children: [
-                            Expanded(child: _infoCell(Icons.scale_rounded, 'Berat', tx.beratLabel)),
-                            Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                            Expanded(child: _infoCell(Icons.inventory_2_rounded, 'Jumlah Koli', '${tx.jumlahKoli} koli')),
+                            Expanded(
+                              child: _infoCell(
+                                Icons.scale_rounded,
+                                'Berat',
+                                tx.beratLabel,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 40,
+                              color: const Color(0xFFE2E8F0),
+                            ),
+                            Expanded(
+                              child: _infoCell(
+                                Icons.inventory_2_rounded,
+                                'Jumlah Koli',
+                                '${tx.jumlahKoli} koli',
+                              ),
+                            ),
                             if (tx.biayaKirim > 0) ...[
-                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                              Expanded(child: _infoCell(Icons.payments_rounded, 'Biaya Kirim', fmt.format(tx.biayaKirim))),
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                              Expanded(
+                                child: _infoCell(
+                                  Icons.payments_rounded,
+                                  'Biaya Kirim',
+                                  fmt.format(tx.biayaKirim),
+                                ),
+                              ),
                             ],
                           ],
                         ),
@@ -714,7 +1062,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     ),
 
                     // Driver details
-                    if (showDriver || (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)) ...[
+                    if (showDriver ||
+                        (tx.namaPenerimaAkhir != null &&
+                            tx.namaPenerimaAkhir!.isNotEmpty)) ...[
                       const SizedBox(height: 12),
                       IntrinsicHeight(
                         child: Row(
@@ -731,8 +1081,12 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                                   Colors.amber.shade700,
                                 ),
                               ),
-                            if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty) const SizedBox(width: 8),
-                            if (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
+                            if (showDriver &&
+                                tx.namaPenerimaAkhir != null &&
+                                tx.namaPenerimaAkhir!.isNotEmpty)
+                              const SizedBox(width: 8),
+                            if (tx.namaPenerimaAkhir != null &&
+                                tx.namaPenerimaAkhir!.isNotEmpty)
                               Expanded(
                                 child: _infoCard(
                                   'Diterima oleh',
@@ -784,7 +1138,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
             color: AppTheme.secondary.withValues(alpha: 0.08),
             child: Row(
               children: [
-                Icon(Icons.call_received_rounded, size: 14, color: AppTheme.secondary),
+                Icon(
+                  Icons.call_received_rounded,
+                  size: 14,
+                  color: AppTheme.secondary,
+                ),
                 const SizedBox(width: 6),
                 const Text(
                   'Penerima',
@@ -802,7 +1160,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                 children: [
                   Text(
                     tx.penerimaName,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: Color(0xFF0F172A),
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -811,7 +1173,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     Flexible(
                       child: Text(
                         tx.penerimaAddress,
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF475569),
+                          height: 1.3,
+                        ),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -826,26 +1192,47 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
-                border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5)),
+                border: Border(
+                  top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.phone_iphone_rounded, size: 12, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.phone_iphone_rounded,
+                    size: 12,
+                    color: Color(0xFF64748B),
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       tx.penerima['phone'] as String? ?? '',
-                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 11),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () {
-                      Clipboard.setData(ClipboardData(text: tx.penerima['phone'] as String? ?? ''));
+                      Clipboard.setData(
+                        ClipboardData(
+                          text: tx.penerima['phone'] as String? ?? '',
+                        ),
+                      );
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                        const SnackBar(
+                          content: Text('Nomor telepon disalin'),
+                          duration: Duration(seconds: 1),
+                        ),
                       );
                     },
-                    child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
+                    child: const Icon(
+                      Icons.copy_rounded,
+                      size: 12,
+                      color: Color(0xFF94A3B8),
+                    ),
                   ),
                 ],
               ),
@@ -861,7 +1248,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     final isCabang = tx.tujuanSelanjutnya?['tipe'] == 'cabang';
 
     if (isCabang) {
-      final cabang = CabangLokasiService.findByName(tx.tujuanSelanjutnya!['nama'] as String? ?? '');
+      final cabang = CabangLokasiService.findByName(
+        tx.tujuanSelanjutnya!['nama'] as String? ?? '',
+      );
       if (cabang != null) {
         lat = cabang.latitude;
         lng = cabang.longitude;
@@ -886,10 +1275,18 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
         collapsedShape: const Border(),
         iconColor: Colors.red,
         collapsedIconColor: Colors.red,
-        leading: const Icon(Icons.location_on_rounded, color: Colors.red, size: 18),
+        leading: const Icon(
+          Icons.location_on_rounded,
+          color: Colors.red,
+          size: 18,
+        ),
         title: Text(
           titleText,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: Color(0xFF0F172A),
+          ),
         ),
         children: [
           if (hasCoords)
@@ -907,7 +1304,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.example.tracker',
                   ),
                   MarkerLayer(
@@ -916,7 +1314,13 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                         point: LatLng(lat!, lng!),
                         width: 36,
                         height: 36,
-                        child: Icon(isCabang ? Icons.store_rounded : Icons.location_on_rounded, color: Colors.red, size: 36),
+                        child: Icon(
+                          isCabang
+                              ? Icons.store_rounded
+                              : Icons.location_on_rounded,
+                          color: Colors.red,
+                          size: 36,
+                        ),
                       ),
                     ],
                   ),
@@ -949,7 +1353,14 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
     );
   }
 
-  Widget _infoCard(String title, String name, String phone, String address, IconData icon, Color accentColor) {
+  Widget _infoCard(
+    String title,
+    String name,
+    String phone,
+    String address,
+    IconData icon,
+    Color accentColor,
+  ) {
     return Card(
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
@@ -966,7 +1377,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                 const SizedBox(width: 6),
                 Text(
                   title,
-                  style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 12),
+                  style: TextStyle(
+                    color: accentColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -980,7 +1395,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: Color(0xFF0F172A),
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -989,7 +1408,11 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
                     Flexible(
                       child: Text(
                         address,
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF475569),
+                          height: 1.3,
+                        ),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1004,26 +1427,43 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
-                border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5)),
+                border: Border(
+                  top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.phone_iphone_rounded, size: 12, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.phone_iphone_rounded,
+                    size: 12,
+                    color: Color(0xFF64748B),
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       phone,
-                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 11),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: phone));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                        const SnackBar(
+                          content: Text('Nomor telepon disalin'),
+                          duration: Duration(seconds: 1),
+                        ),
                       );
                     },
-                    child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
+                    child: const Icon(
+                      Icons.copy_rounded,
+                      size: 12,
+                      color: Color(0xFF94A3B8),
+                    ),
                   ),
                 ],
               ),
@@ -1041,11 +1481,22 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen> with SingleTi
         children: [
           Icon(icon, size: 20, color: AppTheme.primary),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: Color(0xFF0F172A),
+            ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

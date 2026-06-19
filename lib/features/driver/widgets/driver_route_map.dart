@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -18,7 +19,52 @@ class DriverRouteMap extends StatelessWidget {
     if (routeData.isEmpty) return const SizedBox.shrink();
 
     if (compact) {
-      return _buildMap();
+      return Column(
+        children: [
+          // Header info bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.route_rounded,
+                  size: 16,
+                  color: const Color(0xFF2563EB),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Rute Pengiriman',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const Spacer(),
+                _chip(
+                  Icons.straighten_rounded,
+                  'Total ${routeData.totalDistanceKm.toStringAsFixed(1)} km',
+                  const Color(0xFF2563EB),
+                ),
+                const SizedBox(width: 6),
+                _chip(
+                  Icons.flag_rounded,
+                  '${routeData.stopCount} titik',
+                  const Color(0xFFF97316),
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: _buildMap()),
+        ],
+      );
     }
 
     return Card(
@@ -125,10 +171,19 @@ class DriverRouteMap extends StatelessWidget {
     );
 
     // Polyline points: cabang → stop1 → stop2 → ...
-    final polyPoints = [
-      routeData.start,
-      ...routeData.orderedStops.map((s) => s.coordinates),
+    // Segmen antar cabang dibuat melengkung
+    final pointIsCabang = [
+      routeData.startIsCabang,
+      ...routeData.orderedStops.map((s) => s.isCabang),
     ];
+    final polyPoints = <LatLng>[allPoints[0]];
+    for (var i = 1; i < allPoints.length; i++) {
+      if (pointIsCabang[i - 1] && pointIsCabang[i]) {
+        polyPoints.addAll(_curvePoints(allPoints[i - 1], allPoints[i]).skip(1));
+      } else {
+        polyPoints.add(allPoints[i]);
+      }
+    }
 
     // Build markers
     final markers = <Marker>[];
@@ -138,18 +193,16 @@ class DriverRouteMap extends StatelessWidget {
     markers.add(
       Marker(
         point: routeData.start,
-        width: 80,
+        width: 160,
         height: 48,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 76,
+              width: 160,
               child: Text(
                 routeData.startName,
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
@@ -171,7 +224,11 @@ class DriverRouteMap extends StatelessWidget {
                   BoxShadow(color: Colors.black26, blurRadius: 4),
                 ],
               ),
-              child: const Icon(Icons.flag_rounded, color: Colors.white, size: 16),
+              child: const Icon(
+                Icons.flag_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
             ),
           ],
         ),
@@ -183,18 +240,16 @@ class DriverRouteMap extends StatelessWidget {
       markers.add(
         Marker(
           point: stop.coordinates,
-          width: 80,
+          width: 160,
           height: 48,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                width: 76,
+                width: 160,
                 child: Text(
                   stop.name,
                   textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
@@ -279,5 +334,34 @@ class DriverRouteMap extends StatelessWidget {
         MarkerLayer(markers: markers),
       ],
     );
+  }
+
+  /// Quadratic bezier antara dua titik, melengkung secukupnya.
+  List<LatLng> _curvePoints(LatLng a, LatLng b) {
+    final mid = LatLng(
+      (a.latitude + b.latitude) / 2,
+      (a.longitude + b.longitude) / 2,
+    );
+    final dx = b.longitude - a.longitude;
+    final dy = b.latitude - a.latitude;
+    final len = sqrt(dx * dx + dy * dy);
+    if (len < 0.0001) return [a, b];
+    final nx = -dy / len;
+    final ny = dx / len;
+    const offset = 0.002;
+    final cp = LatLng(mid.latitude + nx * offset, mid.longitude + ny * offset);
+
+    const steps = 20;
+    return List.generate(steps + 1, (i) {
+      final t = i / steps;
+      return LatLng(
+        (1 - t) * (1 - t) * a.latitude +
+            2 * (1 - t) * t * cp.latitude +
+            t * t * b.latitude,
+        (1 - t) * (1 - t) * a.longitude +
+            2 * (1 - t) * t * cp.longitude +
+            t * t * b.longitude,
+      );
+    });
   }
 }

@@ -7,11 +7,13 @@ import '../utils/route_optimizer.dart';
 class DriverRouteMap extends StatelessWidget {
   final RouteData routeData;
   final bool compact;
+  final String? driverName;
 
   const DriverRouteMap({
     super.key,
     required this.routeData,
     this.compact = false,
+    this.driverName,
   });
 
   @override
@@ -62,7 +64,7 @@ class DriverRouteMap extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(child: _buildMap()),
+          Expanded(child: _buildMap(context)),
         ],
       );
     }
@@ -112,7 +114,7 @@ class DriverRouteMap extends StatelessWidget {
             ),
           ],
         ),
-        children: [SizedBox(height: 300, child: _buildMap())],
+        children: [SizedBox(height: 300, child: _buildMap(context))],
       ),
     );
   }
@@ -142,7 +144,7 @@ class DriverRouteMap extends StatelessWidget {
     );
   }
 
-  Widget _buildMap() {
+  Widget _buildMap(BuildContext context) {
     final allPoints = [
       routeData.start,
       ...routeData.orderedStops.map((s) => s.coordinates),
@@ -170,20 +172,8 @@ class DriverRouteMap extends StatelessWidget {
       LatLng(maxLat + padLat, maxLng + padLng),
     );
 
-    // Polyline points: cabang → stop1 → stop2 → ...
-    // Segmen antar cabang dibuat melengkung
-    final pointIsCabang = [
-      routeData.startIsCabang,
-      ...routeData.orderedStops.map((s) => s.isCabang),
-    ];
-    final polyPoints = <LatLng>[allPoints[0]];
-    for (var i = 1; i < allPoints.length; i++) {
-      if (pointIsCabang[i - 1] && pointIsCabang[i]) {
-        polyPoints.addAll(_curvePoints(allPoints[i - 1], allPoints[i]).skip(1));
-      } else {
-        polyPoints.add(allPoints[i]);
-      }
-    }
+    // Polyline points: start → stop1 → stop2 → ...
+    final polyPoints = [routeData.start, ...routeData.orderedStops.map((s) => s.coordinates)];
 
     // Build markers
     final markers = <Marker>[];
@@ -305,6 +295,53 @@ class DriverRouteMap extends StatelessWidget {
       );
     }
 
+    // Ikon truk di tengah rute
+    final first = polyPoints.first;
+    final last = polyPoints.last;
+    final midPoint = LatLng(
+      (first.latitude + last.latitude) / 2,
+      (first.longitude + last.longitude) / 2,
+    );
+    final angle = atan2(last.latitude - first.latitude, last.longitude - first.longitude);
+    markers.add(
+      Marker(
+        point: midPoint,
+        width: 36,
+        height: 36,
+        child: Tooltip(
+          message: driverName ?? 'Driver',
+          child: GestureDetector(
+            onTap: () {
+              if (driverName != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(driverName!),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()..setEntry(0, 0, cos(angle) < 0 ? -1 : 1),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF2563EB), width: 2),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4),
+                  ],
+                ),
+                child: const Icon(Icons.local_shipping_rounded, size: 22, color: Color(0xFF2563EB)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
     return FlutterMap(
       options: MapOptions(
         initialCameraFit: CameraFit.bounds(
@@ -334,34 +371,5 @@ class DriverRouteMap extends StatelessWidget {
         MarkerLayer(markers: markers),
       ],
     );
-  }
-
-  /// Quadratic bezier antara dua titik, melengkung secukupnya.
-  List<LatLng> _curvePoints(LatLng a, LatLng b) {
-    final mid = LatLng(
-      (a.latitude + b.latitude) / 2,
-      (a.longitude + b.longitude) / 2,
-    );
-    final dx = b.longitude - a.longitude;
-    final dy = b.latitude - a.latitude;
-    final len = sqrt(dx * dx + dy * dy);
-    if (len < 0.0001) return [a, b];
-    final nx = -dy / len;
-    final ny = dx / len;
-    const offset = 0.002;
-    final cp = LatLng(mid.latitude + nx * offset, mid.longitude + ny * offset);
-
-    const steps = 20;
-    return List.generate(steps + 1, (i) {
-      final t = i / steps;
-      return LatLng(
-        (1 - t) * (1 - t) * a.latitude +
-            2 * (1 - t) * t * cp.latitude +
-            t * t * b.latitude,
-        (1 - t) * (1 - t) * a.longitude +
-            2 * (1 - t) * t * cp.longitude +
-            t * t * b.longitude,
-      );
-    });
-  }
+    }
 }

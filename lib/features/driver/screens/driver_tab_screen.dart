@@ -259,6 +259,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                     ? DriverRouteMap(
                         routeData: routeAsync.valueOrNull!,
                         compact: true,
+                        driverName: ref.read(authProvider).user?.name,
                       )
                     : const Center(
                         child: Text(
@@ -495,6 +496,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                   child: DriverRouteMap(
                     routeData: routeAsync.valueOrNull!,
                     compact: true,
+                    driverName: ref.read(authProvider).user?.name,
                   ),
                 ),
               ),

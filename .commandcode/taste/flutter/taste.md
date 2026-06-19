@@ -24,3 +24,4 @@
 - For truck markers on the driver route map: Do NOT use rotation (`Transform.rotate`) to orient the truck icon toward its travel direction, as it causes the icon to appear upside down when traveling in opposite directions; use a horizontal flip approach instead. Confidence: 0.75
 - On the driver route map: Render route lines as straight lines (no curvature/bend/bezier) between waypoints — do not use curved or bent line concepts for route rendering. Confidence: 0.85
 - For the driver route map: Place truck icons at the midpoint of straight line segments between consecutive cabang points (not just curved segments), keeping the horizontal flip logic for direction orientation. Confidence: 0.70
+- For bottom sheet UI patterns: Use actual bottom sheet navigation (`showModalBottomSheet` or similar) instead of modifying a full-page Scaffold to resemble a bottom sheet. Confidence: 0.65

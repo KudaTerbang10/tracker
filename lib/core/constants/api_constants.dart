@@ -23,9 +23,6 @@ class ApiConstants {
   static const String users = '/users';
   static const String cabangs = '/cabangs';
   static const String cabangKota = '/cabangs/kota';
-  static const String analyticsTraffic = '/analytics/traffic';
-  static const String analyticsCustomers = '/analytics/customers-top';
-  static const String analyticsSummary = '/analytics/summary';
   static const String analyticsPerCabang = '/analytics/per-cabang';
   static const String analyticsDrivers = '/analytics/drivers';
   static const String analyticsRoutesTop = '/analytics/routes-top';
@@ -34,13 +31,6 @@ class ApiConstants {
 }
 
 class StatusList {
-  static const List<String> all = [
-    'diterima_cabang',
-    'keluar_cabang',
-    'proses_kirim',
-    'diterima',
-  ];
-
   static const Map<String, String> labels = {
     'diterima_cabang': 'Diterima Cabang',
     'keluar_cabang': 'Keluar Cabang',

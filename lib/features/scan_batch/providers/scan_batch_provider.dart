@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/transaction.dart';
 
-enum ScanType { datang, keluar, diterima }
-
 enum TujuanType { cabang, penerima }
 
 class ScanItem {

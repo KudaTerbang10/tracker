@@ -9,15 +9,13 @@ class RouteStop {
   int orderIndex;
 
   Transaction get transaction => transactions.first;
-  String get label => 'Tujuan ${orderIndex + 1}';
   String get name {
     if (isCabang) {
       return transactions.first.tujuanSelanjutnya?['nama'] as String? ?? transactions.first.penerimaName;
     }
     return transactions.first.penerimaName;
   }
-  String get address => transactions.first.penerimaAddress;
-  String get noResi => transactions.first.noResi;
+
 
   RouteStop({
     required Transaction transaction,

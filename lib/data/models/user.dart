@@ -33,19 +33,6 @@ class User {
     isActive: json['is_active'] as bool? ?? true,
   );
 
-  Map<String, dynamic> toJson() => {
-    '_id': id,
-    'name': name,
-    'email': email,
-    'phone': phone,
-    'password': password,
-    'role': role,
-    'cabang_id': cabangId,
-    'lokasi': lokasi,
-    'is_active': isActive,
-  };
-
-  bool get isSuperAdmin => role == 'super_admin';
   bool get isAdminCabang => role == 'admin_cabang';
   bool get isDriver => role == 'driver';
 

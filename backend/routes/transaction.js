@@ -319,8 +319,9 @@ router.get('/', auth, async (req, res) => {
     }
 
     const total = await Transaction.countDocuments(filter);
+    const sortField = req.query.tab === 'history' ? { 'tracking_logs.timestamp': -1 } : { createdAt: -1 };
     const data = await Transaction.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortField)
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();

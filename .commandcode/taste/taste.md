@@ -14,6 +14,7 @@
 
 # mongodb
 - Use GeoJSON format (Point type with [longitude, latitude] coordinates) for MongoDB geospatial data to enable future geospatial queries. Confidence: 0.70
+- The source of truth for application data (users, cabangs, passwords) is the MongoDB Atlas database, not the seed.js file or local files — always query the database for current data. Confidence: 0.70
 
 # flutter
 See [flutter/taste.md](flutter/taste.md)

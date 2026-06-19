@@ -13,11 +13,6 @@ class HiveCache {
     await Hive.openBox(_tariffBox);
   }
 
-  static Future<Box> openBoxIfNeeded(String name) async {
-    if (Hive.isBoxOpen(name)) return Hive.box(name);
-    return await Hive.openBox(name);
-  }
-
   static Box _driver() => Hive.box(_driverBox);
   static Box _cabang() => Hive.box(_cabangBox);
   static Box _tariff() => Hive.box(_tariffBox);
@@ -102,10 +97,4 @@ class HiveCache {
     return data.isEmpty ? null : data;
   }
 
-  static DateTime? getTariffsLastSynced() {
-    final box = _tariff();
-    final meta = box.get(_metaKey);
-    if (meta == null) return null;
-    return DateTime.tryParse((meta as Map)['last_synced'] as String);
-  }
 }

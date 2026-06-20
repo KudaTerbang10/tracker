@@ -216,8 +216,8 @@ class _LocationPickerState extends State<LocationPicker> {
                             width: 40,
                             height: 40,
                             child: const Icon(
-                              Icons.location_on_rounded,
-                              color: Colors.red,
+                              Icons.gps_fixed,
+                              color: Color(0xFF6366F1),
                               size: 40,
                             ),
                           ),

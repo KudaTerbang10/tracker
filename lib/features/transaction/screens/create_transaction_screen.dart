@@ -333,7 +333,7 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: _penerimaLat != null
                                           ? Colors.green
-                                          : AppTheme.primary,
+                                          : const Color(0xFF64748B),
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -345,10 +345,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                         ? Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
-                                              Icon(
-                                                _penerimaLat != null
-                                                    ? Icons.location_on_rounded
-                                                    : Icons.location_on_outlined,
+                                              const Icon(
+                                                Icons.gps_fixed,
                                                 size: 28,
                                               ),
                                               const SizedBox(width: 4),
@@ -361,10 +359,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                               ),
                                             ],
                                           )
-                                        : Icon(
-                                            _penerimaLat != null
-                                                ? Icons.location_on_rounded
-                                                : Icons.location_on_outlined,
+                                        : const Icon(
+                                            Icons.gps_fixed,
                                             size: 28,
                                           ),
                                   ),

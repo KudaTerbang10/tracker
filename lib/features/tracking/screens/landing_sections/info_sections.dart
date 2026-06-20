@@ -68,7 +68,9 @@ class ServicesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isTablet = width >= 600 && width < 800;
 
     return KeyedSubtree(
       key: sectionKey,
@@ -83,7 +85,7 @@ class ServicesSection extends StatelessWidget {
                 const SizedBox(height: 8),
                 const Text('Menerima pengiriman barang dan paket di area Pulau Jawa dan Bali', style: TextStyle(color: Color(0xFF64748B), fontSize: 16), textAlign: TextAlign.center),
                 const SizedBox(height: 40),
-                if (isMobile) _mobileServices() else _webServices(),
+                if (isMobile) _mobileServices() else if (isTablet) _tabletServices() else _webServices(),
               ],
             ),
           ),
@@ -105,6 +107,34 @@ class ServicesSection extends StatelessWidget {
       _serviceCard(Icons.monetization_on_rounded, 'Jaminan Uang Kembali', 'Ganti rugi untuk barang rusak atau hilang akibat pengiriman pihak ekspedisi sesuai dengan syarat dan ketentuan.', Colors.red),
       const SizedBox(height: 16),
       _serviceCard(Icons.track_changes_rounded, 'Tracking', 'Layanan informasi posisi barang di saat proses pengiriman dengan Hira Tracking System.', Colors.indigo),
+    ],
+  );
+
+  Widget _tabletServices() => Column(
+    children: [
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: _serviceCard(Icons.local_shipping_rounded, 'Pengiriman Barang', 'Pengiriman barang secara umum seperti pakaian, sepatu, alat medis, sepeda motor dan lain-lain.', AppTheme.primary, stretchHeight: true)),
+          const SizedBox(width: 24),
+          Expanded(child: _serviceCard(Icons.inventory_2_rounded, 'Pengiriman Paket Retail', 'Pengiriman barang dengan jumlah yang besar, dihitung per koli.', Colors.teal, stretchHeight: true)),
+        ]),
+      ),
+      const SizedBox(height: 24),
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: _serviceCard(Icons.fire_truck_rounded, 'Sewa Truk Carter', 'Sewa truck untuk pengiriman barang dalam jumlah yang besar, dengan berat maksimal up to 12 ton.', Colors.orange, stretchHeight: true)),
+          const SizedBox(width: 24),
+          Expanded(child: _serviceCard(Icons.payments_rounded, 'Bayar Tujuan & Bayar Nanti', 'Pembayaran dan transaksi dilakukan di tempat, tujuan atau dilakukan di hari lain.', Colors.purple, stretchHeight: true)),
+        ]),
+      ),
+      const SizedBox(height: 24),
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: _serviceCard(Icons.monetization_on_rounded, 'Jaminan Uang Kembali', 'Ganti rugi untuk barang rusak atau hilang akibat pengiriman pihak ekspedisi sesuai dengan syarat dan ketentuan.', Colors.red, stretchHeight: true)),
+          const SizedBox(width: 24),
+          Expanded(child: _serviceCard(Icons.track_changes_rounded, 'Tracking', 'Layanan informasi posisi barang di saat proses pengiriman via Hira Tracking System.', Colors.indigo, stretchHeight: true)),
+        ]),
+      ),
     ],
   );
 
@@ -163,7 +193,9 @@ class ContactSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isTablet = width >= 600 && width < 800;
     return KeyedSubtree(
       key: sectionKey,
       child: Container(
@@ -175,7 +207,7 @@ class ContactSection extends StatelessWidget {
               children: [
                 const Text('Hubungi Kami', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 28, color: AppTheme.primary)),
                 const SizedBox(height: 32),
-                if (isMobile) _mobileContent(context) else _webContent(context),
+                if (isMobile) _mobileContent(context) else if (isTablet) _tabletContent(context) else _webContent(context),
               ],
             ),
           ),
@@ -189,11 +221,33 @@ class ContactSection extends StatelessWidget {
     children: [
       _contactItem(context, Icons.location_on_rounded, 'Alamat', 'Komplek Pangkalan Truck Genuk Blok AA 57 - 58, Jl. Kaligawe, Genuksari, 50117, Semarang.'),
       const SizedBox(height: 16),
+      _contactItem(context, Icons.email_rounded, 'Email', 'marketing@hira-express.com'),
+      const SizedBox(height: 16),
       _contactItem(context, Icons.phone_rounded, 'Telepon', '(024) 6584125'),
       const SizedBox(height: 16),
       _contactItem(context, Icons.phone_android_rounded, 'WhatsApp', '0811-2696-515'),
       const SizedBox(height: 16),
-      _contactItem(context, Icons.email_rounded, 'Email', 'marketing@hira-express.com'),
+      _buildSocialButtons(),
+    ],
+  );
+
+  Widget _tabletContent(BuildContext context) => Column(
+    children: [
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: _contactItem(context, Icons.location_on_rounded, 'Alamat', 'Komplek Pangkalan Truck Genuk Blok AA 57 - 58, Jl. Kaligawe, Genuksari, 50117, Semarang.')),
+          const SizedBox(width: 16),
+          Expanded(child: _contactItem(context, Icons.email_rounded, 'Email', 'marketing@hira-express.com')),
+        ]),
+      ),
+      const SizedBox(height: 16),
+      IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(child: _contactItem(context, Icons.phone_rounded, 'Telepon', '(024) 6584125')),
+          const SizedBox(width: 16),
+          Expanded(child: _contactItem(context, Icons.phone_android_rounded, 'WhatsApp', '0811-2696-515')),
+        ]),
+      ),
       const SizedBox(height: 16),
       _buildSocialButtons(),
     ],
@@ -205,11 +259,11 @@ class ContactSection extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Expanded(child: _contactItem(context, Icons.location_on_rounded, 'Alamat', 'Komplek Pangkalan Truck Genuk Blok AA 57 - 58, Jl. Kaligawe, Genuksari, 50117, Semarang.')),
           const SizedBox(width: 16),
+          Expanded(child: _contactItem(context, Icons.email_rounded, 'Email', 'marketing@hira-express.com')),
+          const SizedBox(width: 16),
           Expanded(child: _contactItem(context, Icons.phone_rounded, 'Telepon', '(024) 6584125')),
           const SizedBox(width: 16),
           Expanded(child: _contactItem(context, Icons.phone_android_rounded, 'WhatsApp', '0811-2696-515')),
-          const SizedBox(width: 16),
-          Expanded(child: _contactItem(context, Icons.email_rounded, 'Email', 'marketing@hira-express.com')),
         ]),
       ),
       const SizedBox(height: 16),
@@ -270,8 +324,8 @@ class ContactSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.all(12),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _socialButton(Icons.camera_alt_rounded, 'Instagram', 'https://www.instagram.com/hiraexpress.id/'),
             _socialButton(Icons.facebook_rounded, 'Facebook', 'https://www.facebook.com/profile.php?id=100066689462724'),
+            _socialButton(Icons.camera_alt_rounded, 'Instagram', 'https://www.instagram.com/hiraexpress.id/'),
           ]),
         ),
       ]),

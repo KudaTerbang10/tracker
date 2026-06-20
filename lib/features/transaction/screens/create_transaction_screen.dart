@@ -297,7 +297,8 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                             const SizedBox(height: 12),
                             Row(
                               children: [
-                                Expanded(
+                                Flexible(
+                                  flex: 4,
                                   child: TextFormField(
                                     controller: _penerimaKecC,
                                     decoration: const InputDecoration(
@@ -310,14 +311,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: _penerimaLat != null
-                                        ? Colors.green.withValues(alpha: 0.1)
-                                        : AppTheme.primary.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: IconButton(
+                                Flexible(
+                                  flex: 1,
+                                  child: ElevatedButton(
                                     onPressed: () async {
                                       final result = await LocationPicker.show(
                                         context,
@@ -334,15 +330,43 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                         });
                                       }
                                     },
-                                    icon: Icon(
-                                      _penerimaLat != null
-                                          ? Icons.location_on_rounded
-                                          : Icons.location_on_outlined,
-                                      color: _penerimaLat != null ? Colors.green : AppTheme.primary,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _penerimaLat != null
+                                          ? Colors.green
+                                          : AppTheme.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size(double.infinity, 56),
                                     ),
-                                    tooltip: _penerimaLat != null
-                                        ? 'Lokasi telah dipilih'
-                                        : 'Pilih lokasi di peta',
+                                    child: MediaQuery.of(context).size.width >= 800
+                                        ? Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                _penerimaLat != null
+                                                    ? Icons.location_on_rounded
+                                                    : Icons.location_on_outlined,
+                                                size: 28,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Flexible(
+                                                child: Text(
+                                                  'Pin Koordinat',
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(fontSize: 12),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Icon(
+                                            _penerimaLat != null
+                                                ? Icons.location_on_rounded
+                                                : Icons.location_on_outlined,
+                                            size: 28,
+                                          ),
                                   ),
                                 ),
                               ],

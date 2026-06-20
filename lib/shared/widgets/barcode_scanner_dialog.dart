@@ -57,64 +57,81 @@ class _ScannerDialogContentState extends State<_ScannerDialogContent> with Singl
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 800 &&
+        (kIsWeb ||
+            defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+
     if (_isWindows) {
       return _buildManualDialog(context);
     }
+
     return Dialog(
-      insetPadding: EdgeInsets.zero,
-      child: SizedBox(
-        width: double.infinity,
-        height: MediaQuery.of(context).size.height * 0.75,
-        child: Column(
-          children: [
-            Container(
-              color: AppTheme.primary,
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.white,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.white70,
-                tabs: const [
-                  Tab(icon: Icon(Icons.qr_code_scanner), text: 'Kamera'),
-                  Tab(icon: Icon(Icons.keyboard), text: 'Manual'),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildCameraTab(),
-                  _buildManualTab(),
-                ],
-              ),
-            ),
-            if (widget.label != null)
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? screenWidth * 0.25 : 0,
+        vertical: 0,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: double.infinity,
+          height: MediaQuery.of(context).size.height * 0.75,
+          child: Column(
+            children: [
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                color: Colors.black87,
-                child: Text(
-                  widget.label!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                color: AppTheme.primary,
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: Colors.white,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  tabs: const [
+                    Tab(icon: Icon(Icons.qr_code_scanner), text: 'Kamera'),
+                    Tab(icon: Icon(Icons.keyboard), text: 'Manual'),
+                  ],
                 ),
               ),
-            SafeArea(
-              top: false,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                child: Center(
-                  child: TextButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Tutup'),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildCameraTab(),
+                    _buildManualTab(),
+                  ],
+                ),
+              ),
+              if (widget.label != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.black87,
+                  child: Text(
+                    widget.label!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              SafeArea(
+                top: false,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  child: Center(
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Tutup'),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

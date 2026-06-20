@@ -8,20 +8,55 @@ class OngkirResult {
   final String est;
   final int total;
 
-  OngkirResult({required this.min, required this.perkg, required this.est, required this.total});
+  OngkirResult({
+    required this.min,
+    required this.perkg,
+    required this.est,
+    required this.total,
+  });
 }
 
 class OngkirService {
   static Map<String, dynamic>? _tariffs;
 
   static const List<String> availableCities = [
-    'Bandung', 'Bekasi', 'Bogor', 'Bojonegoro', 'Cilacap', 'Cimahi',
-    'Cirebon', 'Denpasar', 'Jakarta', 'Jember', 'Kediri', 'Kudus',
-    'Kuningan', 'Madiun', 'Magelang', 'Malang', 'Mojokerto', 'Nganjuk',
-    'Ngawi', 'Parakan', 'Pare', 'Pekalongan', 'Probolinggo', 'Purwokerto',
-    'Semarang', 'Sidoarjo', 'Solo', 'Sragen', 'Surabaya', 'Tangerang',
-    'Tasikmalaya', 'Tegal', 'Temanggung', 'Tulung Agung', 'Ungaran',
-    'Wonosobo', 'Yogyakarta',
+    'Bandung',
+    'Bekasi',
+    'Bogor',
+    'Bojonegoro',
+    'Cilacap',
+    'Cimahi',
+    'Cirebon',
+    'Denpasar',
+    'Jakarta',
+    'Jember',
+    'Kediri',
+    'Kudus',
+    'Kuningan',
+    'Madiun',
+    'Magelang',
+    'Malang',
+    'Mojokerto',
+    'Nganjuk',
+    'Ngawi',
+    'Parakan',
+    'Pare',
+    'Pekalongan',
+    'Probolinggo',
+    'Purwokerto',
+    'Semarang',
+    'Sidoarjo',
+    'Solo',
+    'Sragen',
+    'Surabaya',
+    'Tangerang',
+    'Tasikmalaya',
+    'Tegal',
+    'Temanggung',
+    'Tulung Agung',
+    'Ungaran',
+    'Wonosobo',
+    'Yogyakarta',
   ];
 
   static const _cabangToKota = {
@@ -38,7 +73,7 @@ class OngkirService {
     'Kudus': 'kudus',
     'Ungaran': 'ungaran',
     'Magelang': 'magelang',
-    'Sukoharjo': 'solo',
+    'Solo': 'solo',
     'Yogyakarta': 'yogyakarta',
     'Surabaya': 'surabaya',
     'Sidoarjo': 'sidoarjo',
@@ -74,7 +109,11 @@ class OngkirService {
     return _cabangToKota[cabangNama];
   }
 
-  static OngkirResult? hitung(String asalKota, String tujuanKota, double berat) {
+  static OngkirResult? hitung(
+    String asalKota,
+    String tujuanKota,
+    double berat,
+  ) {
     if (_tariffs == null) return null;
     final key = '${asalKota.toLowerCase()}|${tujuanKota.toLowerCase()}';
     final t = _tariffs![key];

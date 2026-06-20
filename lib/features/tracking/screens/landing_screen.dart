@@ -28,6 +28,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
   // Ref ke CabangSection agar bisa trigger cari lokasi dari navbar/drawer
   final _cabangSectionKey = GlobalKey<CabangSectionState>();
+  final _homeSectionKey = GlobalKey<HomeSectionState>();
 
   @override
   void initState() {
@@ -42,6 +43,11 @@ class _LandingScreenState extends State<LandingScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _goToBeranda() {
+    _scrollToSection(_homeKey);
+    _homeSectionKey.currentState?.restartHero();
   }
 
   void _scrollToSection(GlobalKey key) {
@@ -79,7 +85,7 @@ class _LandingScreenState extends State<LandingScreen> {
           controller: _scrollController,
           child: Column(
             children: [
-              KeyedSubtree(key: _homeKey, child: HomeSection(isMobile: isMobile)),
+              KeyedSubtree(key: _homeKey, child: HomeSection(key: _homeSectionKey, isMobile: isMobile)),
               CekResiSection(sectionKey: _cekResiKey),
               CekTarifSection(sectionKey: _cekTarifKey),
               CabangSection(key: _cabangSectionKey, sectionKey: _cabangKey),
@@ -122,7 +128,7 @@ class _LandingScreenState extends State<LandingScreen> {
               )),
             ]
           : [
-              _navLink('Beranda', _homeKey, Icons.home_rounded),
+              _navLink('Beranda', null, Icons.home_rounded, _goToBeranda),
               _navLink('Cek Resi', _cekResiKey, Icons.search_rounded),
               _navLink('Cek Tarif', _cekTarifKey, Icons.receipt_long_rounded),
               _navLink('Cabang', _cabangKey, Icons.store_rounded),
@@ -146,11 +152,11 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _navLink(String text, GlobalKey key, IconData icon) {
+  Widget _navLink(String text, GlobalKey? key, IconData icon, [VoidCallback? onPressed]) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: TextButton(
-        onPressed: () => _scrollToSection(key),
+        onPressed: onPressed ?? (key != null ? () => _scrollToSection(key) : null),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -177,7 +183,7 @@ class _LandingScreenState extends State<LandingScreen> {
               ]),
             ),
             const Divider(height: 1),
-            _drawerLink('Beranda', _homeKey, Icons.home_rounded),
+            _drawerLink('Beranda', null, Icons.home_rounded, _goToBeranda),
             _drawerLink('Cek Resi', _cekResiKey, Icons.search_rounded),
             _drawerLink('Cek Tarif', _cekTarifKey, Icons.receipt_long_rounded),
             _drawerLink('Cabang', _cabangKey, Icons.store_rounded),
@@ -204,11 +210,11 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _drawerLink(String text, GlobalKey key, IconData icon) {
+  Widget _drawerLink(String text, GlobalKey? key, IconData icon, [VoidCallback? onPressed]) {
     return ListTile(
       leading: Icon(icon, color: const Color(0xFF475569)),
       title: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
-      onTap: () => _scrollToSection(key),
+      onTap: onPressed ?? (key != null ? () => _scrollToSection(key) : null),
     );
   }
 }

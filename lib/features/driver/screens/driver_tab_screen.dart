@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -100,6 +102,95 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     _riwayatTotalPages = 1;
     _riwayatItems.clear();
     _loadRiwayat();
+  }
+
+  Future<void> _navigateToMaps(Transaction tx) async {
+    try {
+      final driverLocation = await _getDriverLocation();
+      final destLat = tx.penerimaLatitude;
+      final destLng = tx.penerimaLongitude;
+
+      if (destLat == null || destLng == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Lokasi tujuan tidak tersedia'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (driverLocation == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal mendapatkan lokasi driver'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      final url = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude.toString()},${driverLocation.longitude.toString()}&destination=${destLat.toString()},${destLng.toString()}&travelmode=driving',
+      );
+
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal membuka Google Maps'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<Position?> _getDriverLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return null;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      return position;
+    } catch (e) {
+      return null;
+    }
   }
 
   @override
@@ -539,6 +630,15 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                   ),
                                 ),
                                 ResiCopyButton(resi: tx.noResi),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.navigation_rounded,
+                                    size: 18,
+                                    color: Colors.blue,
+                                  ),
+                                  tooltip: 'Navigasi ke Penerima',
+                                  onPressed: () => _navigateToMaps(tx),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 6),
@@ -618,7 +718,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                 const SizedBox(width: 4),
                                 Text(
                                   '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi awal',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
                                     color: const Color(0xFF64748B),
                                     fontWeight: FontWeight.w500,
@@ -683,15 +783,17 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                       dayBackgroundColor: WidgetStateProperty.resolveWith((
                         states,
                       ) {
-                        if (states.contains(WidgetState.selected))
+                        if (states.contains(WidgetState.selected)) {
                           return const Color(0xFF6366F1);
+                        }
                         return Colors.transparent;
                       }),
                       dayForegroundColor: WidgetStateProperty.resolveWith((
                         states,
                       ) {
-                        if (states.contains(WidgetState.selected))
+                        if (states.contains(WidgetState.selected)) {
                           return Colors.white;
+                        }
                         return const Color(0xFF0F172A);
                       }),
                       dayOverlayColor: WidgetStateProperty.all(
@@ -831,6 +933,15 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                             ),
                             const SizedBox(width: 4),
                             ResiCopyButton(resi: tx.noResi),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.navigation_rounded,
+                                size: 18,
+                                color: Colors.blue,
+                              ),
+                              tooltip: 'Navigasi ke Penerima',
+                              onPressed: () => _navigateToMaps(tx),
+                            ),
                           ],
                         ),
                         subtitle: Padding(

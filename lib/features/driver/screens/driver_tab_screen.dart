@@ -138,13 +138,16 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude.toString()},${driverLocation.longitude.toString()}&destination=${destLat.toString()},${destLng.toString()}&travelmode=driving',
       );
 
+      // LaunchMode.externalApplication:
+      // - Mobile: Tries to open Google Maps app first, falls back to browser
+      // - Web: Opens in browser (new tab)
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Gagal membuka Google Maps'),
+              content: Text('Gagal membuka Google Maps. Pastikan koneksi internet aktif.'),
               duration: Duration(seconds: 2),
             ),
           );
@@ -454,9 +457,35 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
+                                          const SizedBox(width: 4),
+                                          ResiCopyButton(resi: tx.noResi),
+                                          const SizedBox(width: 4),
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () =>
+                                                  _navigateToMaps(tx),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.blue
+                                                      .withValues(alpha: 0.08),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.navigation_rounded,
+                                                  size: 16,
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 5),
                                       Text(
                                         '${tx.pengirimName} → ${tx.penerimaName}',
                                         style: const TextStyle(
@@ -466,7 +495,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 2,
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 3),
                                       Row(
                                         children: [
                                           Icon(
@@ -485,7 +514,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                           ),
                                         ],
                                       ),
-                                      const Spacer(),
+                                      const SizedBox(height: 2),
                                       if (tx.tujuanSelanjutnya != null &&
                                           (tx.tujuanSelanjutnya!['nama']
                                                       ?.toString() ??
@@ -494,8 +523,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                         Container(
                                           width: double.infinity,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 4,
+                                            horizontal: 4,
+                                            vertical: 3,
                                           ),
                                           decoration: BoxDecoration(
                                             color: Colors.orange.withValues(

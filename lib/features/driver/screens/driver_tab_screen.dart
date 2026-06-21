@@ -147,7 +147,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Gagal membuka Google Maps. Pastikan koneksi internet aktif.'),
+              content: Text(
+                'Gagal membuka Google Maps. Pastikan koneksi internet aktif.',
+              ),
               duration: Duration(seconds: 2),
             ),
           );
@@ -463,16 +465,17 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                           Material(
                                             color: Colors.transparent,
                                             child: InkWell(
-                                              onTap: () =>
-                                                  _navigateToMaps(tx),
+                                              onTap: () => _navigateToMaps(tx),
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                               child: Container(
-                                                padding:
-                                                    const EdgeInsets.all(6),
+                                                padding: const EdgeInsets.all(
+                                                  6,
+                                                ),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.blue
-                                                      .withValues(alpha: 0.08),
+                                                  color: Colors.blue.withValues(
+                                                    alpha: 0.08,
+                                                  ),
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: const Icon(
@@ -505,7 +508,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                           ),
                                           const SizedBox(width: 3),
                                           Text(
-                                            '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km',
+                                            '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi Anda',
                                             style: const TextStyle(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
@@ -746,7 +749,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi awal',
+                                  '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi Anda',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: const Color(0xFF64748B),

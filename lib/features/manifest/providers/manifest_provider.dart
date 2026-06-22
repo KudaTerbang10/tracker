@@ -8,13 +8,29 @@ class ManifestFilter {
   final String? status;
   final int page;
   final int limit;
-  const ManifestFilter({this.status, this.page = 1, this.limit = 20});
+  final DateTime? startDate;
+  final DateTime? endDate;
+  const ManifestFilter({
+    this.status,
+    this.page = 1,
+    this.limit = 20,
+    this.startDate,
+    this.endDate,
+  });
 
-  ManifestFilter copyWith({String? status, int? page, int? limit}) =>
+  ManifestFilter copyWith({
+    String? status,
+    int? page,
+    int? limit,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) =>
       ManifestFilter(
         status: status ?? this.status,
         page: page ?? this.page,
         limit: limit ?? this.limit,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate ?? this.endDate,
       );
 
   @override
@@ -23,10 +39,13 @@ class ManifestFilter {
       other is ManifestFilter &&
           status == other.status &&
           page == other.page &&
-          limit == other.limit;
+          limit == other.limit &&
+          startDate == other.startDate &&
+          endDate == other.endDate;
 
   @override
-  int get hashCode => Object.hash(status, page, limit);
+  int get hashCode =>
+      Object.hash(status, page, limit, startDate, endDate);
 }
 
 /// Provider untuk list manifest (admin/driver disesuaikan otomatis di backend)
@@ -135,6 +154,10 @@ final driverRiwayatManifestsProvider =
     'page': filter.page.toString(),
     'limit': filter.limit.toString(),
     'status': 'selesai',
+    if (filter.startDate != null)
+      'start_date': filter.startDate!.toIso8601String().split('T')[0],
+    if (filter.endDate != null)
+      'end_date': filter.endDate!.toIso8601String().split('T')[0],
   };
 
   final response = await ApiService().get(ApiConstants.manifests, query: params);

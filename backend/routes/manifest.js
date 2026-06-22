@@ -13,7 +13,7 @@ const router = express.Router();
 // Super_admin: lihat semua
 router.get('/', auth, async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, start_date, end_date, page = 1, limit = 20 } = req.query;
     const filter = {};
 
     if (req.user.role === 'admin_cabang') {
@@ -29,6 +29,19 @@ router.get('/', auth, async (req, res) => {
         filter.status = statusList[0];
       } else if (statusList.length > 1) {
         filter.status = { $in: statusList };
+      }
+    }
+
+    // Filter by date range (createdAt)
+    if (start_date || end_date) {
+      filter.createdAt = {};
+      if (start_date) {
+        filter.createdAt.$gte = new Date(start_date);
+      }
+      if (end_date) {
+        const endOfDay = new Date(end_date);
+        endOfDay.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endOfDay;
       }
     }
 
@@ -106,10 +119,14 @@ router.get('/:id', auth, async (req, res) => {
     // Ambil semua transaksi dalam manifest ini
     let transactions;
     if (manifest.status === 'selesai') {
-      // Manifest selesai — cari hanya via no_manifest field
-      // agar transaksi yang sudah dipindah ke manifest baru tidak ikut
+      // Manifest selesai — cari dari no_manifest DAN tracking_logs
+      // karena no_manifest di transaksi bisa di-overwrite oleh manifest baru,
+      // tapi tracking_logs[].no_manifest tetap menyimpan referensi asli.
       transactions = await Transaction.find({
-        no_manifest: manifest.no_manifest,
+        $or: [
+          { no_manifest: manifest.no_manifest },
+          { 'tracking_logs.no_manifest': manifest.no_manifest },
+        ],
       })
         .sort({ createdAt: 1 })
         .lean();

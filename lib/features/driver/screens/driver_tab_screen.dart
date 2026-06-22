@@ -69,7 +69,12 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         _riwayatPage = 1;
         _riwayatItems.clear();
         ref.invalidate(manifest_prov.driverRiwayatManifestsProvider(
-          manifest_prov.ManifestFilter(status: 'selesai', page: 1),
+          manifest_prov.ManifestFilter(
+            status: 'selesai',
+            page: 1,
+            startDate: _startDate,
+            endDate: _endDate,
+          ),
         ));
       }
     });
@@ -923,7 +928,12 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     final fmt = DateFormat('dd/MM/yyyy');
 
     // Filter state
-    final riwayatFilter = manifest_prov.ManifestFilter(status: 'selesai', page: _riwayatPage);
+    final riwayatFilter = manifest_prov.ManifestFilter(
+      status: 'selesai',
+      page: _riwayatPage,
+      startDate: _startDate,
+      endDate: _endDate,
+    );
     final riwayatAsync = ref.watch(manifest_prov.driverRiwayatManifestsProvider(riwayatFilter));
     final riwayatManifests = riwayatAsync.valueOrNull?.manifests ?? <Manifest>[];
 

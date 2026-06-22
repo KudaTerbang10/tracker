@@ -191,6 +191,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       final params = <String, dynamic>{
         'page': _historyPage,
         'limit': 20,
+        'status': 'selesai',
         if (_startDate != null) 'start_date': _startDate!.toIso8601String().split('T')[0],
         if (_endDate != null) 'end_date': _endDate!.toIso8601String().split('T')[0],
       };

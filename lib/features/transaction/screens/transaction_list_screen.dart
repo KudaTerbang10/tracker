@@ -191,7 +191,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       final params = <String, dynamic>{
         'page': _historyPage,
         'limit': 20,
-        'status': 'selesai',
+        // tanpa filter status — tampilkan semua manifest cabang ini
         if (_startDate != null) 'start_date': _startDate!.toIso8601String().split('T')[0],
         if (_endDate != null) 'end_date': _endDate!.toIso8601String().split('T')[0],
       };
@@ -1178,22 +1178,23 @@ class _AdminRiwayatManifestCardState
               ),
               pw.Column(
                 children: [
-                  pw.Text('Driver',
+                  pw.Text(m.driverName.isNotEmpty ? m.driverName : 'Driver',
                       style: const pw.TextStyle(fontSize: 10)),
                   pw.SizedBox(height: 32),
                   pw.Text('(_______________)',
                       style: const pw.TextStyle(fontSize: 10)),
                 ],
               ),
-              pw.Column(
-                children: [
-                  pw.Text('Admin ${m.tujuanNama}',
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 32),
-                  pw.Text('(_______________)',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
+              if (m.isAntarCabang)
+                pw.Column(
+                  children: [
+                    pw.Text('Admin ${m.tujuanNama}',
+                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('(_______________)',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
             ],
           ),
         ],

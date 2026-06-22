@@ -349,6 +349,14 @@ router.post('/batch-status', auth, async (req, res) => {
           status: 'dibuat',
         });
 
+        // Update status manifest ke dalam_perjalanan jika ada driver
+        if (hasAnyDriver) {
+          await Manifest.findOneAndUpdate(
+            { no_manifest },
+            { status: 'dalam_perjalanan' },
+          );
+        }
+
         // Update no_manifest di setiap transaksi
         await Transaction.updateMany(
           { _id: { $in: validIds } },

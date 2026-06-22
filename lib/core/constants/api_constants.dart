@@ -28,6 +28,7 @@ class ApiConstants {
   static const String analyticsRoutesTop = '/analytics/routes-top';
   static const String health = '/health';
   static const String tariffs = '/tariffs';
+  static const String manifests = '/manifests';
 }
 
 class StatusList {

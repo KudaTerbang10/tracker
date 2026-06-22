@@ -11,6 +11,7 @@ import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../manifest/providers/manifest_provider.dart' as manifest_provider;
 import '../providers/scan_batch_provider.dart';
 
 class ScanDatangScreen extends ConsumerStatefulWidget {
@@ -370,6 +371,12 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
   }
 
   Future<void> _processResi(String code) async {
+    // Cek apakah ini nomor manifest
+    if (code.startsWith('MAN-')) {
+      await _processManifestScan(code);
+      return;
+    }
+
     final alreadyScanned = ref
         .read(scanDatangProvider)
         .any((i) => i.noResi == code);
@@ -413,6 +420,120 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('Resi $code tidak ditemukan')));
       }
+    }
+  }
+
+  Future<void> _processManifestScan(String noManifest) async {
+    try {
+      // Confirm dialog
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Scan Manifest', style: TextStyle(fontWeight: FontWeight.w700)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.description_rounded, color: AppTheme.primary, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            noManifest,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace',
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const Text(
+                            'Semua resi dalam manifest akan diterima',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Scan nomor manifest akan mengupdate semua paket\n dalam manifest ini menjadi "Diterima Cabang".',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+          actions: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    minimumSize: const Size(0, 44),
+                  ),
+                  child: const Text('KONFIRMASI SEMUA', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 6),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('BATAL'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      // Panggil API receive-by-number
+      final response = await ApiService().post(
+        '${ApiConstants.manifests}/receive-by-number',
+        data: {'no_manifest': noManifest},
+      );
+
+      if (mounted) {
+        final berhasil = response.data['berhasil'] as int? ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Manifest: $berhasil resi diterima'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        SoundPlayer.instance.playSuccess();
+        ref.invalidate(manifest_provider.driverManifestProvider);
+        ref.invalidate(manifest_provider.manifestListProvider);
+      }
+    } catch (e) {
+      SoundPlayer.instance.playError();
+      if (mounted) {
+        final msg = e is DioException
+            ? (e.response?.data?['message'] as String? ?? 'Gagal memproses manifest')
+            : 'Gagal memproses manifest';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppTheme.error),
+        );
+      }
+    } finally {
     }
   }
 

@@ -86,6 +86,8 @@ const transactionSchema = new mongoose.Schema({
   // Denormalized — lokasi cabang terakhir untuk query cepat tanpa $expr
   current_cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
 
+  no_manifest: { type: String, default: null },
+
   tracking_logs: [trackingLogSchema],
 }, { timestamps: true });
 
@@ -102,5 +104,6 @@ transactionSchema.index({ 'tracking_logs.lokasi.cabang_id': 1 });
 transactionSchema.index({ createdAt: -1 });
 transactionSchema.index({ barcode_data: 1 });
 transactionSchema.index({ current_cabang_id: 1, status_saat_ini: 1 });
+transactionSchema.index({ no_manifest: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

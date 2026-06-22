@@ -140,6 +140,7 @@ router.post('/batch-status', auth, async (req, res) => {
     }
 
     const validIds = [...validTxMap.keys()];
+    let manifest = null;
 
     if (validIds.length > 0) {
       const bulkOps = [];
@@ -247,6 +248,58 @@ router.post('/batch-status', auth, async (req, res) => {
           }
         }
       }
+
+      // — AUTO-GENERATE MANIFEST —
+      const berhasilCount = results.filter(r => r.status === 'ok').length;
+      if (status_baru === 'keluar_cabang' && berhasilCount > 0) {
+        const generateNoManifest = require('../utils/manifestGenerator');
+        const no_manifest = await generateNoManifest();
+
+        const tipeManifest = tipe_tujuan === 'cabang' ? 'antar_cabang' : 'antar_penerima';
+        const workUnit = tipe_tujuan === 'cabang' ? 1 : berhasilCount;
+
+        let totalBerat = 0;
+        let totalKoli = 0;
+        for (const [, tx] of validTxMap) {
+          totalBerat += tx.paket?.berat_kg || 0;
+          totalKoli += tx.paket?.jumlah_koli || 0;
+        }
+
+        const Manifest = require('../models/Manifest');
+        manifest = await Manifest.create({
+          no_manifest,
+          created_by: {
+            user_id: req.user._id,
+            name: req.user.name,
+            cabang_id: req.user.cabang_id,
+            cabang_name: userLokasi?.nama || '',
+          },
+          driver: {
+            user_id: driver?._id || null,
+            name: driver?.name || nama_driver_manual || '',
+            phone: driver?.phone || '',
+          },
+          tujuan: {
+            tipe: tipe_tujuan,
+            cabang_id: cabangTujuan?._id || null,
+            nama: tipe_tujuan === 'cabang'
+              ? (cabangTujuan?.name || cabang_nama_manual || '')
+              : 'Langsung ke Penerima',
+          },
+          asal_cabang_id: req.user.cabang_id,
+          asal_cabang_name: userLokasi?.nama || '',
+          tipe_manifest: tipeManifest,
+          work_unit: workUnit,
+          total_resi: berhasilCount,
+          status: 'dibuat',
+        });
+
+        // Update no_manifest di setiap transaksi
+        await Transaction.updateMany(
+          { _id: { $in: validIds } },
+          { $set: { no_manifest } },
+        );
+      }
     }
 
     res.json({
@@ -255,6 +308,15 @@ router.post('/batch-status', auth, async (req, res) => {
       berhasil: results.filter(r => r.status === 'ok').length,
       gagal: results.filter(r => r.status === 'error').length,
       results,
+      manifest: manifest ? {
+        _id: manifest._id,
+        no_manifest: manifest.no_manifest,
+        total_resi: manifest.total_resi,
+        tipe_manifest: manifest.tipe_manifest,
+        work_unit: manifest.work_unit,
+        driver: manifest.driver,
+        tujuan: manifest.tujuan,
+      } : null,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

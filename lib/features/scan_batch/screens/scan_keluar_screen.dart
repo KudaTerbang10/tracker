@@ -13,6 +13,8 @@ import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/scan_batch_provider.dart';
+import 'manifest_result_sheet.dart';
+import '../../manifest/providers/manifest_provider.dart' as manifest_provider;
 
 class ScanKeluarScreen extends ConsumerStatefulWidget {
   const ScanKeluarScreen({super.key});
@@ -523,15 +525,44 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
 
       if (mounted) {
         final berhasil = result['berhasil'] as int? ?? 0;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$berhasil berhasil'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        SoundPlayer.instance.playSuccess();
+        final manifestData = result['manifest'] as Map<String, dynamic>?;
+
+        if (manifestData != null) {
+          // Simpan manifest result di state
+          ref.read(scanKeluarProvider.notifier).setManifestResult(manifestData);
+
+          SoundPlayer.instance.playSuccess();
+          await showManifestResultSheet(
+            context,
+            ManifestResultSheetData(
+              id: manifestData['_id'] as String,
+              noManifest: manifestData['no_manifest'] as String,
+              totalResi: (manifestData['total_resi'] as num).toInt(),
+              tipeManifest: manifestData['tipe_manifest'] as String,
+              workUnit: (manifestData['work_unit'] as num).toInt(),
+              driverName: (manifestData['driver']?['name'] as String?) ?? '-',
+              tujuanNama:
+                  (manifestData['tujuan']?['nama'] as String?) ?? '-',
+            ),
+          );
+
+          // Refresh manifests di background
+          final manifestProvider = await _getManifestProvider();
+          if (manifestProvider != null) {
+            ref.invalidate(manifestProvider);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$berhasil berhasil'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          SoundPlayer.instance.playSuccess();
+        }
+
         ref.read(scanKeluarProvider.notifier).clear();
       }
     } catch (e) {
@@ -548,6 +579,9 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       setState(() => _submitting = false);
     }
   }
+
+  /// Helper untuk invalidate manifest providers
+  dynamic _getManifestProvider() => manifest_provider.driverManifestProvider;
 
   Widget _buildEmptyState() {
     return Center(

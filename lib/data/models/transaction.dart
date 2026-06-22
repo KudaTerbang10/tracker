@@ -13,6 +13,7 @@ class Transaction {
   final String? namaDriver;
   final String? kontakDriver;
   final String? driverUserId;
+  final String? noManifest;
   final Map<String, dynamic>? tujuanSelanjutnya;
   final String? namaPenerimaAkhir;
   final Map<String, dynamic>? lokasiPenerima;
@@ -33,6 +34,7 @@ class Transaction {
     this.namaDriver,
     this.kontakDriver,
     this.driverUserId,
+    this.noManifest,
     this.tujuanSelanjutnya,
     this.namaPenerimaAkhir,
     this.lokasiPenerima,
@@ -54,6 +56,7 @@ class Transaction {
     namaDriver: json['nama_driver'] as String?,
     kontakDriver: json['kontak_driver'] as String?,
     driverUserId: json['driver_user_id'] as String?,
+    noManifest: json['no_manifest'] as String?,
     tujuanSelanjutnya: json['tujuan_selanjutnya'] as Map<String, dynamic>?,
     namaPenerimaAkhir: json['nama_penerima_akhir'] as String?,
     lokasiPenerima: json['lokasi_penerima'] as Map<String, dynamic>?,

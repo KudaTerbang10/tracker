@@ -25,6 +25,7 @@ class ScanKeluarState {
   final TujuanType tujuanType;
   final String? cabangTujuanId;
   final String? cabangTujuanNama;
+  final Map<String, dynamic>? manifestResult;
 
   ScanKeluarState({
     this.scannedItems = const [],
@@ -34,6 +35,7 @@ class ScanKeluarState {
     this.tujuanType = TujuanType.cabang,
     this.cabangTujuanId,
     this.cabangTujuanNama,
+    this.manifestResult,
   });
 
   ScanKeluarState copyWith({
@@ -44,6 +46,7 @@ class ScanKeluarState {
     TujuanType? tujuanType,
     String? cabangTujuanId,
     String? cabangTujuanNama,
+    Map<String, dynamic>? manifestResult,
   }) => ScanKeluarState(
     scannedItems: scannedItems ?? this.scannedItems,
     driverUserId: driverUserId ?? this.driverUserId,
@@ -52,6 +55,7 @@ class ScanKeluarState {
     tujuanType: tujuanType ?? this.tujuanType,
     cabangTujuanId: cabangTujuanId ?? this.cabangTujuanId,
     cabangTujuanNama: cabangTujuanNama ?? this.cabangTujuanNama,
+    manifestResult: manifestResult ?? this.manifestResult,
   );
 
   int get validCount => scannedItems.where((i) => i.isValid).length;
@@ -122,6 +126,10 @@ class ScanKeluarNotifier extends StateNotifier<ScanKeluarState> {
 
   void setCabangTujuanManual(String name) {
     state = state.copyWith(cabangTujuanId: null, cabangTujuanNama: name);
+  }
+
+  void setManifestResult(Map<String, dynamic>? manifest) {
+    state = state.copyWith(manifestResult: manifest);
   }
 
   void clear() => state = ScanKeluarState();

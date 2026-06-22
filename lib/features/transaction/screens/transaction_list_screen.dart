@@ -3,9 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../../../data/models/transaction.dart';
+import '../../../data/models/manifest.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/transaction_repository.dart';
+import '../../../data/datasources/remote/api_service.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
@@ -36,8 +41,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
   String _searchQuery = '';
   String _selectedStatus = '';
 
-  // Infinite scroll untuk history tab
-  final _historyItems = <Transaction>[];
+  // Infinite scroll untuk history tab (manifest-based)
+  final _historyItems = <Manifest>[];
   int _historyPage = 1;
   int _historyTotalPages = 1;
   bool _historyLoadingMore = false;
@@ -183,14 +188,18 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     if (_historyPage == 1) _historyItems.clear();
     _historyLoadingMore = true;
     try {
-      final result = await ref.read(transactionRepositoryProvider).getList(
-        page: _historyPage,
-        tab: 'history',
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-      final list = result['data'] as List<Transaction>;
-      _historyTotalPages = result['totalPages'] as int;
+      final params = <String, dynamic>{
+        'page': _historyPage,
+        'limit': 20,
+        if (_startDate != null) 'start_date': _startDate!.toIso8601String().split('T')[0],
+        if (_endDate != null) 'end_date': _endDate!.toIso8601String().split('T')[0],
+      };
+      final res = await ApiService().get(ApiConstants.manifests, query: params);
+      final data = res.data as Map<String, dynamic>;
+      final list = (data['data'] as List<dynamic>)
+          .map((e) => Manifest.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _historyTotalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
       _historyItems.addAll(list);
       _historyPage++;
     } finally {
@@ -432,6 +441,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
 
     return Column(
       children: [
+        // Date filter bar
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: InkWell(
@@ -530,6 +540,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             ),
           ),
         ),
+        // Manifest list
         Expanded(
           child: _historyItems.isEmpty && !_historyLoadingMore
               ? Center(
@@ -538,23 +549,32 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     children: [
                       Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
-                      Text('Tidak ada riwayat transaksi', style: TextStyle(color: Colors.grey.shade500)),
+                      Text('Tidak ada riwayat manifest', style: TextStyle(color: Colors.grey.shade500)),
                     ],
                   ),
                 )
-              : ListView.builder(
-                  controller: _historyScrollC,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _historyItems.length + (_historyPage <= _historyTotalPages ? 1 : 0),
-                  itemBuilder: (_, i) {
-                    if (i == _historyItems.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      );
-                    }
-                    return _buildItemCard(_historyItems[i], dateFmt, canDelete: false);
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    _historyPage = 1;
+                    _historyTotalPages = 1;
+                    _historyItems.clear();
+                    _historyLoadingMore = false;
+                    await _loadHistory();
                   },
+                  child: ListView.builder(
+                    controller: _historyScrollC,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                    itemCount: _historyItems.length + (_historyPage <= _historyTotalPages ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (i >= _historyItems.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        );
+                      }
+                      return _AdminRiwayatManifestCard(manifest: _historyItems[i]);
+                    },
+                  ),
                 ),
         ),
       ],
@@ -977,6 +997,623 @@ class _InfoCard extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Widget card untuk riwayat manifest admin cabang (history tab)
+class _AdminRiwayatManifestCard extends ConsumerStatefulWidget {
+  final Manifest manifest;
+  const _AdminRiwayatManifestCard({required this.manifest});
+
+  @override
+  ConsumerState<_AdminRiwayatManifestCard> createState() =>
+      _AdminRiwayatManifestCardState();
+}
+
+class _AdminRiwayatManifestCardState
+    extends ConsumerState<_AdminRiwayatManifestCard> {
+  List<Transaction>? _transactions;
+  bool _loadingTxs = false;
+
+  Future<void> _loadTransactions() async {
+    if (_transactions != null || _loadingTxs) return;
+    setState(() => _loadingTxs = true);
+    try {
+      final res =
+          await ApiService().get('${ApiConstants.manifests}/${widget.manifest.id}');
+      final data = res.data as Map<String, dynamic>;
+      final detail = Manifest.fromJson(data);
+      setState(() {
+        _transactions = detail.transactions ?? [];
+        _loadingTxs = false;
+      });
+    } catch (_) {
+      setState(() => _loadingTxs = false);
+    }
+  }
+
+  Future<void> _printManifest() async {
+    // Ensure transactions loaded
+    if (_transactions == null) {
+      await _loadTransactions();
+    }
+    final txs = _transactions ?? <Transaction>[];
+    final m = widget.manifest;
+    final fmtDate = DateFormat('dd/MM/yyyy HH:mm', 'id_ID');
+    final now = fmtDate.format(toJakarta(DateTime.now()));
+
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (ctx) => [
+          pw.Center(
+            child: pw.Text(
+              'MANIFEST PENGIRIMAN',
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Text(
+              m.noManifest,
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                fontFallback: [pw.Font.courier()],
+              ),
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Center(
+            child: pw.Text(
+              'Dicetak: $now',
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey),
+            ),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _pdfLabel('Asal', m.asalCabangName),
+                    pw.SizedBox(height: 4),
+                    _pdfLabel('Tujuan', m.tujuanNama),
+                    pw.SizedBox(height: 4),
+                    _pdfLabel('Tipe', m.tipeLabel),
+                  ],
+                ),
+              ),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _pdfLabel('Driver', m.driverName),
+                    pw.SizedBox(height: 4),
+                    _pdfLabel('Kontak', m.driverPhone),
+                    pw.SizedBox(height: 4),
+                    _pdfLabel('Work Unit', '${m.workUnit}'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(28),
+              1: const pw.FixedColumnWidth(130),
+              2: const pw.FixedColumnWidth(105),
+              3: const pw.FixedColumnWidth(105),
+              4: const pw.FixedColumnWidth(45),
+              5: const pw.FixedColumnWidth(40),
+            },
+            children: [
+              pw.TableRow(
+                decoration:
+                    const pw.BoxDecoration(color: PdfColors.grey100),
+                children: [
+                  _pdfCell('No', header: true),
+                  _pdfCell('No. Resi', header: true),
+                  _pdfCell('Pengirim', header: true),
+                  _pdfCell('Penerima', header: true),
+                  _pdfCell('Berat', header: true),
+                  _pdfCell('Koli', header: true),
+                ],
+              ),
+              ...txs.asMap().entries.map((entry) {
+                final i = entry.key + 1;
+                final tx = entry.value;
+                return pw.TableRow(
+                  children: [
+                    _pdfCell('$i'),
+                    _pdfCell(tx.noResi, font: pw.Font.courier()),
+                    _pdfCell(tx.pengirimName),
+                    _pdfCell(tx.penerimaName),
+                    _pdfCell(tx.beratLabel),
+                    _pdfCell(tx.koliLabel),
+                  ],
+                );
+              }),
+            ],
+          ),
+          pw.SizedBox(height: 16),
+          pw.Row(
+            children: [
+              _pdfLabel('Total Resi: ${txs.length}'),
+              pw.SizedBox(width: 24),
+              _pdfLabel(
+                'Total Berat: ${txs.fold(0.0, (sum, tx) => sum + (tx.paket['berat_kg'] as num? ?? 0).toDouble()).toStringAsFixed(1)} kg',
+              ),
+              pw.SizedBox(width: 24),
+              _pdfLabel(
+                'Total Koli: ${txs.fold(0, (sum, tx) => sum + (tx.paket['jumlah_koli'] as num? ?? 0).toInt())}',
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 32),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+            children: [
+              pw.Column(
+                children: [
+                  pw.Text('Admin ${m.asalCabangName}',
+                      style: const pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 32),
+                  pw.Text('(_______________)',
+                      style: const pw.TextStyle(fontSize: 10)),
+                ],
+              ),
+              pw.Column(
+                children: [
+                  pw.Text('Driver',
+                      style: const pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 32),
+                  pw.Text('(_______________)',
+                      style: const pw.TextStyle(fontSize: 10)),
+                ],
+              ),
+              pw.Column(
+                children: [
+                  pw.Text('Admin ${m.tujuanNama}',
+                      style: const pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 32),
+                  pw.Text('(_______________)',
+                      style: const pw.TextStyle(fontSize: 10)),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (_) => pdf.save(),
+    );
+  }
+
+  void _showDetail(Transaction tx) {
+    final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final showDriver = tx.namaDriver != null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        expand: false,
+        builder: (_, scrollC) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollC,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Nomor Resi Pengiriman',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                ),
+                                StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    tx.noResi,
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: Color(0xFF0F172A)),
+                                  ),
+                                ),
+                                ResiCopyButton(resi: tx.noResi),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _InfoCard(
+                              title: 'Penerima',
+                              name: tx.penerimaName,
+                              phone: tx.penerima['phone'] as String? ?? '',
+                              address: tx.penerimaAddress,
+                              icon: Icons.call_received_rounded,
+                              accentColor: AppTheme.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _InfoCard(
+                              title: 'Pengirim',
+                              name: tx.pengirimName,
+                              phone: tx.pengirim['phone'] as String? ?? '',
+                              address: tx.pengirim['address'] as String? ?? '',
+                              icon: Icons.send_rounded,
+                              accentColor: AppTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                        child: Row(
+                          children: [
+                            Expanded(child: _InfoCell(icon: Icons.scale_rounded, label: 'Berat', value: tx.beratLabel)),
+                            Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                            Expanded(child: _InfoCell(icon: Icons.inventory_2_rounded, label: 'Jumlah Koli', value: '${tx.jumlahKoli} koli')),
+                            if (tx.biayaKirim > 0) ...[
+                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+                              Expanded(child: _InfoCell(icon: Icons.payments_rounded, label: 'Biaya Kirim', value: fmt.format(tx.biayaKirim))),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (showDriver || (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)) ...[
+                      const SizedBox(height: 12),
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (showDriver)
+                              Expanded(
+                                child: _InfoCard(
+                                  title: 'Driver Kurir',
+                                  name: tx.namaDriver!,
+                                  phone: tx.kontakDriver ?? '',
+                                  address: '',
+                                  icon: Icons.directions_car_filled_rounded,
+                                  accentColor: Colors.amber.shade700,
+                                ),
+                              ),
+                            if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
+                              const SizedBox(width: 8),
+                            if (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
+                              Expanded(
+                                child: _InfoCard(
+                                  title: 'Diterima oleh',
+                                  name: tx.namaPenerimaAkhir!,
+                                  phone: '',
+                                  address: '',
+                                  icon: Icons.check_circle_rounded,
+                                  accentColor: Colors.green.shade600,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    const Text(
+                      'RIWAYAT PENGIRIMAN',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 1),
+                    ),
+                    const SizedBox(height: 8),
+                    TrackingTimeline(logs: tx.trackingLogs),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _pdfLabel(String label, [String? value]) {
+    return pw.Text(
+      value != null ? '$label: $value' : label,
+      style: const pw.TextStyle(fontSize: 10),
+    );
+  }
+
+  pw.Widget _pdfCell(String text, {bool header = false, pw.Font? font}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: header ? 9 : 8,
+          fontWeight: header ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final txs = _transactions ?? <Transaction>[];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        initiallyExpanded: false,
+        onExpansionChanged: (expanded) {
+          if (expanded) _loadTransactions();
+        },
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: widget.manifest.isAntarCabang
+                ? AppTheme.primary.withValues(alpha: 0.08)
+                : Colors.orange.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.description_rounded,
+            size: 22,
+            color: widget.manifest.isAntarCabang
+                ? AppTheme.primary
+                : Colors.orange,
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.manifest.noManifest,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      fontFamily: 'monospace',
+                      letterSpacing: 0.5,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.manifest.tujuanNama} · ${widget.manifest.totalResi} resi · ${widget.manifest.workUnit} work',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+            ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _printManifest,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.print_rounded,
+                      size: 16, color: Colors.blue),
+                ),
+              ),
+            ),
+          ],
+        ),
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          if (_loadingTxs)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (txs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Text(
+                  'Tidak ada data resi',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                ),
+              ),
+            )
+          else
+            ...txs.map((tx) => _AdminRiwayatResiItem(
+              tx: tx,
+              onTap: () => _showDetail(tx),
+            )),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () =>
+                  context.push('/dashboard/manifest/${widget.manifest.id}'),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Detail Manifest'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 38),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminRiwayatResiItem extends StatelessWidget {
+  final Transaction tx;
+  final VoidCallback? onTap;
+  const _AdminRiwayatResiItem({required this.tx, this.onTap});
+
+  static const _statusSelesai = ['diterima', 'diterima_cabang'];
+
+  @override
+  Widget build(BuildContext context) {
+    final selesai = _statusSelesai.contains(tx.statusSaatIni);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: selesai ? Colors.green.withValues(alpha: 0.03) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selesai
+                  ? Colors.green.withValues(alpha: 0.2)
+                  : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: selesai
+                          ? Colors.green.withValues(alpha: 0.08)
+                          : Colors.orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      selesai ? Icons.check_circle_rounded : Icons.pending_rounded,
+                      size: 16,
+                      color: selesai ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                tx.noResi,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                  color: selesai ? const Color(0xFF6B7280) : const Color(0xFF0F172A),
+                                  decoration: selesai ? TextDecoration.lineThrough : null,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ResiCopyButton(resi: tx.noResi),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${tx.pengirimName} → ${tx.penerimaName}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: selesai ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    selesai ? '✅' : tx.beratLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: selesai ? Colors.green : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -8,15 +8,18 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../data/models/transaction.dart';
+import '../../../data/models/manifest.dart';
 import '../../../data/repositories/transaction_repository.dart';
+import '../../../data/datasources/remote/api_service.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../manifest/providers/manifest_provider.dart' as manifest_prov;
 import '../providers/route_provider.dart';
-import '../utils/route_optimizer.dart';
 import '../widgets/driver_route_map.dart';
 import '../../../shared/utils/cabang_lokasi_service.dart';
 
@@ -24,6 +27,13 @@ final kirimProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref
       .read(transactionRepositoryProvider)
       .getList(status: 'proses_kirim', limit: 999);
+});
+
+// Work unit summary untuk driver
+final driverWorkUnitProvider = FutureProvider.autoDispose<int>((ref) async {
+  final response = await ApiService().get('${ApiConstants.manifests}/stats/summary');
+  final data = response.data['total'] as Map<String, dynamic>;
+  return (data['work_unit'] as num?)?.toInt() ?? 0;
 });
 
 class DriverTabScreen extends ConsumerStatefulWidget {
@@ -36,15 +46,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // scroll card horizontal
-  final _cardScrollController = ScrollController();
-
   // infinite scroll riwayat
-  final _riwayatItems = <Transaction>[];
+  final _riwayatItems = <Manifest>[];
   int _riwayatPage = 1;
-  int _riwayatTotalPages = 1;
-  bool _riwayatLoadingMore = false;
-  final _riwayatScrollC = ScrollController();
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -55,53 +59,14 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
-        if (_tabController.index == 1) _loadRiwayat();
       }
     });
-    _riwayatScrollC.addListener(() {
-      if (_riwayatScrollC.position.pixels >=
-          _riwayatScrollC.position.maxScrollExtent - 200) {
-        _loadRiwayat();
-      }
-    });
-    _loadRiwayat();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _cardScrollController.dispose();
-    _riwayatScrollC.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadRiwayat() async {
-    if (_riwayatLoadingMore || _riwayatPage > _riwayatTotalPages) return;
-    if (_riwayatPage == 1) _riwayatItems.clear();
-    _riwayatLoadingMore = true;
-    try {
-      final result = await ref
-          .read(transactionRepositoryProvider)
-          .getList(
-            tab: 'history',
-            page: _riwayatPage,
-            startDate: _startDate,
-            endDate: _endDate,
-          );
-      _riwayatTotalPages = result['totalPages'] as int;
-      _riwayatItems.addAll(result['data'] as List<Transaction>);
-      _riwayatPage++;
-    } finally {
-      _riwayatLoadingMore = false;
-      if (mounted) setState(() {});
-    }
-  }
-
-  void _resetRiwayat() {
-    _riwayatPage = 1;
-    _riwayatTotalPages = 1;
-    _riwayatItems.clear();
-    _loadRiwayat();
   }
 
   Future<void> _navigateToMaps(Transaction tx) async {
@@ -200,11 +165,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
 
   @override
   Widget build(BuildContext context) {
-    final kirimAsync = ref.watch(kirimProvider);
-    final kirimData = kirimAsync.valueOrNull;
-    final kirimCount = kirimData != null
-        ? (kirimData['data'] as List<dynamic>).length
-        : 0;
+    final manifestsAsync = ref.watch(manifest_prov.driverActiveManifestsProvider);
+    final manifestsData = manifestsAsync.valueOrNull ?? <Manifest>[];
+    final manifestCount = manifestsData.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -221,7 +184,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Perlu Dikirim'),
-                  if (kirimCount > 0) ...[
+                  if (manifestCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -233,7 +196,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '$kirimCount',
+                        '$manifestCount',
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -267,515 +230,468 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
   }
 
   Widget _buildKirimTab() {
-    final async = ref.watch(kirimProvider);
+    final manifestsAsync = ref.watch(manifest_prov.driverActiveManifestsProvider);
     final routeAsync = ref.watch(routeProvider);
 
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (result) {
-        final list = result['data'] as List<Transaction>;
+    final manifests = manifestsAsync.valueOrNull ?? <Manifest>[];
+    final totalResi = manifests.fold<int>(0, (s, m) => s + m.totalResi);
+    final totalWorkUnit = manifests.fold<int>(0, (s, m) => s + m.workUnit);
+    final isLoading = manifestsAsync.isLoading;
+    final hasRoute = routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 600;
 
-        // Urutkan berdasarkan jarak dari cabang (terdekat → terjauh)
-        final cabangPos = routeAsync.valueOrNull?.start;
-        if (cabangPos != null) {
-          list.sort((a, b) {
-            double? aLat, aLng, bLat, bLng;
-            if (a.tujuanSelanjutnya?['tipe'] == 'cabang') {
-              final c = CabangLokasiService.findByName(
-                a.tujuanSelanjutnya!['nama'] as String? ?? '',
-              );
-              aLat = c?.latitude;
-              aLng = c?.longitude;
-            } else {
-              aLat = a.penerimaLatitude;
-              aLng = a.penerimaLongitude;
-            }
-            if (b.tujuanSelanjutnya?['tipe'] == 'cabang') {
-              final c = CabangLokasiService.findByName(
-                b.tujuanSelanjutnya!['nama'] as String? ?? '',
-              );
-              bLat = c?.latitude;
-              bLng = c?.longitude;
-            } else {
-              bLat = b.penerimaLatitude;
-              bLng = b.penerimaLongitude;
-            }
-            if (aLat == null || aLng == null) return 1;
-            if (bLat == null || bLng == null) return -1;
-            final da = haversine(cabangPos, LatLng(aLat, aLng));
-            final db = haversine(cabangPos, LatLng(bLat, bLng));
-            return da.compareTo(db);
-          });
-        }
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        // Build stop distance map for card display
-        final stopDistanceMap = <String, double>{};
-        final rd = routeAsync.valueOrNull;
-        if (rd != null) {
-          for (var i = 0; i < rd.orderedStops.length; i++) {
-            final dist = rd.stopDistances.length > i
-                ? rd.stopDistances[i]
-                : 0.0;
-            for (final t in rd.orderedStops[i].transactions) {
-              stopDistanceMap[t.noResi] = dist;
-            }
-          }
-        }
-
-        if (list.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
-                const SizedBox(height: 12),
-                Text(
-                  'Tidak ada data',
-                  style: TextStyle(color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final hasRoute =
-            routeAsync.valueOrNull != null && !routeAsync.valueOrNull!.isEmpty;
-        final screenWidth = MediaQuery.of(context).size.width;
-        final isWide = screenWidth >= 600;
-
-        if (isWide) {
-          // Web / landscape: map 75% tinggi, card horizontal 25%
-          return Column(
-            children: [
-              // Map — 75% tinggi
-              Expanded(
-                flex: 75,
-                child: hasRoute
-                    ? DriverRouteMap(
-                        routeData: routeAsync.valueOrNull!,
-                        compact: true,
-                        driverName: ref.read(authProvider).user?.name,
-                      )
-                    : const Center(
-                        child: Text(
-                          'Tidak ada rute',
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-              ),
-              // Card horizontal — 25% tinggi
-              Expanded(
-                flex: 25,
-                child: Row(
-                  children: [
-                    // Left arrow
-                    if (list.length > 1)
-                      SizedBox(
-                        width: 28,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(
-                            Icons.chevron_left_rounded,
-                            size: 20,
-                            color: Color(0xFF475569),
-                          ),
-                          tooltip: 'Geser ke kiri',
-                          onPressed: () {
-                            final offset =
-                                _cardScrollController.position.pixels -
-                                screenWidth * 0.23;
-                            _cardScrollController.animateTo(
-                              offset.clamp(
-                                0.0,
-                                _cardScrollController.position.maxScrollExtent,
-                              ),
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                        ),
-                      ),
-                    // Cards
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _cardScrollController,
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 6,
-                        ),
-                        itemCount: list.length,
-                        itemBuilder: (_, i) {
-                          final tx = list[i];
-                          return SizedBox(
-                            width: screenWidth * 0.23,
-                            child: Card(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () => _showDetail(tx),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(10),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration: const BoxDecoration(
-                                              color: Color(0xFFF97316),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                '${i + 1}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 10,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              tx.noResi,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 12,
-                                                color: Color(0xFF0F172A),
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          ResiCopyButton(resi: tx.noResi),
-                                          const SizedBox(width: 4),
-                                          Material(
-                                            color: Colors.transparent,
-                                            child: InkWell(
-                                              onTap: () => _navigateToMaps(tx),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  6,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.blue.withValues(
-                                                    alpha: 0.08,
-                                                  ),
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(
-                                                  Icons.navigation_rounded,
-                                                  size: 16,
-                                                  color: Colors.blue,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        '${tx.pengirimName} → ${tx.penerimaName}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF475569),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 2,
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.straighten_rounded,
-                                            size: 11,
-                                            color: const Color(0xFF64748B),
-                                          ),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi Anda',
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: Color(0xFF64748B),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      if (tx.tujuanSelanjutnya != null &&
-                                          (tx.tujuanSelanjutnya!['nama']
-                                                      ?.toString() ??
-                                                  '')
-                                              .isNotEmpty)
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 4,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withValues(
-                                              alpha: 0.08,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.orange.withValues(
-                                                alpha: 0.15,
-                                              ),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            () {
-                                              final nama =
-                                                  tx.tujuanSelanjutnya!['nama']
-                                                      ?.toString() ??
-                                                  '';
-                                              final tipe =
-                                                  tx.tujuanSelanjutnya!['tipe']
-                                                      ?.toString() ??
-                                                  '';
-                                              return tipe == 'cabang'
-                                                  ? 'Antar ke Cabang $nama'
-                                                  : 'Antar ke $nama';
-                                            }(),
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.orange.shade700,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    // Right arrow
-                    if (list.length > 1)
-                      SizedBox(
-                        width: 28,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: Color(0xFF475569),
-                          ),
-                          tooltip: 'Geser ke kanan',
-                          onPressed: () {
-                            final offset =
-                                _cardScrollController.position.pixels +
-                                screenWidth * 0.23;
-                            _cardScrollController.animateTo(
-                              offset.clamp(
-                                0.0,
-                                _cardScrollController.position.maxScrollExtent,
-                              ),
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                            );
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }
-
-        // Mobile portrait: map di atas, list card vertical di bawah
-        return Column(
+    if (manifests.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (hasRoute)
-              SizedBox(
-                height: 250,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: DriverRouteMap(
+            Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              'Tidak ada manifest',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Summary bar
+    final summaryBar = Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          _summaryStat('${manifests.length}', 'Manifest'),
+          Container(width: 1, height: 24, color: const Color(0xFFE2E8F0)),
+          _summaryStat('$totalResi', 'Resi'),
+          Container(width: 1, height: 24, color: const Color(0xFFE2E8F0)),
+          _summaryStat('$totalWorkUnit', 'Work Unit'),
+        ],
+      ),
+    );
+
+    if (isWide) {
+      // Web/landscape: map 75%, manifest list 25%
+      return Column(
+        children: [
+          summaryBar,
+          Expanded(
+            flex: 70,
+            child: hasRoute
+                ? DriverRouteMap(
                     routeData: routeAsync.valueOrNull!,
                     compact: true,
                     driverName: ref.read(authProvider).user?.name,
+                  )
+                : const Center(
+                    child: Text('Tidak ada rute',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                  ),
+          ),
+          Expanded(
+            flex: 30,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              children: manifests.map((m) => _buildManifestCompactCard(m)).toList(),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Mobile portrait: map di atas (collapsible), list manifest vertikal
+    return Column(
+      children: [
+        summaryBar,
+        if (hasRoute)
+          SizedBox(
+            height: 200,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: DriverRouteMap(
+                routeData: routeAsync.valueOrNull!,
+                compact: true,
+                driverName: ref.read(authProvider).user?.name,
+              ),
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(manifest_prov.driverActiveManifestsProvider);
+              ref.invalidate(manifest_prov.manifestStatsProvider);
+              ref.invalidate(routeProvider);
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              itemCount: manifests.length,
+              itemBuilder: (_, i) => _buildManifestCard(manifests[i]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Manifest card with ExpansionTile for mobile
+  Widget _buildManifestCard(Manifest m) {
+    final txs = m.transactions ?? <Transaction>[];
+    final selesai = txs.where((tx) =>
+        tx.statusSaatIni == 'diterima' || tx.statusSaatIni == 'diterima_cabang').length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        initiallyExpanded: false,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: m.isAntarCabang
+                ? AppTheme.primary.withValues(alpha: 0.08)
+                : Colors.orange.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            Icons.description_rounded,
+            size: 22,
+            color: m.isAntarCabang ? AppTheme.primary : Colors.orange,
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    m.noManifest,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      fontFamily: 'monospace',
+                      letterSpacing: 0.5,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                 ),
-              ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: list.length,
-                itemBuilder: (_, i) {
-                  final tx = list[i];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                _manifestTypeBadge(m),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  m.isAntarCabang ? Icons.store_rounded : Icons.person_pin_circle_rounded,
+                  size: 12,
+                  color: const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    m.tujuanNama,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                // Progress bar
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: txs.isEmpty ? 0 : selesai / txs.length,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        selesai == txs.length && txs.isNotEmpty
+                            ? Colors.green
+                            : AppTheme.primary,
+                      ),
+                      minHeight: 4,
                     ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => _showDetail(tx),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.local_shipping_rounded,
-                                  size: 16,
-                                  color: Colors.orange.shade700,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    tx.noResi,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                      letterSpacing: 1,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ),
-                                ResiCopyButton(resi: tx.noResi),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.navigation_rounded,
-                                    size: 18,
-                                    color: Colors.blue,
-                                  ),
-                                  tooltip: 'Navigasi ke Penerima',
-                                  onPressed: () => _navigateToMaps(tx),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${tx.pengirimName} → ${tx.penerimaName}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF475569),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (tx.tujuanSelanjutnya != null &&
-                                (tx.tujuanSelanjutnya!['nama']?.toString() ??
-                                        '')
-                                    .isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.orange.withValues(
-                                      alpha: 0.15,
-                                    ),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.tour,
-                                      size: 14,
-                                      color: Colors.orange.shade700,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        () {
-                                          final nama =
-                                              tx.tujuanSelanjutnya!['nama']
-                                                  ?.toString() ??
-                                              '';
-                                          final tipe =
-                                              tx.tujuanSelanjutnya!['tipe']
-                                                  ?.toString() ??
-                                              '';
-                                          return tipe == 'cabang'
-                                              ? 'Antar ke Cabang $nama'
-                                              : 'Antar ke $nama (penerima)';
-                                        }(),
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.orange.shade700,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ] else ...[
-                              const SizedBox(height: 8),
-                            ],
-                            // Distance info
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.straighten_rounded,
-                                  size: 12,
-                                  color: const Color(0xFF64748B),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${stopDistanceMap[tx.noResi]?.toStringAsFixed(1) ?? '?'} km dari lokasi Anda',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: const Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$selesai/${txs.length} resi',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: selesai == txs.length && txs.isNotEmpty
+                        ? Colors.green
+                        : const Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${m.workUnit} Work',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          // Resi list
+          ...txs.map((tx) => _buildResiInManifest(tx)),
+          const SizedBox(height: 8),
+          // Lihat detail button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/dashboard/manifest/${m.id}'),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Detail Manifest'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 38),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Compact card for wide layout
+  Widget _buildManifestCompactCard(Manifest m) {
+    final txs = m.transactions ?? <Transaction>[];
+    final selesai = txs.where((tx) =>
+        tx.statusSaatIni == 'diterima' || tx.statusSaatIni == 'diterima_cabang').length;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => context.push('/dashboard/manifest/${m.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      m.noManifest,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: Color(0xFF0F172A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  _manifestTypeBadge(m),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                m.tujuanNama,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    '$selesai/${txs.length} resi · ${m.workUnit} work',
+                    style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Individual resi card inside manifest expansion
+  Widget _buildResiInManifest(Transaction tx) {
+    final selesai = tx.statusSaatIni == 'diterima' || tx.statusSaatIni == 'diterima_cabang';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: selesai ? Colors.green.withValues(alpha: 0.03) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: selesai
+              ? Colors.green.withValues(alpha: 0.2)
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: selesai
+                    ? Colors.green.withValues(alpha: 0.08)
+                    : Colors.orange.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                selesai ? Icons.check_circle_rounded : Icons.pending_rounded,
+                size: 16,
+                color: selesai ? Colors.green : Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          tx.noResi,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                            color: selesai ? const Color(0xFF6B7280) : const Color(0xFF0F172A),
+                            decoration: selesai ? TextDecoration.lineThrough : null,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 4),
+                      ResiCopyButton(resi: tx.noResi),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${tx.pengirimName} → ${tx.penerimaName}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: selesai ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
                     ),
-                  );
-                },
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              selesai ? '✅' : tx.beratLabel,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: selesai ? Colors.green : const Color(0xFF64748B),
               ),
             ),
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  Widget _manifestTypeBadge(Manifest m) {
+    final color = m.isAntarCabang ? AppTheme.primary : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        m.tipeLabel,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryStat(String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: Color(0xFF94A3B8),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildRiwayatTab() {
-    final dateFmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
-    final currentUserId = ref.read(authProvider).user?.id;
     final fmt = DateFormat('dd/MM/yyyy');
+
+    // Filter state
+    final riwayatFilter = manifest_prov.ManifestFilter(status: 'selesai', page: _riwayatPage);
+    final riwayatAsync = ref.watch(manifest_prov.driverRiwayatManifestsProvider(riwayatFilter));
+    final riwayatManifests = riwayatAsync.valueOrNull?.manifests ?? <Manifest>[];
+
+    // Merge into _riwayatItems for pagination
+    if (riwayatAsync.hasValue && riwayatManifests.isNotEmpty && _riwayatItems.isEmpty) {
+      _riwayatItems.addAll(riwayatManifests);
+    }
 
     return Column(
       children: [
@@ -855,8 +771,10 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                 setState(() {
                   _startDate = picked.start;
                   _endDate = picked.end;
-                  _resetRiwayat();
+                  _riwayatPage = 1;
+                  _riwayatItems.clear();
                 });
+                ref.invalidate(manifest_prov.driverRiwayatManifestsProvider);
               }
             },
             child: Container(
@@ -893,8 +811,10 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                         setState(() {
                           _startDate = null;
                           _endDate = null;
-                          _resetRiwayat();
+                          _riwayatPage = 1;
+                          _riwayatItems.clear();
                         });
+                        ref.invalidate(manifest_prov.driverRiwayatManifestsProvider);
                       },
                       child: const Icon(
                         Icons.close,
@@ -909,7 +829,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
           ),
         ),
         Expanded(
-          child: _riwayatItems.isEmpty && !_riwayatLoadingMore
+          child: _riwayatItems.isEmpty && !riwayatAsync.isLoading
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -917,131 +837,45 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                       Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
                       Text(
-                        'Tidak ada riwayat',
+                        'Tidak ada riwayat manifest',
                         style: TextStyle(color: Colors.grey.shade500),
                       ),
                     ],
                   ),
                 )
-              : ListView.builder(
-                  controller: _riwayatScrollC,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount:
-                      _riwayatItems.length +
-                      (_riwayatPage <= _riwayatTotalPages ? 1 : 0),
-                  itemBuilder: (_, i) {
-                    if (i == _riwayatItems.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    }
-                    final tx = _riwayatItems[i];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        leading: Icon(
-                          tx.statusSaatIni == 'diterima'
-                              ? Icons.check_circle
-                              : Icons.local_shipping,
-                          color: tx.statusSaatIni == 'diterima'
-                              ? Colors.green
-                              : Colors.orange,
-                        ),
-                        title: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                tx.noResi,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 1,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            ResiCopyButton(resi: tx.noResi),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.navigation_rounded,
-                                size: 18,
-                                color: Colors.blue,
-                              ),
-                              tooltip: 'Navigasi ke Penerima',
-                              onPressed: () => _navigateToMaps(tx),
-                            ),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('${tx.pengirimName} → ${tx.penerimaName}'),
-                              if (_tujuanUntukDriver(tx, currentUserId) != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.tour,
-                                        size: 14,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          () {
-                                            final tujuan = _tujuanUntukDriver(
-                                              tx,
-                                              currentUserId,
-                                            );
-                                            final nama =
-                                                tujuan?['nama']?.toString() ??
-                                                '';
-                                            final tipe =
-                                                tujuan?['tipe']?.toString() ??
-                                                '';
-                                            return tipe == 'cabang'
-                                                ? 'Mengantar ke Cabang $nama'
-                                                : 'Mengantar ke $nama (penerima)';
-                                          }(),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.orange.shade700,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              Text(
-                                dateFmt.format(toJakarta(tx.createdAt)),
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        isThreeLine: true,
-                        trailing: StatusBadge(status: tx.statusSaatIni),
-                        onTap: () => _showDetail(tx),
-                      ),
-                    );
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    _riwayatPage = 1;
+                    _riwayatItems.clear();
+                    ref.invalidate(manifest_prov.driverRiwayatManifestsProvider);
+                    await Future<void>.delayed(const Duration(milliseconds: 100));
                   },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                    itemCount: _riwayatItems.length + (_riwayatAsyncHasMore ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      if (i >= _riwayatItems.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      }
+                      final manifest = _riwayatItems[i];
+                      return _RiwayatManifestCard(
+                        manifest: manifest,
+                        onTapResi: (tx) => _showDetail(tx),
+                      );
+                    },
+                  ),
                 ),
         ),
       ],
     );
   }
+
+  bool get _riwayatAsyncHasMore => _riwayatItems.length >= 20; // simple heuristic
 
   void _showDetail(Transaction tx) {
     final fmt = NumberFormat.currency(
@@ -1647,6 +1481,152 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Widget card untuk riwayat manifest (selesai)
+class _RiwayatManifestCard extends ConsumerWidget {
+  final Manifest manifest;
+  final void Function(Transaction) onTapResi;
+
+  const _RiwayatManifestCard({
+    required this.manifest,
+    required this.onTapResi,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final txs = manifest.transactions ?? <Transaction>[];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        initiallyExpanded: false,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.check_circle_rounded, size: 22, color: Colors.green),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              manifest.noManifest,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                fontFamily: 'monospace',
+                letterSpacing: 0.5,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${manifest.tujuanNama} · ${manifest.totalResi} resi · ${manifest.workUnit} work',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+            ),
+          ],
+        ),
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          ...txs.map((tx) => _RiwayatResiItem(tx: tx, onTap: () => onTapResi(tx))),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiwayatResiItem extends StatelessWidget {
+  final Transaction tx;
+  final VoidCallback onTap;
+
+  const _RiwayatResiItem({required this.tx, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.grey.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.check_circle_rounded, size: 16, color: Colors.green),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          tx.noResi,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF6B7280),
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      ResiCopyButton(resi: tx.noResi),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${tx.pengirimName} → ${tx.penerimaName}',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '✅',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }

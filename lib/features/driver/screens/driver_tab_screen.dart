@@ -52,13 +52,33 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
   DateTime? _startDate;
   DateTime? _endDate;
 
+  // Horizontal scroll
+  final _manifestScrollCtrl = ScrollController();
+  double _manifestScrollPos = 0;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
+      if (_tabController.indexIsChanging || !mounted) return;
+      if (_tabController.index == 0) {
+        ref.invalidate(manifest_prov.driverActiveManifestsProvider);
+        ref.invalidate(manifest_prov.manifestStatsProvider);
+      } else if (_tabController.index == 1) {
+        _riwayatPage = 1;
+        _riwayatItems.clear();
+        ref.invalidate(manifest_prov.driverRiwayatManifestsProvider(
+          manifest_prov.ManifestFilter(status: 'selesai', page: 1),
+        ));
+      }
+    });
+    _manifestScrollCtrl.addListener(() {
+      if (!mounted) return;
+      if (_manifestScrollCtrl.hasClients) {
+        setState(() {
+          _manifestScrollPos = _manifestScrollCtrl.position.pixels;
+        });
       }
     });
   }
@@ -66,6 +86,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _manifestScrollCtrl.dispose();
     super.dispose();
   }
 
@@ -130,6 +151,32 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         );
       }
     }
+  }
+
+  Future<void> _navigateToCabang(String cabangNama, {double? lat, double? lng}) async {
+    try {
+      final driverLocation = await _getDriverLocation();
+      String url;
+      if (lat != null && lng != null) {
+        // Pakai koordinat eksak dari database
+        if (driverLocation != null) {
+          url = 'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude},${driverLocation.longitude}&destination=$lat,$lng&travelmode=driving';
+        } else {
+          url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+        }
+      } else {
+        // Fallback ke pencarian nama
+        if (driverLocation != null) {
+          url = 'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude},${driverLocation.longitude}&destination=${Uri.encodeComponent('$cabangNama, Indonesia')}&travelmode=driving';
+        } else {
+          url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('$cabangNama, Indonesia')}';
+        }
+      }
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
   }
 
   Future<Position?> _getDriverLocation() async {
@@ -301,10 +348,35 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
           ),
           Expanded(
             flex: 30,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              children: manifests.map((m) => _buildManifestCompactCard(m)).toList(),
-            ),
+            child: manifests.isEmpty
+                ? const Center(
+                    child: Text('Tidak ada manifest',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                  )
+                : Stack(
+                    children: [
+                      ListView(
+                        controller: _manifestScrollCtrl,
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(8, 8, 56, 8),
+                        children: manifests.map((m) => _buildManifestCompactCard(m)).toList(),
+                      ),
+                      // Right chevron
+                      Positioned(
+                        right: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: _buildRightChevron(),
+                      ),
+                      // Left chevron
+                      Positioned(
+                        left: 8,
+                        top: 0,
+                        bottom: 0,
+                        child: _buildLeftChevron(),
+                      ),
+                    ],
+                  ),
           ),
         ],
       );
@@ -388,22 +460,15 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    m.noManifest,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      fontFamily: 'monospace',
-                      letterSpacing: 0.5,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ),
-                _manifestTypeBadge(m),
-              ],
+            Text(
+              m.noManifest,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                fontFamily: 'monospace',
+                letterSpacing: 0.5,
+                color: Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 4),
             Row(
@@ -421,6 +486,26 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (m.isAntarCabang)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _navigateToCabang(m.tujuanNama, lat: m.tujuanLat, lng: m.tujuanLng),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.navigation_rounded,
+                          size: 14,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 4),
@@ -482,11 +567,13 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
           // Lihat detail button
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: ElevatedButton.icon(
               onPressed: () => context.push('/dashboard/manifest/${m.id}'),
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
               label: const Text('Detail Manifest'),
-              style: OutlinedButton.styleFrom(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
                 minimumSize: const Size(0, 38),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -505,51 +592,115 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     final selesai = txs.where((tx) =>
         tx.statusSaatIni == 'diterima' || tx.statusSaatIni == 'diterima_cabang').length;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => context.push('/dashboard/manifest/${m.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      m.noManifest,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                        fontFamily: 'monospace',
-                        color: Color(0xFF0F172A),
+    return Container(
+      width: 240,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    m.noManifest,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      color: Color(0xFF0F172A),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (m.isAntarCabang)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _navigateToCabang(m.tujuanNama, lat: m.tujuanLat, lng: m.tujuanLng),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.navigation_rounded,
+                          size: 14,
+                          color: AppTheme.primary,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  _manifestTypeBadge(m),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                m.tujuanNama,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    '$selesai/${txs.length} resi · ${m.workUnit} work',
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  m.isAntarCabang ? Icons.store_rounded : Icons.person_pin_circle_rounded,
+                  size: 11,
+                  color: const Color(0xFF64748B),
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    m.tujuanNama,
+                    style: const TextStyle(fontSize: 10, color: Color(0xFF475569)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                _badge(
+                  '$selesai/${txs.length} resi',
+                  const Color(0xFF3B82F6),
+                ),
+                const SizedBox(width: 4),
+                _badge(
+                  '${m.workUnit} Work',
+                  Colors.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/dashboard/manifest/${m.id}'),
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text('Detail Manifest', style: TextStyle(fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -609,6 +760,31 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                       ),
                       const SizedBox(width: 4),
                       ResiCopyButton(resi: tx.noResi),
+                      if (tx.penerimaAddress.isNotEmpty ||
+                          (tx.penerimaLatitude != null &&
+                              tx.penerimaLongitude != null))
+                        Padding(
+                          padding: const EdgeInsets.only(left: 2),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _navigateToMaps(tx),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.navigation_rounded,
+                                  size: 16,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -637,18 +813,81 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     );
   }
 
-  Widget _manifestTypeBadge(Manifest m) {
-    final color = m.isAntarCabang ? AppTheme.primary : Colors.orange;
+  Widget _buildRightChevron() {
+    final hasClients = _manifestScrollCtrl.hasClients;
+    final maxScroll = hasClients ? _manifestScrollCtrl.position.maxScrollExtent : 0;
+    if (maxScroll <= 0) return const SizedBox.shrink();
+    final atEnd = _manifestScrollPos >= maxScroll - 10;
+    return Center(
+      child: CircleAvatar(
+        radius: 14,
+        backgroundColor: Colors.white,
+        child: IconButton(
+          icon: Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: atEnd ? const Color(0xFFCBD5E1) : AppTheme.primary,
+          ),
+          padding: EdgeInsets.zero,
+          onPressed: atEnd
+              ? null
+              : () {
+                  if (_manifestScrollCtrl.hasClients) {
+                    _manifestScrollCtrl.animateTo(
+                      _manifestScrollCtrl.position.pixels + 260,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeftChevron() {
+    final hasClients = _manifestScrollCtrl.hasClients;
+    final maxScroll = hasClients ? _manifestScrollCtrl.position.maxScrollExtent : 0;
+    if (maxScroll <= 0) return const SizedBox.shrink();
+    final atStart = _manifestScrollPos <= 10;
+    return Center(
+      child: CircleAvatar(
+        radius: 14,
+        backgroundColor: Colors.white,
+        child: IconButton(
+          icon: Icon(
+            Icons.chevron_left_rounded,
+            size: 18,
+            color: atStart ? const Color(0xFFCBD5E1) : AppTheme.primary,
+          ),
+          padding: EdgeInsets.zero,
+          onPressed: atStart
+              ? null
+              : () {
+                  if (_manifestScrollCtrl.hasClients) {
+                    _manifestScrollCtrl.animateTo(
+                      _manifestScrollCtrl.position.pixels - 260,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                },
+        ),
+      ),
+    );
+  }
+
+  Widget _badge(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        m.tipeLabel,
+        text,
         style: TextStyle(
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
           color: color,
         ),
@@ -935,6 +1174,9 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                                 StatusBadge(
                                   status: tx.statusSaatIni,
                                   fontSize: 10,
+                                  labelOverride: tx.statusSaatIni == 'diterima_cabang'
+                                      ? 'Diterima di ${tx.diterimaDiCabang.isNotEmpty ? tx.diterimaDiCabang : 'Cabang'}'
+                                      : null,
                                 ),
                               ],
                             ),
@@ -1487,7 +1729,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
 }
 
 /// Widget card untuk riwayat manifest (selesai)
-class _RiwayatManifestCard extends ConsumerWidget {
+class _RiwayatManifestCard extends ConsumerStatefulWidget {
   final Manifest manifest;
   final void Function(Transaction) onTapResi;
 
@@ -1497,8 +1739,36 @@ class _RiwayatManifestCard extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final txs = manifest.transactions ?? <Transaction>[];
+  ConsumerState<_RiwayatManifestCard> createState() =>
+      _RiwayatManifestCardState();
+}
+
+class _RiwayatManifestCardState extends ConsumerState<_RiwayatManifestCard> {
+  List<Transaction>? _transactions;
+  bool _loadingTxs = false;
+
+  Future<void> _loadTransactions() async {
+    if (_transactions != null || _loadingTxs) return;
+    setState(() => _loadingTxs = true);
+    try {
+      final res =
+          await ApiService().get('${ApiConstants.manifests}/${widget.manifest.id}');
+      final data = res.data as Map<String, dynamic>;
+      final detail = Manifest.fromJson(data);
+      if (!mounted) return;
+      setState(() {
+        _transactions = detail.transactions ?? [];
+        _loadingTxs = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingTxs = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final txs = _transactions ?? <Transaction>[];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1506,13 +1776,6 @@ class _RiwayatManifestCard extends ConsumerWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
@@ -1520,6 +1783,9 @@ class _RiwayatManifestCard extends ConsumerWidget {
         shape: const Border(),
         collapsedShape: const Border(),
         initiallyExpanded: false,
+        onExpansionChanged: (expanded) {
+          if (expanded) _loadTransactions();
+        },
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -1532,7 +1798,7 @@ class _RiwayatManifestCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              manifest.noManifest,
+              widget.manifest.noManifest,
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 14,
@@ -1543,7 +1809,7 @@ class _RiwayatManifestCard extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${manifest.tujuanNama} · ${manifest.totalResi} resi · ${manifest.workUnit} work',
+              '${widget.manifest.tujuanNama} · ${widget.manifest.totalResi} resi · ${widget.manifest.workUnit} work',
               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
             ),
           ],
@@ -1551,7 +1817,46 @@ class _RiwayatManifestCard extends ConsumerWidget {
         children: [
           const Divider(height: 1),
           const SizedBox(height: 8),
-          ...txs.map((tx) => _RiwayatResiItem(tx: tx, onTap: () => onTapResi(tx))),
+          if (_loadingTxs)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (txs.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Text(
+                  'Memuat data resi...',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                ),
+              ),
+            )
+          else
+            ...txs.map((tx) => _RiwayatResiItem(tx: tx, onTap: () => widget.onTapResi(tx))),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/dashboard/manifest/${widget.manifest.id}'),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              label: const Text('Detail Manifest'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 38),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
         ],
       ),

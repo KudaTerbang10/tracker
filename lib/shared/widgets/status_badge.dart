@@ -5,7 +5,8 @@ import '../../core/constants/api_constants.dart';
 class StatusBadge extends StatelessWidget {
   final String status;
   final double fontSize;
-  const StatusBadge({super.key, required this.status, this.fontSize = 11});
+  final String? labelOverride;
+  const StatusBadge({super.key, required this.status, this.fontSize = 11, this.labelOverride});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            StatusList.label(status),
+            labelOverride ?? StatusList.label(status),
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.w600,

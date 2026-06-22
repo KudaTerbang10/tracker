@@ -51,7 +51,8 @@ class TrackingTimeline extends StatelessWidget {
             if (isLast && sorted.length > 1) {
               title = 'Paket diterima ekspedisi';
             } else if (log.status == 'diterima_cabang') {
-              title = 'Diterima cabang';
+              final loc = log.lokasiName;
+              title = loc.isNotEmpty ? 'Diterima di $loc' : 'Diterima cabang';
             } else {
               title = StatusList.label(log.status);
             }

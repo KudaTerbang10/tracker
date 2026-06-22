@@ -27,6 +27,7 @@ const trackingLogSchema = new mongoose.Schema({
     nama: { type: String, default: '' },
   },
   nama_penerima: { type: String, default: '' },
+  no_manifest: { type: String, default: '' },
   timestamp: { type: Date, default: Date.now },
 });
 

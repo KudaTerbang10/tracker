@@ -11,6 +11,8 @@ class Manifest {
   final String tipeManifest; // 'antar_cabang' | 'antar_penerima'
   final int workUnit;
   final int totalResi;
+  final int jumlahKoli;
+  final double totalBerat;
   final String status; // 'dibuat' | 'dalam_perjalanan' | 'selesai'
   final DateTime? completedAt;
   final DateTime createdAt;
@@ -31,6 +33,8 @@ class Manifest {
     required this.tipeManifest,
     required this.workUnit,
     required this.totalResi,
+    this.jumlahKoli = 0,
+    this.totalBerat = 0,
     required this.status,
     this.completedAt,
     required this.createdAt,
@@ -63,6 +67,8 @@ class Manifest {
       tipeManifest: json['tipe_manifest'] as String,
       workUnit: json['work_unit'] as int? ?? 0,
       totalResi: json['total_resi'] as int? ?? 0,
+      jumlahKoli: json['jumlah_koli'] as int? ?? 0,
+      totalBerat: ((json['total_berat'] as num?)?.toDouble() ?? 0),
       status: json['status'] as String? ?? 'dibuat',
       completedAt: json['completed_at'] != null
           ? DateTime.parse(json['completed_at'] as String)
@@ -78,6 +84,19 @@ class Manifest {
   String get driverPhone => driver['phone'] as String? ?? '';
   String get tujuanTipe => tujuan['tipe'] as String? ?? '';
   String get tujuanNama => tujuan['nama'] as String? ?? '';
+  double? get tujuanLng {
+    final lokasi = tujuan['lokasi'] as Map<String, dynamic>?;
+    final coords = lokasi?['coordinates'] as List<dynamic>?;
+    if (coords != null && coords.length >= 2) return (coords[0] as num).toDouble();
+    return null;
+  }
+  double? get tujuanLat {
+    final lokasi = tujuan['lokasi'] as Map<String, dynamic>?;
+    final coords = lokasi?['coordinates'] as List<dynamic>?;
+    if (coords != null && coords.length >= 2) return (coords[1] as num).toDouble();
+    return null;
+  }
+  bool get hasTujuanLokasi => tujuanLat != null && tujuanLng != null;
   String get statusLabel {
     switch (status) {
       case 'dibuat':

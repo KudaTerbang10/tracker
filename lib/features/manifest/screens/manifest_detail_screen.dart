@@ -35,7 +35,7 @@ class ManifestDetailScreen extends ConsumerWidget {
           async.whenOrNull(
                 data: (m) => m != null
                     ? IconButton(
-                        icon: const Icon(Icons.print_rounded),
+                        icon: const Icon(Icons.print_rounded, color: Color(0xFF3B82F6)),
                         tooltip: 'Cetak PDF',
                         onPressed: () => _printManifest(context, m),
                       )
@@ -68,12 +68,30 @@ class ManifestDetailScreen extends ConsumerWidget {
         _headerCard(manifest),
         const SizedBox(height: 12),
 
-        // Info card
-        _infoCard(manifest),
-        const SizedBox(height: 12),
-
-        // Driver & Admin card
-        _peopleCard(manifest),
+        // Info + Driver card — row on wide, stacked on mobile
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth > 768) {
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _infoCard(manifest)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _peopleCard(manifest)),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              children: [
+                _infoCard(manifest),
+                const SizedBox(height: 12),
+                _peopleCard(manifest),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 12),
 
         // Summary card
@@ -111,7 +129,7 @@ class ManifestDetailScreen extends ConsumerWidget {
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
@@ -121,33 +139,29 @@ class ManifestDetailScreen extends ConsumerWidget {
                     : Colors.orange.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Icon(
+                Icons.description_rounded,
+                size: 28,
+                color: m.isAntarCabang ? AppTheme.primary : Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.description_rounded,
-                    size: 24,
-                    color:
-                        m.isAntarCabang ? AppTheme.primary : Colors.orange,
+                  Text(
+                    m.noManifest,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      fontFamily: 'monospace',
+                      letterSpacing: 1,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        m.noManifest,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          fontFamily: 'monospace',
-                          letterSpacing: 1,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _statusBadge(m.statusLabel, m.status),
-                    ],
-                  ),
+                  const SizedBox(height: 4),
+                  _statusBadge(m.statusLabel, m.status),
                 ],
               ),
             ),
@@ -163,7 +177,24 @@ class ManifestDetailScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    size: 16, color: Color(0xFF64748B)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Informasi Pengiriman',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _infoRowItem(Icons.store_rounded, 'Asal', m.asalCabangName),
             const Divider(height: 20),
             _infoRowItem(
@@ -176,15 +207,18 @@ class ManifestDetailScreen extends ConsumerWidget {
               Icons.category_rounded,
               'Tipe',
               m.tipeLabel,
-              badge: _badge(m.tipeLabel,
-                  m.isAntarCabang ? AppTheme.primary : Colors.orange),
             ),
             const Divider(height: 20),
             _infoRowItem(
-              Icons.work_rounded,
-              'Work Unit',
-              '${m.workUnit}',
-              badge: _badge('${m.workUnit} Work', Colors.green),
+              Icons.card_giftcard_rounded,
+              'Total Koli',
+              '${m.jumlahKoli} koli',
+            ),
+            const Divider(height: 20),
+            _infoRowItem(
+              Icons.monitor_weight_rounded,
+              'Total Berat',
+              '${m.totalBerat.toStringAsFixed(1)} kg',
             ),
           ],
         ),
@@ -216,15 +250,30 @@ class ManifestDetailScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            _labelValue('Driver', m.driverName),
+            _infoRowItem(Icons.person_rounded, 'Driver', m.driverName),
+            const Divider(height: 20),
             if (m.driverPhone.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              _labelValue('Kontak', m.driverPhone),
+              _infoRowItem(Icons.phone_rounded, 'Kontak', m.driverPhone),
+              const Divider(height: 20),
             ],
-            const SizedBox(height: 8),
-            _labelValue(
-                'Dibuat oleh', m.createdBy['name'] as String? ?? ''),
-            _labelValue('Cabang', m.createdBy['cabang_name'] as String? ?? ''),
+            _infoRowItem(
+              Icons.person_add_rounded,
+              'Dibuat oleh',
+              m.createdBy['name'] as String? ?? '',
+            ),
+            const Divider(height: 20),
+            _infoRowItem(
+              Icons.business_rounded,
+              'Cabang',
+              m.createdBy['cabang_name'] as String? ?? '',
+            ),
+            const Divider(height: 20),
+            _infoRowItem(
+              Icons.access_time_rounded,
+              'Dibuat pada',
+              DateFormat('dd MMM yyyy, HH:mm', 'id_ID')
+                  .format(toJakarta(m.createdAt)),
+            ),
           ],
         ),
       ),
@@ -342,7 +391,7 @@ class ManifestDetailScreen extends ConsumerWidget {
                               tx.statusSaatIni == 'diterima'
                                   ? 'Diterima ✅'
                                   : tx.statusSaatIni == 'diterima_cabang'
-                                      ? 'Di Cabang'
+                                      ? 'Di ${tx.diterimaDiCabang.isNotEmpty ? tx.diterimaDiCabang : 'Cabang'}'
                                       : 'Dalam Perjalanan',
                               style: TextStyle(
                                 fontSize: 10,
@@ -415,7 +464,9 @@ class ManifestDetailScreen extends ConsumerWidget {
                                   'Nomor Resi Pengiriman',
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                                 ),
-                                StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                                tx.statusSaatIni == 'diterima_cabang'
+                                    ? _cabangBadge(tx.diterimaDiCabang)
+                                    : StatusBadge(status: tx.statusSaatIni, fontSize: 10),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -586,7 +637,7 @@ class ManifestDetailScreen extends ConsumerWidget {
         Icon(icon, size: 16, color: const Color(0xFF64748B)),
         const SizedBox(width: 10),
         SizedBox(
-          width: 60,
+          width: 85,
           child: Text(
             label,
             style: const TextStyle(
@@ -600,7 +651,7 @@ class ManifestDetailScreen extends ConsumerWidget {
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: 12,
               color: Color(0xFF0F172A),
             ),
           ),
@@ -666,6 +717,41 @@ class ManifestDetailScreen extends ConsumerWidget {
     );
   }
 
+  Widget _cabangBadge(String cabangNama) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Color(0xFF3B82F6),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Diterima di ${cabangNama.isNotEmpty ? cabangNama : 'Cabang'}',
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF3B82F6),
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _badge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -721,6 +807,9 @@ class ManifestDetailScreen extends ConsumerWidget {
     final fmtDate = DateFormat('dd/MM/yyyy HH:mm', 'id_ID');
     final now = fmtDate.format(toJakarta(DateTime.now()));
 
+    final logoData = await rootBundle.load('assets/pics/hiralogo.webp');
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -729,34 +818,52 @@ class ManifestDetailScreen extends ConsumerWidget {
         margin: const pw.EdgeInsets.all(32),
         build: (ctx) => [
           // Header
-          pw.Center(
-            child: pw.Text(
-              'MANIFEST PENGIRIMAN',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Image(logoImage, height: 50),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'HIRA EXPRESS',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.indigo700,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'MANIFEST PENGIRIMAN',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      m.noManifest,
+                      style: pw.TextStyle(
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        fontFallback: [pw.Font.courier()],
+                        color: PdfColors.grey700,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      'Dicetak: $now',
+                      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-          pw.SizedBox(height: 4),
-          pw.Center(
-            child: pw.Text(
-              m.noManifest,
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                fontFallback: [pw.Font.courier()],
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Center(
-            child: pw.Text(
-              'Dicetak: $now',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey),
-            ),
-          ),
-          pw.SizedBox(height: 16),
+          pw.Divider(height: 24, thickness: 1),
 
           // Info section
           pw.Row(
@@ -849,38 +956,65 @@ class ManifestDetailScreen extends ConsumerWidget {
           pw.SizedBox(height: 32),
 
           // Signature lines
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-            children: [
-              pw.Column(
-                children: [
-                  pw.Text('Admin ${m.asalCabangName}',
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 32),
-                  pw.Text('(_______________)',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.Column(
-                children: [
-                  pw.Text('Driver',
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 32),
-                  pw.Text('(_______________)',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.Column(
-                children: [
-                  pw.Text('Admin ${m.tujuanNama}',
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 32),
-                  pw.Text('(_______________)',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-            ],
-          ),
+          if (m.isAntarCabang) ...[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                pw.Column(
+                  children: [
+                    pw.Text('Admin ${m.asalCabangName}',
+                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('(_______________)',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+                pw.Column(
+                  children: [
+                    pw.Text('Driver',
+                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('(_______________)',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+                pw.Column(
+                  children: [
+                    pw.Text('Admin ${m.tujuanNama}',
+                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('(_______________)',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          ] else ...[
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                pw.Column(
+                  children: [
+                    pw.Text('Admin ${m.asalCabangName}',
+                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('(_______________)',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+                pw.SizedBox(width: 80),
+                pw.Column(
+                  children: [
+                    pw.Text('Driver',
+                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 32),
+                    pw.Text('(_______________)',
+                        style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

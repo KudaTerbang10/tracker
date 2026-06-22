@@ -521,6 +521,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
         );
         SoundPlayer.instance.playSuccess();
         ref.invalidate(manifest_provider.driverManifestProvider);
+        ref.invalidate(manifest_provider.driverActiveManifestsProvider);
         ref.invalidate(manifest_provider.manifestListProvider);
       }
     } catch (e) {
@@ -660,6 +661,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
         );
         SoundPlayer.instance.playSuccess();
         ref.read(scanDatangProvider.notifier).clear();
+        ref.invalidate(manifest_provider.driverActiveManifestsProvider);
       }
     } catch (e) {
       SoundPlayer.instance.playError();

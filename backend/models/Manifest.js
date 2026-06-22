@@ -24,6 +24,10 @@ const manifestSchema = new mongoose.Schema({
     tipe: { type: String, enum: ['cabang', 'penerima'], required: true },
     cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
     nama: { type: String, required: true },
+    lokasi: {
+      type: { type: String, enum: ['Point'], default: null },
+      coordinates: { type: [Number], default: [] },
+    },
   },
 
   asal_cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', required: true },
@@ -37,6 +41,8 @@ const manifestSchema = new mongoose.Schema({
 
   work_unit: { type: Number, required: true },
   total_resi: { type: Number, required: true },
+  jumlah_koli: { type: Number, required: true },
+  total_berat: { type: Number, default: 0 },
 
   status: {
     type: String,
@@ -47,7 +53,6 @@ const manifestSchema = new mongoose.Schema({
   completed_at: { type: Date, default: null },
 }, { timestamps: true });
 
-manifestSchema.index({ no_manifest: 1 });
 manifestSchema.index({ 'created_by.user_id': 1, createdAt: -1 });
 manifestSchema.index({ 'driver.user_id': 1, status: 1 });
 manifestSchema.index({ asal_cabang_id: 1, createdAt: -1 });

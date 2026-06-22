@@ -141,6 +141,13 @@ router.post('/batch-status', auth, async (req, res) => {
 
     const validIds = [...validTxMap.keys()];
     let manifest = null;
+    let no_manifest = null;
+    const berhasilCount = validIds.length;
+
+    if (status_baru === 'keluar_cabang' && berhasilCount > 0) {
+      const generateNoManifest = require('../utils/manifestGenerator');
+      no_manifest = await generateNoManifest();
+    }
 
     if (validIds.length > 0) {
       const bulkOps = [];
@@ -157,6 +164,8 @@ router.post('/batch-status', auth, async (req, res) => {
         const pushLogs = [log];
 
         if (status_baru === 'keluar_cabang') {
+          log.no_manifest = no_manifest;
+          setFields.no_manifest = no_manifest;
           // current_cabang_id null — barang dalam perjalanan, belum sampai tujuan
           setFields.current_cabang_id = null;
 
@@ -185,6 +194,7 @@ router.post('/batch-status', auth, async (req, res) => {
                   deskripsi: `Paket dalam perjalanan oleh ${driverName} menuju ${cabangName}`,
                   pelaku: { name: 'Sistem', role: 'system' },
                   tujuan: { tipe: 'cabang', nama: cabangName },
+                  no_manifest: no_manifest,
                   timestamp: new Date(Date.now() + 1),
                 };
                 pushLogs.push(autoLog);
@@ -203,6 +213,7 @@ router.post('/batch-status', auth, async (req, res) => {
                 deskripsi: `Paket dalam perjalanan oleh ${driverName} menuju alamat penerima`,
                 pelaku: { name: 'Sistem', role: 'system' },
                 tujuan: { tipe: 'penerima', nama: tx.penerima.name },
+                no_manifest: no_manifest,
                 timestamp: new Date(Date.now() + 1),
               };
               pushLogs.push(autoLog);
@@ -249,12 +260,50 @@ router.post('/batch-status', auth, async (req, res) => {
         }
       }
 
-      // — AUTO-GENERATE MANIFEST —
-      const berhasilCount = results.filter(r => r.status === 'ok').length;
-      if (status_baru === 'keluar_cabang' && berhasilCount > 0) {
-        const generateNoManifest = require('../utils/manifestGenerator');
-        const no_manifest = await generateNoManifest();
+      // — UPDATE MANIFEST STATUS AFTER DITERIMA / DITERIMA_CABANG —
+      if (status_baru === 'diterima_cabang' || status_baru === 'diterima') {
+        // Cari no_manifest dari field transaksi atau tracking_logs (fallback)
+        const updatedTxList = await Transaction.find(
+          { _id: { $in: validIds } },
+          { no_manifest: 1, tracking_logs: 1 }
+        ).lean();
+        const manifestNos = [...new Set(
+          updatedTxList.map(tx => {
+            // Prioritas 1: field no_manifest di transaksi
+            if (tx.no_manifest) return tx.no_manifest;
+            // Prioritas 2: cari di semua tracking_logs yang punya no_manifest
+            if (tx.tracking_logs?.length > 0) {
+              const logWithManifest = tx.tracking_logs.find(l => l.no_manifest);
+              if (logWithManifest?.no_manifest) return logWithManifest.no_manifest;
+            }
+            return null;
+          }).filter(Boolean)
+        )];
 
+        if (manifestNos.length > 0) {
+          const Manifest = require('../models/Manifest');
+          for (const nm of manifestNos) {
+            const remaining = await Transaction.countDocuments({
+              no_manifest: nm,
+              status_saat_ini: { $nin: ['diterima', 'diterima_cabang'] },
+            });
+            if (remaining === 0) {
+              await Manifest.findOneAndUpdate(
+                { no_manifest: nm },
+                { status: 'selesai', completed_at: new Date() },
+              );
+            } else {
+              await Manifest.findOneAndUpdate(
+                { no_manifest: nm, status: { $ne: 'selesai' } },
+                { status: 'dalam_perjalanan' },
+              );
+            }
+          }
+        }
+      }
+
+      // — CREATE MANIFEST DOCUMENT & SET NO_MANIFEST —
+      if (status_baru === 'keluar_cabang' && no_manifest && berhasilCount > 0) {
         const tipeManifest = tipe_tujuan === 'cabang' ? 'antar_cabang' : 'antar_penerima';
         const workUnit = tipe_tujuan === 'cabang' ? 1 : berhasilCount;
 
@@ -273,6 +322,7 @@ router.post('/batch-status', auth, async (req, res) => {
             name: req.user.name,
             cabang_id: req.user.cabang_id,
             cabang_name: userLokasi?.nama || '',
+            cabang_phone: userLokasi?.phone || '',
           },
           driver: {
             user_id: driver?._id || null,
@@ -285,12 +335,17 @@ router.post('/batch-status', auth, async (req, res) => {
             nama: tipe_tujuan === 'cabang'
               ? (cabangTujuan?.name || cabang_nama_manual || '')
               : 'Langsung ke Penerima',
+            lokasi: tipe_tujuan === 'cabang' && cabangTujuan?.lokasi
+              ? cabangTujuan.lokasi
+              : undefined,
           },
           asal_cabang_id: req.user.cabang_id,
           asal_cabang_name: userLokasi?.nama || '',
           tipe_manifest: tipeManifest,
           work_unit: workUnit,
           total_resi: berhasilCount,
+          jumlah_koli: totalKoli,
+          total_berat: totalBerat,
           status: 'dibuat',
         });
 
@@ -314,6 +369,8 @@ router.post('/batch-status', auth, async (req, res) => {
         total_resi: manifest.total_resi,
         tipe_manifest: manifest.tipe_manifest,
         work_unit: manifest.work_unit,
+        jumlah_koli: manifest.jumlah_koli,
+        total_berat: manifest.total_berat,
         driver: manifest.driver,
         tujuan: manifest.tujuan,
       } : null,
@@ -414,9 +471,11 @@ async function getLokasiForUser(user) {
   if (user.cabang_id) {
     const Cabang = require('../models/Cabang');
     const cabang = await Cabang.findById(user.cabang_id).lean();
-    return cabang ? { nama: cabang.name, tipe: 'cabang', cabang_id: cabang._id } : { nama: '', tipe: '', cabang_id: null };
+    return cabang
+      ? { nama: cabang.name, tipe: 'cabang', cabang_id: cabang._id, phone: cabang.phone || '' }
+      : { nama: '', tipe: '', cabang_id: null, phone: '' };
   }
-  return { nama: '', tipe: '', cabang_id: null };
+  return { nama: '', tipe: '', cabang_id: null, phone: '' };
 }
 
 module.exports = router;

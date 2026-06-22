@@ -104,18 +104,40 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Ambil semua transaksi dalam manifest ini
-    const transactions = await Transaction.find({
-      no_manifest: manifest.no_manifest,
-    })
-      .sort({ createdAt: 1 })
-      .lean();
+    let transactions;
+    if (manifest.status === 'selesai') {
+      // Manifest selesai — cari hanya via no_manifest field
+      // agar transaksi yang sudah dipindah ke manifest baru tidak ikut
+      transactions = await Transaction.find({
+        no_manifest: manifest.no_manifest,
+      })
+        .sort({ createdAt: 1 })
+        .lean();
+    } else {
+      // Manifest aktif — cari dari no_manifest DAN tracking_logs
+      transactions = await Transaction.find({
+        $or: [
+          { no_manifest: manifest.no_manifest },
+          { 'tracking_logs.no_manifest': manifest.no_manifest },
+        ],
+      })
+        .sort({ createdAt: 1 })
+        .lean();
+    }
 
     // Hitung progress
     const total = transactions.length;
-    const selesai = transactions.filter(
-      tx => tx.status_saat_ini === 'diterima' ||
-            tx.status_saat_ini === 'diterima_cabang',
-    ).length;
+    let selesai;
+    if (manifest.status === 'selesai') {
+      // Manifest sudah selesai — jangan hitung dari status transaksi saat ini
+      // karena transaksi bisa berubah status lagi di manifest berikutnya
+      selesai = total;
+    } else {
+      selesai = transactions.filter(
+        tx => tx.status_saat_ini === 'diterima' ||
+              tx.status_saat_ini === 'diterima_cabang',
+      ).length;
+    }
 
     // Update status manifest berdasarkan progress
     if (selesai === total && total > 0 && manifest.status !== 'selesai') {
@@ -138,9 +160,15 @@ router.get('/:id', auth, async (req, res) => {
       manifest.status = 'dalam_perjalanan';
     }
 
+    // Hitung total koli & berat dari transaksi
+    const totalKoli = transactions.reduce((sum, tx) => sum + (tx.paket?.jumlah_koli || 0), 0);
+    const totalBerat = transactions.reduce((sum, tx) => sum + (tx.paket?.berat_kg || 0), 0);
+
     res.json({
       ...manifest,
       transactions,
+      jumlah_koli: totalKoli,
+      total_berat: totalBerat,
       progress: { total, selesai },
     });
   } catch (error) {
@@ -178,8 +206,12 @@ router.post('/:id/receive', auth, async (req, res) => {
 
     const ids = transactions.map(tx => tx._id);
     const now = new Date();
+    const Cabang = require('../models/Cabang');
+    const cabang = req.user.cabang_id
+      ? await Cabang.findById(req.user.cabang_id).lean()
+      : null;
     const userLokasi = {
-      nama: req.user.cabang_name || '',
+      nama: cabang?.name || '',
       tipe: 'cabang',
       cabang_id: req.user.cabang_id || null,
     };
@@ -278,8 +310,12 @@ router.post('/receive-by-number', auth, async (req, res) => {
 
     const ids = transactions.map(tx => tx._id);
     const now = new Date();
+    const Cabang = require('../models/Cabang');
+    const cabang = req.user.cabang_id
+      ? await Cabang.findById(req.user.cabang_id).lean()
+      : null;
     const userLokasi = {
-      nama: req.user.cabang_name || '',
+      nama: cabang?.name || '',
       tipe: 'cabang',
       cabang_id: req.user.cabang_id || null,
     };

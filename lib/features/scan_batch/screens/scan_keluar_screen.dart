@@ -543,6 +543,8 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
               driverName: (manifestData['driver']?['name'] as String?) ?? '-',
               tujuanNama:
                   (manifestData['tujuan']?['nama'] as String?) ?? '-',
+              jumlahKoli: (manifestData['jumlah_koli'] as num?)?.toInt() ?? 1,
+              totalBerat: (manifestData['total_berat'] as num?)?.toDouble() ?? 0,
             ),
           );
 

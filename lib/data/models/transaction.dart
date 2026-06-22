@@ -84,4 +84,17 @@ class Transaction {
   String get koliLabel => '${paket['jumlah_koli'] ?? '0'} koli';
   int get jumlahKoli => (paket['jumlah_koli'] as num?)?.toInt() ?? 0;
   double get biayaKirim => (paket['biaya_kirim'] as num?)?.toDouble() ?? 0;
+
+  /// Nama cabang tempat paket diterima (dari tracking log terakhir status diterima_cabang)
+  String get diterimaDiCabang {
+    if (statusSaatIni != 'diterima_cabang') return '';
+    for (final log in trackingLogs.reversed) {
+      if (log.status == 'diterima_cabang') {
+        final nama = log.lokasiName;
+        if (nama.isNotEmpty) return nama;
+        return log.tujuan?['nama'] as String? ?? '';
+      }
+    }
+    return '';
+  }
 }

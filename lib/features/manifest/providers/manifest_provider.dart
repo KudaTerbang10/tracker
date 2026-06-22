@@ -16,6 +16,17 @@ class ManifestFilter {
         page: page ?? this.page,
         limit: limit ?? this.limit,
       );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ManifestFilter &&
+          status == other.status &&
+          page == other.page &&
+          limit == other.limit;
+
+  @override
+  int get hashCode => Object.hash(status, page, limit);
 }
 
 /// Provider untuk list manifest (admin/driver disesuaikan otomatis di backend)
@@ -118,7 +129,7 @@ final driverActiveManifestsProvider =
 
 /// Provider untuk riwayat manifest driver (selesai, with pagination)
 final driverRiwayatManifestsProvider =
-    FutureProvider.autoDispose.family<ManifestListData, ManifestFilter>(
+    FutureProvider.family<ManifestListData, ManifestFilter>(
         (ref, filter) async {
   final params = <String, dynamic>{
     'page': filter.page.toString(),

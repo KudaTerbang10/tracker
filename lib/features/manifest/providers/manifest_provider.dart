@@ -10,12 +10,14 @@ class ManifestFilter {
   final int limit;
   final DateTime? startDate;
   final DateTime? endDate;
+  final String? userId;
   const ManifestFilter({
     this.status,
     this.page = 1,
     this.limit = 20,
     this.startDate,
     this.endDate,
+    this.userId,
   });
 
   ManifestFilter copyWith({
@@ -24,6 +26,7 @@ class ManifestFilter {
     int? limit,
     DateTime? startDate,
     DateTime? endDate,
+    String? userId,
   }) =>
       ManifestFilter(
         status: status ?? this.status,
@@ -31,6 +34,7 @@ class ManifestFilter {
         limit: limit ?? this.limit,
         startDate: startDate ?? this.startDate,
         endDate: endDate ?? this.endDate,
+        userId: userId ?? this.userId,
       );
 
   @override
@@ -41,11 +45,12 @@ class ManifestFilter {
           page == other.page &&
           limit == other.limit &&
           startDate == other.startDate &&
-          endDate == other.endDate;
+          endDate == other.endDate &&
+          userId == other.userId;
 
   @override
   int get hashCode =>
-      Object.hash(status, page, limit, startDate, endDate);
+      Object.hash(status, page, limit, startDate, endDate, userId);
 }
 
 /// Provider untuk list manifest (admin/driver disesuaikan otomatis di backend)
@@ -57,6 +62,11 @@ final manifestListProvider =
     'limit': filter.limit.toString(),
   };
   if (filter.status != null) params['status'] = filter.status;
+  if (filter.startDate != null)
+    params['start_date'] =
+        filter.startDate!.toIso8601String().split('T')[0];
+  if (filter.endDate != null)
+    params['end_date'] = filter.endDate!.toIso8601String().split('T')[0];
 
   final response = await ApiService().get(ApiConstants.manifests, query: params);
   final data = response.data;

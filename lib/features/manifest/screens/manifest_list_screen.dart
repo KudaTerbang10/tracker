@@ -15,19 +15,13 @@ class ManifestListScreen extends ConsumerStatefulWidget {
 }
 
 class _ManifestListScreenState extends ConsumerState<ManifestListScreen> {
-  String? _selectedStatus;
-  final _statuses = <String?>[null, 'dibuat', 'dalam_perjalanan', 'selesai'];
-  final _statusLabels = <String?>[
-    'Semua',
-    'Dibuat',
-    'Dalam Perjalanan',
-    'Selesai',
-  ];
   final _scrollController = ScrollController();
   int _page = 1;
   final _allManifests = <Manifest>[];
   bool _loadingMore = false;
   bool _hasMore = true;
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
@@ -48,48 +42,40 @@ class _ManifestListScreenState extends ConsumerState<ManifestListScreen> {
     }
   }
 
-  Future<void> _loadMore() async {
+  void _loadMore() {
     if (_loadingMore || !_hasMore) return;
-    _loadingMore = true;
-    final nextPage = _page + 1;
-    try {
-      final filter = ManifestFilter(
-        status: _selectedStatus,
-        page: nextPage,
-      );
-      final data = await ref.read(manifestListProvider(filter).future);
-      if (data.manifests.isEmpty) {
-        _hasMore = false;
-      } else {
-        _allManifests.addAll(data.manifests);
-        _page = nextPage;
-        if (data.manifests.length < 20) _hasMore = false;
-      }
-      if (mounted) setState(() {});
-    } finally {
-      _loadingMore = false;
-    }
-  }
-
-  void _onStatusChanged(String? status) {
     setState(() {
-      _selectedStatus = status;
-      _page = 1;
-      _allManifests.clear();
-      _hasMore = true;
+      _page++;
+      _loadingMore = true;
     });
-    ref.invalidate(manifestListProvider);
   }
 
   @override
   Widget build(BuildContext context) {
-    final filter = ManifestFilter(status: _selectedStatus, page: _page);
+    final fmt = DateFormat('dd/MM/yyyy');
+    final filter = ManifestFilter(
+      page: _page,
+      startDate: _startDate,
+      endDate: _endDate,
+    );
     final async = ref.watch(manifestListProvider(filter));
 
-    // Sync data from async to _allManifests
+    // Sync data from async to _allManifests + update _hasMore
     async.whenData((data) {
       if (_allManifests.isEmpty && data.manifests.isNotEmpty) {
         _allManifests.addAll(data.manifests);
+        if (data.manifests.length < 20) _hasMore = false;
+      }
+      // Saat loadMore selesai, append & update hasMore
+      if (_loadingMore && data.manifests.isNotEmpty) {
+        final existingIds = _allManifests.map((m) => m.id).toSet();
+        final newItems =
+            data.manifests.where((m) => !existingIds.contains(m.id)).toList();
+        if (newItems.isNotEmpty) {
+          _allManifests.addAll(newItems);
+        }
+        _hasMore = data.manifests.length >= 20;
+        _loadingMore = false;
       }
     });
 
@@ -104,41 +90,78 @@ class _ManifestListScreenState extends ConsumerState<ManifestListScreen> {
       ),
       body: Column(
         children: [
-          // Status filter chips
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(_statuses.length, (i) {
-                  final isSelected = _selectedStatus == _statuses[i];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(_statusLabels[i]!),
-                      selected: isSelected,
-                      onSelected: (_) => _onStatusChanged(_statuses[i]),
-                      selectedColor: AppTheme.primary.withValues(alpha: 0.1),
-                      checkmarkColor: AppTheme.primary,
-                      labelStyle: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? AppTheme.primary
-                            : const Color(0xFF64748B),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(
-                          color: isSelected
-                              ? AppTheme.primary
-                              : const Color(0xFFE2E8F0),
+          // Tanggal filter
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: InkWell(
+              onTap: () async {
+                final picked = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  initialDateRange: _startDate != null && _endDate != null
+                      ? DateTimeRange(start: _startDate!, end: _endDate!)
+                      : null,
+                  helpText: 'Pilih rentang tanggal',
+                  initialEntryMode: DatePickerEntryMode.calendarOnly,
+                );
+                if (picked != null) {
+                  setState(() {
+                    _startDate = picked.start;
+                    _endDate = picked.end;
+                    _page = 1;
+                    _allManifests.clear();
+                    _hasMore = true;
+                  });
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.date_range,
+                      size: 16,
+                      color: Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _startDate != null && _endDate != null
+                            ? '${fmt.format(_startDate!)} — ${fmt.format(_endDate!)}'
+                            : 'Filter berdasarkan tanggal',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _startDate != null
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFF94A3B8),
                         ),
                       ),
                     ),
-                  );
-                }),
+                    if (_startDate != null)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _startDate = null;
+                            _endDate = null;
+                            _page = 1;
+                            _allManifests.clear();
+                            _hasMore = true;
+                          });
+                        },
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -199,8 +222,6 @@ class _ManifestCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fmt = DateFormat('dd/MM/yy HH:mm', 'id_ID');
-
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -215,30 +236,29 @@ class _ManifestCard extends ConsumerWidget {
           ),
         ],
       ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: const Border(),
-        collapsedShape: const Border(),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: manifest.isAntarCabang
-                ? AppTheme.primary.withValues(alpha: 0.08)
-                : Colors.orange.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            Icons.description_rounded,
-            size: 20,
-            color: manifest.isAntarCabang ? AppTheme.primary : Colors.orange,
-          ),
-        ),
-        title: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Row 1: icon + nomor manifest + status badge + print
             Row(
               children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: manifest.isAntarCabang
+                        ? AppTheme.primary.withValues(alpha: 0.08)
+                        : Colors.orange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.description_rounded,
+                    size: 20,
+                    color: manifest.isAntarCabang ? AppTheme.primary : Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     manifest.noManifest,
@@ -251,20 +271,13 @@ class _ManifestCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                _badge(
-                  manifest.tipeLabel,
-                  manifest.isAntarCabang ? AppTheme.primary : Colors.orange,
-                ),
-                const SizedBox(width: 6),
-                _badge(
-                  '${manifest.workUnit} Work',
-                  Colors.green,
-                ),
-                const SizedBox(width: 4),
+                _statusBadge(manifest.statusLabel, manifest.status),
+                const SizedBox(width: 8),
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => context.push('/dashboard/manifest/${manifest.id}'),
+                    onTap: () =>
+                        context.push('/dashboard/manifest/${manifest.id}'),
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
                       padding: const EdgeInsets.all(6),
@@ -272,13 +285,18 @@ class _ManifestCard extends ConsumerWidget {
                         color: Colors.blue.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.print_rounded, size: 16, color: Colors.blue),
+                      child: const Icon(
+                        Icons.print_rounded,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
+            // Row 2: driver name
             Row(
               children: [
                 Icon(
@@ -298,10 +316,10 @@ class _ManifestCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                _statusBadge(manifest.statusLabel, manifest.status),
               ],
             ),
             const SizedBox(height: 4),
+            // Row 3: route
             Row(
               children: [
                 Icon(
@@ -322,69 +340,49 @@ class _ManifestCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Row 4: tanggal dibuat
+            Row(
+              children: [
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 12,
+                  color: Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  '${manifest.totalResi} resi',
+                  DateFormat('dd/MM/yyyy HH:mm', 'id_ID')
+                      .format(toJakarta(manifest.createdAt)),
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
                     color: Color(0xFF94A3B8),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-        children: [
-          const Divider(height: 1),
-          const SizedBox(height: 12),
-          // Summary row
-          Row(
-            children: [
-              _statItem('Total Resi', '${manifest.totalResi}'),
-              _statItem('Work Unit', '${manifest.workUnit}'),
-              _statItem(
-                'Dibuat',
-                fmt.format(toJakarta(manifest.createdAt)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () =>
-                  context.push('/dashboard/manifest/${manifest.id}'),
-              icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text('Lihat Detail'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            const SizedBox(height: 12),
+            // Detail button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () =>
+                    context.push('/dashboard/manifest/${manifest.id}'),
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('Lihat Detail'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _badge(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
+          ],
         ),
       ),
     );
@@ -405,30 +403,19 @@ class _ManifestCard extends ConsumerWidget {
       default:
         color = const Color(0xFF94A3B8);
     }
-    return _badge(label, color);
-  }
-
-  Widget _statItem(String label, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
-        ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }

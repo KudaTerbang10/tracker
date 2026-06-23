@@ -101,8 +101,8 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           icon: Icons.description_rounded,
           label: 'Daftar Manifest',
           onTap: () => context.go('/dashboard/manifests'),
-          iconColor: const Color(0xFF6366F1),
-          pastelColor: const Color(0xFFE0E7FF),
+          iconColor: const Color(0xFFD97706),
+          pastelColor: const Color(0xFFFEF3C7),
         ),
       ];
     case 'driver':

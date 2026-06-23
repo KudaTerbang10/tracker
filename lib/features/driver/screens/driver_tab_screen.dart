@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -46,11 +47,15 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  DateTime? _startDate;
+  DateTime? _endDate;
+
   // infinite scroll riwayat
   final _riwayatItems = <Manifest>[];
   int _riwayatPage = 1;
-  DateTime? _startDate;
-  DateTime? _endDate;
+  bool _hasMore = true;
+  final _riwayatScrollC = ScrollController();
+  bool _riwayatLoading = false;
 
   // Horizontal scroll
   final _manifestScrollCtrl = ScrollController();
@@ -66,18 +71,10 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         ref.invalidate(manifest_prov.driverActiveManifestsProvider);
         ref.invalidate(manifest_prov.manifestStatsProvider);
       } else if (_tabController.index == 1) {
-        _riwayatPage = 1;
-        _riwayatItems.clear();
-        ref.invalidate(manifest_prov.driverRiwayatManifestsProvider(
-          manifest_prov.ManifestFilter(
-            status: 'selesai',
-            page: 1,
-            startDate: _startDate,
-            endDate: _endDate,
-          ),
-        ));
+        _resetRiwayat();
       }
     });
+    _riwayatScrollC.addListener(_onRiwayatScroll);
     _manifestScrollCtrl.addListener(() {
       if (!mounted) return;
       if (_manifestScrollCtrl.hasClients) {
@@ -91,8 +88,53 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _riwayatScrollC.dispose();
     _manifestScrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _resetRiwayat() {
+    final uid = ref.read(authProvider).user?.id;
+    setState(() {
+      _riwayatPage = 1;
+      _riwayatItems.clear();
+      _hasMore = true;
+      _riwayatLoading = false;
+    });
+    ref.invalidate(manifest_prov.driverRiwayatManifestsProvider(
+      manifest_prov.ManifestFilter(
+        status: 'selesai',
+        page: 1,
+        limit: 20,
+        startDate: _startDate,
+        endDate: _endDate,
+        userId: uid,
+      ),
+    ));
+  }
+
+  void _onRiwayatScroll() {
+    if (!_riwayatScrollC.hasClients || !_hasMore || _riwayatLoading) return;
+    final max = _riwayatScrollC.position.maxScrollExtent;
+    final cur = _riwayatScrollC.position.pixels;
+    if (cur >= max - 200) {
+      _loadMoreRiwayat();
+    }
+  }
+
+  void _loadMoreRiwayat() {
+    final uid = ref.read(authProvider).user?.id;
+    setState(() => _riwayatLoading = true);
+    ref.invalidate(manifest_prov.driverRiwayatManifestsProvider(
+      manifest_prov.ManifestFilter(
+        status: 'selesai',
+        page: _riwayatPage + 1,
+        limit: 20,
+        startDate: _startDate,
+        endDate: _endDate,
+        userId: uid,
+      ),
+    ));
   }
 
   Future<void> _navigateToMaps(Transaction tx) async {
@@ -182,6 +224,19 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (_) {}
+  }
+
+  /// Haversine — jarak dalam meter antara dua koordinat
+  double _distanceInMeters(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371000;
+    final dLat = (lat2 - lat1) * (math.pi / 180);
+    final dLng = (lng2 - lng1) * (math.pi / 180);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * (math.pi / 180)) *
+            math.cos(lat2 * (math.pi / 180)) *
+            math.sin(dLng / 2) * math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
   }
 
   Future<Position?> _getDriverLocation() async {
@@ -279,6 +334,26 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
       }
     }
     return null;
+  }
+
+  /// Sortir transaksi: yg punya koordinat & terdekat dari cabang asal ke penerima jadi paling atas
+  List<Transaction> _sortTransaksiByDistance(List<Transaction> txs, double cabangLat, double cabangLng) {
+    final sorted = List<Transaction>.from(txs);
+    sorted.sort((a, b) {
+      final aLat = a.penerimaLatitude;
+      final aLng = a.penerimaLongitude;
+      final bLat = b.penerimaLatitude;
+      final bLng = b.penerimaLongitude;
+
+      // Yg tidak punya koordinat taruh di bawah
+      if (aLat == null || aLng == null) return 1;
+      if (bLat == null || bLng == null) return -1;
+
+      final dA = _distanceInMeters(cabangLat, cabangLng, aLat, aLng);
+      final dB = _distanceInMeters(cabangLat, cabangLng, bLat, bLng);
+      return dA.compareTo(dB);
+    });
+    return sorted;
   }
 
   Widget _buildKirimTab() {
@@ -424,7 +499,18 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
 
   // Manifest card with ExpansionTile for mobile
   Widget _buildManifestCard(Manifest m) {
-    final txs = m.transactions ?? <Transaction>[];
+    // Cari koordinat cabang asal untuk sorting jarak
+    double? cabangLat;
+    double? cabangLng;
+    final cabang = CabangLokasiService.findByName(m.asalCabangName);
+    if (cabang != null) {
+      cabangLat = cabang.latitude;
+      cabangLng = cabang.longitude;
+    }
+
+    final txs = (cabangLat != null && cabangLng != null)
+        ? _sortTransaksiByDistance(m.transactions ?? <Transaction>[], cabangLat, cabangLng)
+        : (m.transactions ?? <Transaction>[]);
     final selesai = txs.where((tx) =>
         tx.statusSaatIni == 'diterima' || tx.statusSaatIni == 'diterima_cabang').length;
 
@@ -926,20 +1012,39 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
 
   Widget _buildRiwayatTab() {
     final fmt = DateFormat('dd/MM/yyyy');
+    final userId = ref.watch(authProvider.select((s) => s.user?.id));
 
-    // Filter state
-    final riwayatFilter = manifest_prov.ManifestFilter(
-      status: 'selesai',
-      page: _riwayatPage,
-      startDate: _startDate,
-      endDate: _endDate,
-    );
-    final riwayatAsync = ref.watch(manifest_prov.driverRiwayatManifestsProvider(riwayatFilter));
-    final riwayatManifests = riwayatAsync.valueOrNull?.manifests ?? <Manifest>[];
+    final riwayatAsync = ref.watch(manifest_prov.driverRiwayatManifestsProvider(
+      manifest_prov.ManifestFilter(
+        status: 'selesai',
+        page: _riwayatPage,
+        limit: 20,
+        startDate: _startDate,
+        endDate: _endDate,
+        userId: userId,
+      ),
+    ));
 
-    // Merge into _riwayatItems for pagination
-    if (riwayatAsync.hasValue && riwayatManifests.isNotEmpty && _riwayatItems.isEmpty) {
-      _riwayatItems.addAll(riwayatManifests);
+    // Accumulate data dari tiap page
+    if (riwayatAsync.hasValue) {
+      final data = riwayatAsync.value!;
+      if (_riwayatPage == 1) {
+        _riwayatItems
+          ..clear()
+          ..addAll(data.manifests);
+        _hasMore = data.manifests.length >= 20;
+        _riwayatLoading = false;
+      } else if (_riwayatLoading && data.manifests.isNotEmpty) {
+        // Hindari duplikat page
+        final existingIds = _riwayatItems.map((m) => m.id).toSet();
+        final newItems = data.manifests.where((m) => !existingIds.contains(m.id)).toList();
+        if (newItems.isNotEmpty) {
+          _riwayatItems.addAll(newItems);
+          _hasMore = data.manifests.length >= 20;
+          _riwayatPage++;
+        }
+        _riwayatLoading = false;
+      }
     }
 
     return Column(
@@ -1022,8 +1127,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                   _endDate = picked.end;
                   _riwayatPage = 1;
                   _riwayatItems.clear();
+                  _hasMore = true;
                 });
-                ref.invalidate(manifest_prov.driverRiwayatManifestsProvider);
               }
             },
             child: Container(
@@ -1062,8 +1167,8 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                           _endDate = null;
                           _riwayatPage = 1;
                           _riwayatItems.clear();
+                          _hasMore = true;
                         });
-                        ref.invalidate(manifest_prov.driverRiwayatManifestsProvider);
                       },
                       child: const Icon(
                         Icons.close,
@@ -1078,53 +1183,55 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
           ),
         ),
         Expanded(
-          child: _riwayatItems.isEmpty && !riwayatAsync.isLoading
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Tidak ada riwayat manifest',
-                        style: TextStyle(color: Colors.grey.shade500),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    _riwayatPage = 1;
-                    _riwayatItems.clear();
-                    ref.invalidate(manifest_prov.driverRiwayatManifestsProvider);
-                    await Future<void>.delayed(const Duration(milliseconds: 100));
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                    itemCount: _riwayatItems.length + (_riwayatAsyncHasMore ? 1 : 0),
-                    itemBuilder: (_, i) {
-                      if (i >= _riwayatItems.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
+          child: riwayatAsync.isLoading && _riwayatItems.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : _riwayatItems.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Tidak ada riwayat manifest',
+                            style: TextStyle(color: Colors.grey.shade500),
                           ),
-                        );
-                      }
-                      final manifest = _riwayatItems[i];
-                      return _RiwayatManifestCard(
-                        manifest: manifest,
-                        onTapResi: (tx) => _showDetail(tx),
-                      );
-                    },
-                  ),
-                ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        _resetRiwayat();
+                        await Future<void>.delayed(const Duration(milliseconds: 100));
+                      },
+                      child: ListView.builder(
+                        controller: _riwayatScrollC,
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                        itemCount: _riwayatItems.length + (_hasMore ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (i >= _riwayatItems.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            );
+                          }
+                          return _RiwayatManifestCard(
+                            manifest: _riwayatItems[i],
+                            onTapResi: (tx) => _showDetail(tx),
+                          );
+                        },
+                      ),
+                    ),
         ),
       ],
     );
   }
-
-  bool get _riwayatAsyncHasMore => _riwayatItems.length >= 20; // simple heuristic
 
   void _showDetail(Transaction tx) {
     final fmt = NumberFormat.currency(

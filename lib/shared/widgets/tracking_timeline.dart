@@ -18,9 +18,16 @@ class TrackingTimeline extends StatelessWidget {
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.history_rounded, size: 40, color: Colors.grey.shade400),
+                Icon(
+                  Icons.history_rounded,
+                  size: 40,
+                  color: Colors.grey.shade400,
+                ),
                 const SizedBox(height: 8),
-                Text('Belum ada riwayat tracking', style: TextStyle(color: Colors.grey.shade500)),
+                Text(
+                  'Belum ada riwayat tracking',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
               ],
             ),
           ),
@@ -28,7 +35,8 @@ class TrackingTimeline extends StatelessWidget {
       );
     }
 
-    final sorted = [...logs]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    final sorted = [...logs]
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     final dateFmt = DateFormat('dd MMM yyyy', 'id_ID');
     final timeFmt = DateFormat('HH:mm', 'id_ID');
 
@@ -43,12 +51,14 @@ class TrackingTimeline extends StatelessWidget {
             final log = sorted[i];
             final isFirst = i == 0;
             final isLast = i == sorted.length - 1;
-            final color = isFirst ? AppTheme.statusColor(log.status) : const Color(0xFF94A3B8); // Slate-400
+            final color = isFirst
+                ? AppTheme.statusColor(log.status)
+                : const Color(0xFF94A3B8); // Slate-400
             final driverName = log.driverDitugaskan?['nama'] as String?;
             final subtitleParts = _buildSubtitle(log, driverName);
 
             String title;
-            if (isLast && sorted.length > 1) {
+            if (isLast) {
               title = 'Paket diterima ekspedisi';
             } else if (log.status == 'diterima_cabang') {
               final loc = log.lokasiName;
@@ -106,9 +116,13 @@ class TrackingTimeline extends StatelessWidget {
                                 child: Text(
                                   title,
                                   style: TextStyle(
-                                    fontWeight: isFirst ? FontWeight.w700 : FontWeight.w600,
+                                    fontWeight: isFirst
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
                                     fontSize: 14,
-                                    color: isFirst ? color : const Color(0xFF0F172A),
+                                    color: isFirst
+                                        ? color
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ),
@@ -136,7 +150,10 @@ class TrackingTimeline extends StatelessWidget {
                           if (subtitleParts.$2 != null) ...[
                             const SizedBox(height: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.primary.withValues(alpha: 0.06),
                                 borderRadius: BorderRadius.circular(6),
@@ -144,7 +161,11 @@ class TrackingTimeline extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.directions_car_filled_rounded, size: 14, color: AppTheme.primary),
+                                  const Icon(
+                                    Icons.directions_car_filled_rounded,
+                                    size: 14,
+                                    color: AppTheme.primary,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
                                     subtitleParts.$2!,
@@ -178,26 +199,31 @@ class TrackingTimeline extends StatelessWidget {
 
     switch (log.status) {
       case 'diterima_cabang':
-        main = 'Paket diterima di ${loc.isNotEmpty ? loc : 'cabang'}';
+        main = 'Paket diterima di Cabang ${loc.isNotEmpty ? loc : 'cabang'}';
         break;
       case 'keluar_cabang':
         final tujuan = log.tujuan?['nama'] as String? ?? '';
-        main = 'Paket keluar dari${loc.isNotEmpty ? ' $loc' : ' cabang'} menuju${tujuan.isNotEmpty ? ' $tujuan' : ' tujuan'}';
-        if (driverName != null && driverName.isNotEmpty) driverLine = 'Kurir: $driverName';
+        main =
+            'Paket keluar dari Cabang${loc.isNotEmpty ? ' $loc' : ' cabang'} menuju${tujuan.isNotEmpty ? ' $tujuan' : ' tujuan'}';
+        if (driverName != null && driverName.isNotEmpty)
+          driverLine = 'Kurir: $driverName';
         break;
       case 'proses_kirim':
         final tujuan = log.tujuan?['nama'] as String? ?? '';
         main = tujuan.isNotEmpty
             ? 'Paket dalam perjalanan menuju $tujuan'
             : 'Paket dalam perjalanan';
-        if (driverName != null && driverName.isNotEmpty) driverLine = 'Kurir: $driverName';
+        if (driverName != null && driverName.isNotEmpty)
+          driverLine = 'Kurir: $driverName';
         break;
       case 'diterima':
         if (log.deskripsi.isNotEmpty) {
           main = log.deskripsi;
         } else {
           final nama = log.namaPenerima ?? '';
-          main = nama.isNotEmpty ? 'Diterima oleh $nama' : 'Paket telah diterima';
+          main = nama.isNotEmpty
+              ? 'Diterima oleh $nama'
+              : 'Paket telah diterima';
         }
         break;
       default:
@@ -209,11 +235,16 @@ class TrackingTimeline extends StatelessWidget {
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'diterima_cabang': return Icons.storefront_rounded;
-      case 'keluar_cabang': return Icons.local_shipping_rounded;
-      case 'proses_kirim': return Icons.near_me_rounded;
-      case 'diterima': return Icons.task_alt_rounded;
-      default: return Icons.radio_button_checked_rounded;
+      case 'diterima_cabang':
+        return Icons.storefront_rounded;
+      case 'keluar_cabang':
+        return Icons.local_shipping_rounded;
+      case 'proses_kirim':
+        return Icons.near_me_rounded;
+      case 'diterima':
+        return Icons.task_alt_rounded;
+      default:
+        return Icons.radio_button_checked_rounded;
     }
   }
 }

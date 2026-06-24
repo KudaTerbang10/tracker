@@ -529,11 +529,13 @@ class _TrackingMapState extends State<TrackingMap> {
     if (_origin == null) return const SizedBox.shrink();
 
     final isDiterima = widget.tx.statusSaatIni == 'diterima';
+    final isDiterimaCabang = widget.tx.statusSaatIni == 'diterima_cabang';
     final points = <LatLng>[if (!isDiterima) _origin!];
     final markers = <Marker>[];
 
     if (!isDiterima) {
-      // Origin marker (bendera biru)
+      // Origin marker
+      final cabangColor = isDiterimaCabang ? const Color(0xFFF97316) : const Color(0xFF2563EB);
       markers.add(
         Marker(
           point: _origin!,
@@ -545,26 +547,26 @@ class _TrackingMapState extends State<TrackingMap> {
               SizedBox(
                 width: 120,
                 child: Text(
-                  _originName,
+                  isDiterimaCabang ? 'Cabang $_originName' : _originName,
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF2563EB),
+                    color: cabangColor,
                     shadows: [Shadow(color: Colors.white, blurRadius: 3)],
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.all(5),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF2563EB),
+                decoration: BoxDecoration(
+                  color: cabangColor,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.flag_rounded,
+                child: Icon(
+                  isDiterimaCabang ? Icons.store_rounded : Icons.flag_rounded,
                   color: Colors.white,
                   size: 14,
                 ),
@@ -575,11 +577,11 @@ class _TrackingMapState extends State<TrackingMap> {
       );
     }
 
-    if (_dest != null) {
+    if (_dest != null && !isDiterimaCabang) {
       points.add(_dest!);
 
       // Status diterima: hanya marker hijau checklist
-      if (widget.tx.statusSaatIni == 'diterima') {
+      if (isDiterima) {
         markers.clear();
         final diterimaOleh = widget.tx.namaPenerimaAkhir ?? '';
         markers.add(
@@ -782,7 +784,11 @@ class _TrackingMapState extends State<TrackingMap> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  _isDestCabang ? 'Rute ke Cabang Tujuan' : 'Rute ke Penerima',
+                  isDiterimaCabang
+                      ? 'Paket di Cabang'
+                      : _isDestCabang
+                          ? 'Rute ke Cabang Tujuan'
+                          : 'Rute ke Penerima',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -815,7 +821,7 @@ class _TrackingMapState extends State<TrackingMap> {
             height: 220,
             child: FlutterMap(
               options: MapOptions(
-                initialCameraFit: isDiterima
+                initialCameraFit: isDiterima || isDiterimaCabang
                     ? null
                     : CameraFit.bounds(
                         bounds: bounds,
@@ -823,8 +829,10 @@ class _TrackingMapState extends State<TrackingMap> {
                       ),
                 initialCenter: isDiterima && _dest != null
                     ? _dest!
-                    : const LatLng(0, 0),
-                initialZoom: isDiterima ? 18 : 10,
+                    : isDiterimaCabang && _origin != null
+                        ? _origin!
+                        : const LatLng(0, 0),
+                initialZoom: isDiterima || isDiterimaCabang ? 18 : 10,
                 maxZoom: 18,
                 minZoom: 4,
                 interactionOptions: const InteractionOptions(
@@ -896,96 +904,67 @@ class _InfoCard extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Color(0xFF0F172A),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Color(0xFF0F172A),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 2,
+                    if (phone.isNotEmpty)
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: phone));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Nomor telepon disalin'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.content_copy_rounded,
+                            size: 14,
+                            color: accentColor,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (address.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    address,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF475569),
+                      height: 1.3,
+                    ),
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (address.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      address,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF475569),
-                        height: 1.3,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
           ),
-          if (phone.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border(
-                  top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.phone_iphone_rounded,
-                    size: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      phone,
-                      style: const TextStyle(
-                        color: Color(0xFF475569),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(text: phone));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Nomor telepon disalin'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.08),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.content_copy_rounded,
-                          size: 12,
-                          color: accentColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

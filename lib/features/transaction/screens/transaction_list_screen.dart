@@ -606,12 +606,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               const SizedBox(height: 4),
               Text('${tx.pengirimName} → ${tx.penerimaName}'),
               const SizedBox(height: 2),
-              Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
-              const SizedBox(height: 8),
-              // Bottom row: Print & Copy buttons (right-aligned)
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  Text(dateFmt.format(toJakarta(tx.createdAt)),
+                      style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  const Spacer(),
                   if (!isDriver) ...[
                     InkWell(
                       onTap: () => LabelPrinter.printBarcodeLabel(
@@ -957,11 +956,17 @@ class _InfoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   if (address.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -978,21 +983,22 @@ class _InfoCard extends StatelessWidget {
           ),
           if (phone.isNotEmpty)
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border(top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5)),
-              ),
+              color: accentColor.withValues(alpha: 0.08),
               child: Row(
                 children: [
-                  const Icon(Icons.phone_iphone_rounded, size: 12, color: Color(0xFF64748B)),
+                  Icon(Icons.phone_iphone_rounded, size: 11, color: accentColor),
                   const SizedBox(width: 4),
-                  Expanded(
+                  Flexible(
                     child: Text(
                       phone,
-                      style: const TextStyle(color: Color(0xFF475569), fontWeight: FontWeight.w600, fontSize: 11),
+                      style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 2),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: phone));
@@ -1000,7 +1006,10 @@ class _InfoCard extends StatelessWidget {
                         const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
                       );
                     },
-                    child: const Icon(Icons.copy_rounded, size: 12, color: Color(0xFF94A3B8)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.content_copy_rounded, size: 13, color: accentColor),
+                    ),
                   ),
                 ],
               ),

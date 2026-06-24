@@ -663,8 +663,8 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                     color: const Color.fromARGB(
                       255,
                       255,
-                      190,
-                      190,
+                      121,
+                      121,
                     ).withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),

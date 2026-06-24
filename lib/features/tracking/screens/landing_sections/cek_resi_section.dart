@@ -564,45 +564,32 @@ class _InfoCard extends StatelessWidget {
           ),
           if (phone.isNotEmpty)
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border(
-                  top: BorderSide(color: const Color(0xFFE2E8F0), width: 0.5),
-                ),
-              ),
+              color: accentColor.withValues(alpha: 0.08),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.phone_iphone_rounded,
-                    size: 12,
-                    color: Color(0xFF64748B),
-                  ),
+                  Icon(Icons.phone_iphone_rounded, size: 11, color: accentColor),
                   const SizedBox(width: 4),
-                  Expanded(
+                  Flexible(
                     child: Text(
                       phone,
-                      style: const TextStyle(
-                        color: Color(0xFF475569),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 2),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: phone));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Nomor telepon disalin'),
-                          duration: Duration(seconds: 1),
-                        ),
+                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
                       );
                     },
-                    child: const Icon(
-                      Icons.copy_rounded,
-                      size: 12,
-                      color: Color(0xFF94A3B8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.content_copy_rounded, size: 13, color: accentColor),
                     ),
                   ),
                 ],

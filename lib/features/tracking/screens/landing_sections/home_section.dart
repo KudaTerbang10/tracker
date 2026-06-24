@@ -97,6 +97,7 @@ class HomeSectionState extends State<HomeSection>
               width: double.infinity,
               height: h,
               fit: BoxFit.cover,
+              alignment: const Alignment(0.15, 0.0),
               errorBuilder: (context, error, stackTrace) => Container(
                 color: Colors.grey.shade200,
                 child: const Center(
@@ -131,7 +132,8 @@ class HomeSectionState extends State<HomeSection>
               child: GestureDetector(
                 onTap: () {
                   if (!_pageController.hasClients) return;
-                  final prev = (_currentPage - 1 + _carouselImages.length) %
+                  final prev =
+                      (_currentPage - 1 + _carouselImages.length) %
                       _carouselImages.length;
                   _pageController.animateToPage(
                     prev,
@@ -164,8 +166,7 @@ class HomeSectionState extends State<HomeSection>
               child: GestureDetector(
                 onTap: () {
                   if (!_pageController.hasClients) return;
-                  final next =
-                      (_currentPage + 1) % _carouselImages.length;
+                  final next = (_currentPage + 1) % _carouselImages.length;
                   _pageController.animateToPage(
                     next,
                     duration: const Duration(milliseconds: 400),
@@ -216,72 +217,79 @@ class HomeSectionState extends State<HomeSection>
   }
 
   Widget _buildMobile() {
-    return Stack(
-      children: [
-        _buildCarousel(height: 360),
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _fadeSlide(
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+    final screenHeight = MediaQuery.of(context).size.height;
+    final targetHeight =
+        screenHeight - kToolbarHeight - MediaQuery.of(context).padding.top;
+    return SizedBox(
+      height: targetHeight,
+      child: Stack(
+        children: [
+          _buildCarousel(height: targetHeight),
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  SizedBox(height: targetHeight * 0.2),
+                  _fadeSlide(
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/pics/hiralogo.webp',
+                        width: 48,
+                        height: 48,
+                      ),
                     ),
-                    child: Image.asset(
-                      'assets/pics/hiralogo.webp',
-                      width: 48,
-                      height: 48,
+                    delay: 0.417,
+                  ),
+                  const SizedBox(height: 12),
+                  _fadeSlide(
+                    const Text(
+                      'Hira Express',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        fontSize: 28,
+                        letterSpacing: -0.5,
+                      ),
                     ),
+                    delay: 0.542,
                   ),
-                  delay: 0.417,
-                ),
-                const SizedBox(height: 12),
-                _fadeSlide(
-                  const Text(
-                    'Hira Express',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      fontSize: 28,
-                      letterSpacing: -0.5,
+                  const SizedBox(height: 4),
+                  _fadeSlide(
+                    const Text(
+                      'Berat di timbang, ringan di kantong.',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                      textAlign: TextAlign.center,
                     ),
+                    delay: 0.667,
                   ),
-                  delay: 0.542,
-                ),
-                const SizedBox(height: 4),
-                _fadeSlide(
-                  const Text(
-                    'Berat di timbang, ringan di kantong.',
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
-                    textAlign: TextAlign.center,
+                  _fadeSlide(
+                    const Text(
+                      'Solusi logistik terpercaya untuk kebutuhan pengiriman Anda.',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                      textAlign: TextAlign.center,
+                    ),
+                    delay: 0.667,
                   ),
-                  delay: 0.667,
-                ),
-                _fadeSlide(
-                  const Text(
-                    'Solusi logistik terpercaya untuk kebutuhan pengiriman Anda.',
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
-                    textAlign: TextAlign.center,
-                  ),
-                  delay: 0.667,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

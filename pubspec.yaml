@@ -25,6 +25,9 @@ dependencies:
   latlong2: ^0.9.1
   url_launcher: ^6.3.1
   geolocator: ^13.0.2
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+  image: ^4.9.1
 
 dev_dependencies:
   flutter_test:
@@ -42,3 +45,19 @@ flutter:
     - family: hiralogo
       fonts:
         - asset: assets/pics/hiralogo.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "hiralogo_square.png"
+  adaptive_icon_background: "#FFFFFF"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/pics/hiralogo.png"
+  android: true
+  ios: true
+  web: false
+  android_gravity: center
+  ios_content_mode: center

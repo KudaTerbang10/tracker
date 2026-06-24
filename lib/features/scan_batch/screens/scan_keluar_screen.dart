@@ -76,7 +76,11 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.person_pin_rounded, size: 18, color: AppTheme.primary),
+                      const Icon(
+                        Icons.person_pin_rounded,
+                        size: 18,
+                        color: AppTheme.primary,
+                      ),
                       const SizedBox(width: 8),
                       const Text(
                         'Data Driver & Tujuan',
@@ -109,18 +113,25 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                       FilterChip(
                         label: const Text('Ke Cabang Lain'),
                         selected: state.tujuanType == TujuanType.cabang,
-                        onSelected: (v) => notifier.setTujuanType(TujuanType.cabang),
+                        onSelected: (v) =>
+                            notifier.setTujuanType(TujuanType.cabang),
                         selectedColor: AppTheme.primary.withValues(alpha: 0.1),
                         checkmarkColor: AppTheme.primary,
                         labelStyle: TextStyle(
                           fontSize: 12,
-                          fontWeight: state.tujuanType == TujuanType.cabang ? FontWeight.w700 : FontWeight.w500,
-                          color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFF64748B),
+                          fontWeight: state.tujuanType == TujuanType.cabang
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: state.tujuanType == TujuanType.cabang
+                              ? AppTheme.primary
+                              : const Color(0xFF64748B),
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                           side: BorderSide(
-                            color: state.tujuanType == TujuanType.cabang ? AppTheme.primary : const Color(0xFFE2E8F0),
+                            color: state.tujuanType == TujuanType.cabang
+                                ? AppTheme.primary
+                                : const Color(0xFFE2E8F0),
                             width: 1,
                           ),
                         ),
@@ -129,18 +140,27 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                         FilterChip(
                           label: const Text('Ke Penerima'),
                           selected: state.tujuanType == TujuanType.penerima,
-                          onSelected: (v) => notifier.setTujuanType(TujuanType.penerima),
-                          selectedColor: AppTheme.primary.withValues(alpha: 0.1),
+                          onSelected: (v) =>
+                              notifier.setTujuanType(TujuanType.penerima),
+                          selectedColor: AppTheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           checkmarkColor: AppTheme.primary,
                           labelStyle: TextStyle(
                             fontSize: 12,
-                            fontWeight: state.tujuanType == TujuanType.penerima ? FontWeight.w700 : FontWeight.w500,
-                            color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFF64748B),
+                            fontWeight: state.tujuanType == TujuanType.penerima
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: state.tujuanType == TujuanType.penerima
+                                ? AppTheme.primary
+                                : const Color(0xFF64748B),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
-                              color: state.tujuanType == TujuanType.penerima ? AppTheme.primary : const Color(0xFFE2E8F0),
+                              color: state.tujuanType == TujuanType.penerima
+                                  ? AppTheme.primary
+                                  : const Color(0xFFE2E8F0),
                               width: 1,
                             ),
                           ),
@@ -165,20 +185,34 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                   if (state.tujuanType == TujuanType.penerima) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.15), width: 1),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         children: const [
-                          Icon(Icons.info_rounded, color: Colors.green, size: 18),
+                          Icon(
+                            Icons.info_rounded,
+                            color: Colors.green,
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Paket akan dikirim langsung ke alamat penerima',
-                              style: TextStyle(color: Color(0xFF15803D), fontSize: 12, fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                color: Color(0xFF15803D),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
@@ -276,7 +310,9 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                       ],
                     ),
                     child: ElevatedButton(
-                      onPressed: _submitting ? null : () => _confirm(context, ref),
+                      onPressed: _submitting
+                          ? null
+                          : () => _confirm(context, ref),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
@@ -307,7 +343,10 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                                 ),
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(10),
@@ -335,8 +374,10 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
   }
 
   Future<void> _processResi(String code) async {
-    final alreadyScanned =
-        ref.read(scanKeluarProvider).scannedItems.any((i) => i.noResi == code);
+    final alreadyScanned = ref
+        .read(scanKeluarProvider)
+        .scannedItems
+        .any((i) => i.noResi == code);
     if (alreadyScanned) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -428,7 +469,10 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Konfirmasi Kiriman', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Konfirmasi Kiriman',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -441,7 +485,11 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.local_shipping_rounded, color: AppTheme.primary, size: 32),
+                    const Icon(
+                      Icons.local_shipping_rounded,
+                      color: AppTheme.primary,
+                      size: 32,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -449,13 +497,20 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                         children: [
                           Text(
                             '${validItems.length} Paket',
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
                           ),
                           Text(
                             'dikirim dengan ${state.driverName ?? "-"}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
                           ),
                         ],
                       ),
@@ -482,10 +537,15 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   minimumSize: const Size(0, 44),
                 ),
-                child: const Text('KONFIRMASI', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'KONFIRMASI',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
               const SizedBox(height: 6),
               TextButton(
@@ -541,10 +601,10 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
               tipeManifest: manifestData['tipe_manifest'] as String,
               workUnit: (manifestData['work_unit'] as num).toInt(),
               driverName: (manifestData['driver']?['name'] as String?) ?? '-',
-              tujuanNama:
-                  (manifestData['tujuan']?['nama'] as String?) ?? '-',
+              tujuanNama: (manifestData['tujuan']?['nama'] as String?) ?? '-',
               jumlahKoli: (manifestData['jumlah_koli'] as num?)?.toInt() ?? 1,
-              totalBerat: (manifestData['total_berat'] as num?)?.toDouble() ?? 0,
+              totalBerat:
+                  (manifestData['total_berat'] as num?)?.toDouble() ?? 0,
             ),
           );
 
@@ -600,13 +660,18 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(28),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                    color: const Color.fromARGB(
+                      255,
+                      255,
+                      190,
+                      190,
+                    ).withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.qr_code_scanner_rounded,
                     size: 56,
-                    color: Color(0xFF0EA5E9),
+                    color: Colors.redAccent,
                   ),
                 ),
               ),
@@ -708,13 +773,25 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      _badge(item.transaction.beratLabel, const Color(0xFF0EA5E9)),
+                      _badge(
+                        item.transaction.beratLabel,
+                        const Color(0xFF0EA5E9),
+                      ),
                       const SizedBox(width: 6),
-                      _badge(item.transaction.koliLabel, const Color(0xFFF97316)),
+                      _badge(
+                        item.transaction.koliLabel,
+                        const Color(0xFFF97316),
+                      ),
                       const SizedBox(width: 8),
                       Text(
-                        isValid ? 'Siap diproses' : (item.errorMessage ?? 'Tidak valid'),
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
+                        isValid
+                            ? 'Siap diproses'
+                            : (item.errorMessage ?? 'Tidak valid'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
                       ),
                     ],
                   ),
@@ -901,9 +978,16 @@ class _CabangAutocompleteFieldState extends State<_CabangAutocompleteField> {
       final data = res.data['data'] as List<dynamic>;
       if (mounted) {
         setState(() {
-          final all = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          final all = data
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
           _cabangs = widget.excludeCabangId != null
-              ? all.where((c) => c['cabang_id']?.toString() != widget.excludeCabangId).toList()
+              ? all
+                    .where(
+                      (c) =>
+                          c['cabang_id']?.toString() != widget.excludeCabangId,
+                    )
+                    .toList()
               : all;
         });
       }
@@ -926,7 +1010,8 @@ class _CabangAutocompleteFieldState extends State<_CabangAutocompleteField> {
         if (text.text.isEmpty) return const Iterable.empty();
         final q = text.text.toLowerCase();
         return _cabangs.where(
-          (c) => (c['name']?.toString() ?? '').toLowerCase().contains(q) ||
+          (c) =>
+              (c['name']?.toString() ?? '').toLowerCase().contains(q) ||
               (c['kode']?.toString() ?? '').toLowerCase().contains(q),
         );
       },

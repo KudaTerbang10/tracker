@@ -3,9 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import '../../../data/models/transaction.dart';
 import '../../../data/models/manifest.dart';
 import '../../../data/models/user.dart';
@@ -22,6 +19,8 @@ import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../manifest/utils/manifest_print.dart';
+import '../../manifest/providers/manifest_provider.dart';
 
 final _prosesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
   return ref.read(transactionRepositoryProvider).getList(tab: 'current', limit: 999);
@@ -587,53 +586,62 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     final isDriver = user?.isDriver ?? false;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis)),
-            if (!isDriver) ...[
-              const SizedBox(width: 4),
-              InkWell(
-                onTap: () => LabelPrinter.printBarcodeLabel(
-                  data: tx.noResi,
-                  pengirim: tx.pengirim,
-                  penerima: tx.penerima,
-                  paket: tx.paket,
-                  createdAt: tx.createdAt,
-                  asal: tx.createdBy['cabang_name']?.toString() ??
-                      tx.createdBy['konter_name']?.toString() ??
-                      tx.createdBy['gudang_name']?.toString(),
-                  dicetakOleh: user?.lokasi?['name']?.toString(),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
-                ),
-              ),
-            ],
-            const SizedBox(width: 4),
-            ResiCopyButton(resi: tx.noResi),
-          ],
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 2),
+      child: InkWell(
+        onTap: () => _showDetail(tx),
+        onLongPress: canDelete && _canDelete(tx, user) ? () => _confirmDelete(tx) : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Top row: Resi number + Status badge
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis),
+                  ),
+                  StatusBadge(status: tx.statusSaatIni),
+                ],
+              ),
+              const SizedBox(height: 4),
               Text('${tx.pengirimName} → ${tx.penerimaName}'),
+              const SizedBox(height: 2),
               Text(dateFmt.format(toJakarta(tx.createdAt)), style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              const SizedBox(height: 8),
+              // Bottom row: Print & Copy buttons (right-aligned)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (!isDriver) ...[
+                    InkWell(
+                      onTap: () => LabelPrinter.printBarcodeLabel(
+                        data: tx.noResi,
+                        pengirim: tx.pengirim,
+                        penerima: tx.penerima,
+                        paket: tx.paket,
+                        createdAt: tx.createdAt,
+                        asal: tx.createdBy['cabang_name']?.toString() ??
+                            tx.createdBy['konter_name']?.toString() ??
+                            tx.createdBy['gudang_name']?.toString(),
+                        dicetakOleh: user?.lokasi?['name']?.toString(),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  ResiCopyButton(resi: tx.noResi),
+                ],
+              ),
             ],
           ),
         ),
-        isThreeLine: true,
-        trailing: StatusBadge(status: tx.statusSaatIni),
-        onTap: () => _showDetail(tx),
-        onLongPress: canDelete && _canDelete(tx, user) ? () => _confirmDelete(tx) : null,
       ),
     );
   }
@@ -1035,175 +1043,30 @@ class _AdminRiwayatManifestCardState
     }
   }
 
-  Future<void> _printManifest() async {
-    // Ensure transactions loaded
-    if (_transactions == null) {
-      await _loadTransactions();
+  Future<void> _handlePrint(String format) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final detail = await ref.read(manifestDetailProvider(widget.manifest.id).future);
+      if (detail == null || context.mounted == false) {
+        if (context.mounted) Navigator.of(context).pop();
+        return;
+      }
+
+      Navigator.of(context).pop();
+
+      if (format == 'a4') {
+        await printManifestA4(detail);
+      } else {
+        await printManifest80mm(detail);
+      }
+    } catch (_) {
+      if (context.mounted) Navigator.of(context).pop();
     }
-    final txs = _transactions ?? <Transaction>[];
-    final m = widget.manifest;
-    final fmtDate = DateFormat('dd/MM/yyyy HH:mm', 'id_ID');
-    final now = fmtDate.format(toJakarta(DateTime.now()));
-
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (ctx) => [
-          pw.Center(
-            child: pw.Text(
-              'MANIFEST PENGIRIMAN',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Center(
-            child: pw.Text(
-              m.noManifest,
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                fontFallback: [pw.Font.courier()],
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Center(
-            child: pw.Text(
-              'Dicetak: $now',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey),
-            ),
-          ),
-          pw.SizedBox(height: 16),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    _pdfLabel('Asal', m.asalCabangName),
-                    pw.SizedBox(height: 4),
-                    _pdfLabel('Tujuan', m.tujuanNama),
-                    pw.SizedBox(height: 4),
-                    _pdfLabel('Tipe', m.tipeLabel),
-                  ],
-                ),
-              ),
-              pw.Expanded(
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    _pdfLabel('Driver', m.driverName),
-                    pw.SizedBox(height: 4),
-                    _pdfLabel('Kontak', m.driverPhone),
-                    pw.SizedBox(height: 4),
-                    _pdfLabel('Work Unit', '${m.workUnit}'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 16),
-          pw.Table(
-            border: pw.TableBorder.all(color: PdfColors.grey300),
-            columnWidths: {
-              0: const pw.FixedColumnWidth(28),
-              1: const pw.FixedColumnWidth(130),
-              2: const pw.FixedColumnWidth(105),
-              3: const pw.FixedColumnWidth(105),
-              4: const pw.FixedColumnWidth(45),
-              5: const pw.FixedColumnWidth(40),
-            },
-            children: [
-              pw.TableRow(
-                decoration:
-                    const pw.BoxDecoration(color: PdfColors.grey100),
-                children: [
-                  _pdfCell('No', header: true),
-                  _pdfCell('No. Resi', header: true),
-                  _pdfCell('Pengirim', header: true),
-                  _pdfCell('Penerima', header: true),
-                  _pdfCell('Berat', header: true),
-                  _pdfCell('Koli', header: true),
-                ],
-              ),
-              ...txs.asMap().entries.map((entry) {
-                final i = entry.key + 1;
-                final tx = entry.value;
-                return pw.TableRow(
-                  children: [
-                    _pdfCell('$i'),
-                    _pdfCell(tx.noResi, font: pw.Font.courier()),
-                    _pdfCell(tx.pengirimName),
-                    _pdfCell(tx.penerimaName),
-                    _pdfCell(tx.beratLabel),
-                    _pdfCell(tx.koliLabel),
-                  ],
-                );
-              }),
-            ],
-          ),
-          pw.SizedBox(height: 16),
-          pw.Row(
-            children: [
-              _pdfLabel('Total Resi: ${txs.length}'),
-              pw.SizedBox(width: 24),
-              _pdfLabel(
-                'Total Berat: ${txs.fold(0.0, (sum, tx) => sum + (tx.paket['berat_kg'] as num? ?? 0).toDouble()).toStringAsFixed(1)} kg',
-              ),
-              pw.SizedBox(width: 24),
-              _pdfLabel(
-                'Total Koli: ${txs.fold(0, (sum, tx) => sum + (tx.paket['jumlah_koli'] as num? ?? 0).toInt())}',
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 32),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-            children: [
-              pw.Column(
-                children: [
-                  pw.Text('Admin ${m.asalCabangName}',
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 32),
-                  pw.Text('(_______________)',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              pw.Column(
-                children: [
-                  pw.Text(m.driverName.isNotEmpty ? m.driverName : 'Driver',
-                      style: const pw.TextStyle(fontSize: 10)),
-                  pw.SizedBox(height: 32),
-                  pw.Text('(_______________)',
-                      style: const pw.TextStyle(fontSize: 10)),
-                ],
-              ),
-              if (m.isAntarCabang)
-                pw.Column(
-                  children: [
-                    pw.Text('Admin ${m.tujuanNama}',
-                        style: const pw.TextStyle(fontSize: 10)),
-                    pw.SizedBox(height: 32),
-                    pw.Text('(_______________)',
-                        style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (_) => pdf.save(),
-    );
   }
 
   void _showDetail(Transaction tx) {
@@ -1371,26 +1234,6 @@ class _AdminRiwayatManifestCardState
     );
   }
 
-  pw.Widget _pdfLabel(String label, [String? value]) {
-    return pw.Text(
-      value != null ? '$label: $value' : label,
-      style: const pw.TextStyle(fontSize: 10),
-    );
-  }
-
-  pw.Widget _pdfCell(String text, {bool header = false, pw.Font? font}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(6),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: header ? 9 : 8,
-          fontWeight: header ? pw.FontWeight.bold : pw.FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final txs = _transactions ?? <Transaction>[];
@@ -1453,18 +1296,46 @@ class _AdminRiwayatManifestCardState
             ),
             Material(
               color: Colors.transparent,
-              child: InkWell(
-                onTap: _printManifest,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
+              child: PopupMenuButton<String>(
+                icon: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.08),
+                    color: AppTheme.primary.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.print_rounded,
-                      size: 16, color: Colors.blue),
+                      size: 16, color: AppTheme.primary),
                 ),
+                tooltip: 'Cetak',
+                color: Colors.white,
+                surfaceTintColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                onSelected: (value) => _handlePrint(value),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'a4',
+                    child: Row(
+                      children: [
+                        Icon(Icons.description_outlined, size: 18, color: Color(0xFF3B82F6)),
+                        SizedBox(width: 10),
+                        Text('Print A4'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: '80mm',
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_long_outlined, size: 18, color: Color(0xFF3B82F6)),
+                        SizedBox(width: 10),
+                        Text('Print 80 mm'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

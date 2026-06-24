@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../data/models/manifest.dart';
 import '../providers/manifest_provider.dart';
+import '../utils/manifest_print.dart';
 
 class ManifestListScreen extends ConsumerStatefulWidget {
   const ManifestListScreen({super.key});
@@ -271,27 +272,50 @@ class _ManifestCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                _statusBadge(manifest.statusLabel, manifest.status),
-                const SizedBox(width: 8),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () =>
-                        context.push('/dashboard/manifest/${manifest.id}'),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.print_rounded,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
+                PopupMenuButton<String>(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.print_rounded,
+                      size: 16,
+                      color: Colors.blue,
                     ),
                   ),
+                  tooltip: 'Cetak',
+                  color: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  onSelected: (value) =>
+                      _handlePrint(context, ref, manifest, value),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'a4',
+                      child: Row(
+                        children: [
+                          Icon(Icons.description_outlined, size: 18, color: Color(0xFF3B82F6)),
+                          SizedBox(width: 10),
+                          Text('Print A4'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: '80mm',
+                      child: Row(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 18, color: Color(0xFF3B82F6)),
+                          SizedBox(width: 10),
+                          Text('Print 80 mm'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -387,36 +411,35 @@ class _ManifestCard extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _statusBadge(String label, String status) {
-    Color color;
-    switch (status) {
-      case 'dibuat':
-        color = const Color(0xFFF59E0B);
-        break;
-      case 'dalam_perjalanan':
-        color = AppTheme.primary;
-        break;
-      case 'selesai':
-        color = Colors.green;
-        break;
-      default:
-        color = const Color(0xFF94A3B8);
+void _handlePrint(
+  BuildContext context,
+  WidgetRef ref,
+  Manifest manifest,
+  String format,
+) async {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    final detail = await ref.read(manifestDetailProvider(manifest.id).future);
+    if (detail == null || context.mounted == false) {
+      if (context.mounted) Navigator.of(context).pop();
+      return;
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
+
+    Navigator.of(context).pop();
+
+    if (format == 'a4') {
+      await printManifestA4(detail);
+    } else {
+      await printManifest80mm(detail);
+    }
+  } catch (_) {
+    if (context.mounted) Navigator.of(context).pop();
   }
 }

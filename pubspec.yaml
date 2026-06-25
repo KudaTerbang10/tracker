@@ -49,9 +49,12 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "hiralogo_square.png"
+  image_path: "hiralogo_fg.png"
+  image_path_android: "hiralogo_icon.png"
   adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "hiralogo_fg.png"
   remove_alpha_ios: true
+  ios_background_color: "#FFFFFF"
 
 flutter_native_splash:
   color: "#FFFFFF"

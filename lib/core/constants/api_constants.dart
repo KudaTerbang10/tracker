@@ -10,7 +10,7 @@ class ApiConstants {
     if (customBaseUrl.isNotEmpty) return customBaseUrl;
     if (kIsWeb) return 'http://localhost:5000/api';
     if (defaultTargetPlatform == TargetPlatform.android)
-      return 'http://192.168.88.248:5000/api';
+      return 'http://10.10.10.135:5000/api';
     return 'http://localhost:5000/api';
   }
 

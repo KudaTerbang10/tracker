@@ -171,28 +171,12 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
         'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude.toString()},${driverLocation.longitude.toString()}&destination=${destLat.toString()},${destLng.toString()}&travelmode=driving',
       );
 
-      // LaunchMode.externalApplication:
-      // - Mobile: Tries to open Google Maps app first, falls back to browser
-      // - Web: Opens in browser (new tab)
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Gagal membuka Google Maps. Pastikan koneksi internet aktif.',
-              ),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Gagal membuka Google Maps: $e'),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -205,24 +189,19 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
       final driverLocation = await _getDriverLocation();
       String url;
       if (lat != null && lng != null) {
-        // Pakai koordinat eksak dari database
         if (driverLocation != null) {
           url = 'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude},${driverLocation.longitude}&destination=$lat,$lng&travelmode=driving';
         } else {
           url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
         }
       } else {
-        // Fallback ke pencarian nama
         if (driverLocation != null) {
           url = 'https://www.google.com/maps/dir/?api=1&origin=${driverLocation.latitude},${driverLocation.longitude}&destination=${Uri.encodeComponent('$cabangNama, Indonesia')}&travelmode=driving';
         } else {
           url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('$cabangNama, Indonesia')}';
         }
       }
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (_) {}
   }
 

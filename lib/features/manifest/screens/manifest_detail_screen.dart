@@ -99,7 +99,7 @@ class ManifestDetailScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       children: [
         // Header card
-        _headerCard(manifest),
+        _headerCard(context, manifest),
         const SizedBox(height: 12),
 
         // Info + Driver card — row on wide, stacked on mobile
@@ -161,7 +161,7 @@ class ManifestDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _headerCard(Manifest m) {
+  Widget _headerCard(BuildContext context, Manifest m) {
     return Card(
       color: Colors.white,
       child: Padding(
@@ -187,15 +187,45 @@ class ManifestDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    m.noManifest,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      fontFamily: 'monospace',
-                      letterSpacing: 1,
-                      color: Color(0xFF0F172A),
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            m.noManifest,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'monospace',
+                              letterSpacing: 1,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: m.noManifest));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Nomor manifest disalin'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.content_copy_rounded,
+                            size: 16,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   _statusBadge(m.statusLabel, m.status),
@@ -758,22 +788,21 @@ class ManifestDetailScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.phone_iphone_rounded,
-                    size: 12,
-                    color: Color(0xFF64748B),
-                  ),
+                  Icon(Icons.phone_iphone_rounded, size: 12, color: accent),
                   const SizedBox(width: 4),
-                  Expanded(
+                  Flexible(
                     child: Text(
                       phone,
-                      style: const TextStyle(
-                        color: Color(0xFF475569),
+                      style: TextStyle(
+                        color: accent,
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 2),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: phone));
@@ -784,10 +813,9 @@ class ManifestDetailScreen extends ConsumerWidget {
                         ),
                       );
                     },
-                    child: const Icon(
-                      Icons.copy_rounded,
-                      size: 12,
-                      color: Color(0xFF94A3B8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.content_copy_rounded, size: 13, color: accent),
                     ),
                   ),
                 ],

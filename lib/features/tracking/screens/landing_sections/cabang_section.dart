@@ -339,7 +339,7 @@ class CabangSectionState extends State<CabangSection> {
                     initialCenter: center,
                     initialZoom: _cabangInitZoom,
                     interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all,
+                      flags: InteractiveFlag.drag | InteractiveFlag.doubleTapZoom | InteractiveFlag.pinchZoom | InteractiveFlag.flingAnimation,
                     ),
                     onMapReady: () {
                       _cabangMapReady = true;

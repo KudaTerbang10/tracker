@@ -85,7 +85,7 @@ class _LandingScreenState extends State<LandingScreen> {
           controller: _scrollController,
           child: Column(
             children: [
-              KeyedSubtree(key: _homeKey, child: HomeSection(key: _homeSectionKey, isMobile: isMobile)),
+              KeyedSubtree(key: _homeKey, child: HomeSection(key: _homeSectionKey, isMobile: isMobile, onKirimSekarang: () => _scrollToSection(_cekTarifKey))),
               CekResiSection(sectionKey: _cekResiKey),
               CekTarifSection(sectionKey: _cekTarifKey),
               CabangSection(key: _cabangSectionKey, sectionKey: _cabangKey),

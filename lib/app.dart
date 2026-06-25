@@ -11,7 +11,7 @@ class TrackerApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'Ekspedisi Tracker',
+      title: 'Hira Express',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 
 class HomeSection extends StatefulWidget {
   final bool isMobile;
-  const HomeSection({super.key, required this.isMobile});
+  final VoidCallback? onKirimSekarang;
+  const HomeSection({super.key, required this.isMobile, this.onKirimSekarang});
 
   @override
   State<HomeSection> createState() => HomeSectionState();
@@ -284,6 +285,29 @@ class HomeSectionState extends State<HomeSection>
                     ),
                     delay: 0.667,
                   ),
+                  const SizedBox(height: 20),
+                  _fadeSlide(
+                    ElevatedButton(
+                      onPressed: widget.onKirimSekarang,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF0F172A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      ),
+                      child: const Text(
+                        'Kirim Sekarang',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    delay: 0.792,
+                  ),
                 ],
               ),
             ),
@@ -364,6 +388,29 @@ class HomeSectionState extends State<HomeSection>
                               ),
                             ),
                             delay: 0.667,
+                          ),
+                          const SizedBox(height: 24),
+                          _fadeSlide(
+                            ElevatedButton(
+                              onPressed: widget.onKirimSekarang,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF0F172A),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 2,
+                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                              ),
+                              child: const Text(
+                                'Kirim Sekarang',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                            delay: 0.792,
                           ),
                         ],
                       ),

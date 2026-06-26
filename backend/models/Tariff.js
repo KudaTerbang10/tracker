@@ -9,4 +9,7 @@ const tariffSchema = new mongoose.Schema({
   est: { type: String, required: true },
 }, { timestamps: true });
 
+// 🚀 Optimasi pencarian & sorting tariff by asal + tujuan
+tariffSchema.index({ asal: 1, tujuan: 1 });
+
 module.exports = mongoose.model('Tariff', tariffSchema);

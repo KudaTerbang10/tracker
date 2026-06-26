@@ -11,10 +11,8 @@ router.get('/', auth, async (req, res) => {
     const filter = { role: 'driver', is_active: true };
 
     if (q) {
-      filter.$or = [
-        { name: { $regex: q, $options: 'i' } },
-        { phone: { $regex: q, $options: 'i' } },
-      ];
+      // Anchored prefix agar bisa pakai index { role: 1, is_active: 1, name: 1 }
+      filter.name = { $regex: '^' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     }
 
     const drivers = await User.find(filter, { name: 1, phone: 1, email: 1, role: 1, _id: 1 }).lean();

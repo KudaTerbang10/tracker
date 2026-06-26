@@ -107,4 +107,16 @@ transactionSchema.index({ barcode_data: 1 });
 transactionSchema.index({ current_cabang_id: 1, status_saat_ini: 1 });
 transactionSchema.index({ no_manifest: 1 });
 
+// 🚀 Optimasi pencarian history untuk admin cabang
+transactionSchema.index({ 'tracking_logs.lokasi.cabang_id': 1, 'tracking_logs.timestamp': -1 });
+
+// 🚀 Optimasi pencarian history untuk driver
+transactionSchema.index({ 'tracking_logs.driver_ditugaskan.user_id': 1, 'tracking_logs.timestamp': -1 });
+
+// 🚀 Optimasi query $or di manifest detail (branch tracking_logs.no_manifest)
+transactionSchema.index({ 'tracking_logs.no_manifest': 1, createdAt: 1 });
+
+// 🚀 Optimasi aggregate analytics traffic per cabang
+transactionSchema.index({ createdAt: -1, kode_gerai: 1 });
+
 module.exports = mongoose.model('Transaction', transactionSchema);

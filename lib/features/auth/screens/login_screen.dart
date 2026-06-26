@@ -14,12 +14,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailC = TextEditingController();
   final _passC = TextEditingController();
+  final _passFocus = FocusNode();
   bool _obscure = true;
 
   @override
   void dispose() {
     _emailC.dispose();
     _passC.dispose();
+    _passFocus.dispose();
     super.dispose();
   }
 
@@ -101,6 +103,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                   keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.next,
+                                  onFieldSubmitted: (_) =>
+                                      _passFocus.requestFocus(),
                                   validator: (v) => (v == null || v.isEmpty)
                                       ? 'Email wajib diisi'
                                       : null,
@@ -108,6 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 const SizedBox(height: 16),
                                 TextFormField(
                                   controller: _passC,
+                                  focusNode: _passFocus,
                                   obscureText: _obscure,
                                   decoration: InputDecoration(
                                     labelText: 'Password',
@@ -127,6 +133,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                           setState(() => _obscure = !_obscure),
                                     ),
                                   ),
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _login(),
                                   validator: (v) => (v == null || v.isEmpty)
                                       ? 'Password wajib diisi'
                                       : null,
@@ -325,7 +333,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     TextButton.icon(
                       onPressed: () => context.go('/'),
                       icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                      label: const Text('Kembali ke Lacak Resi'),
+                      label: const Text('Kembali ke Beranda'),
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFF64748B),
                         textStyle: const TextStyle(

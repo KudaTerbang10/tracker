@@ -146,7 +146,19 @@ router.get('/drivers', auth, rbac('super_admin'), async (req, res) => {
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
     const data = await Transaction.aggregate([
-      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+          // Filter dokumen yang punya tracking_log dengan status keluar_cabang + driver
+          // SEBELUM $unwind, supaya dokumen tanpa data relevan tidak ikut di-unwind
+          'tracking_logs': {
+            $elemMatch: {
+              status: 'keluar_cabang',
+              'driver_ditugaskan.user_id': { $exists: true, $ne: null },
+            },
+          },
+        },
+      },
       { $unwind: '$tracking_logs' },
       {
         $match: {

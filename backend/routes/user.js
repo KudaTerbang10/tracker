@@ -10,10 +10,8 @@ router.get('/', auth, rbac('super_admin'), async (req, res) => {
     const { search } = req.query;
     const filter = {};
     if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ];
+      // Anchored prefix agar bisa pakai index { name: 1 }
+      filter.name = { $regex: '^' + search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     }
     const users = await User.find(filter).lean();
     res.json({ data: users });

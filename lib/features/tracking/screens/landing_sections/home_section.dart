@@ -290,21 +290,13 @@ class HomeSectionState extends State<HomeSection>
                     ElevatedButton(
                       onPressed: widget.onKirimSekarang,
                       style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 50),
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFF0F172A),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
                       ),
-                      child: const Text(
-                        'Kirim Sekarang',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
+                      child: const Text('Kirim Sekarang'),
                     ),
                     delay: 0.792,
                   ),
@@ -394,21 +386,13 @@ class HomeSectionState extends State<HomeSection>
                             ElevatedButton(
                               onPressed: widget.onKirimSekarang,
                               style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(0, 50),
                                 backgroundColor: Colors.white,
                                 foregroundColor: const Color(0xFF0F172A),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 2,
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 32),
                               ),
-                              child: const Text(
-                                'Kirim Sekarang',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 18,
-                                ),
-                              ),
+                              child: const Text('Kirim Sekarang'),
                             ),
                             delay: 0.792,
                           ),

@@ -18,6 +18,12 @@ userSchema.index({ role: 1, cabang_id: 1 });
 userSchema.index({ phone: 1 });
 userSchema.index({ name: 'text', email: 'text' });
 
+// 🚀 Optimasi pencarian user by name (anchored prefix $regex)
+userSchema.index({ name: 1 });
+
+// 🚀 Optimasi pencarian driver aktif by name
+userSchema.index({ role: 1, is_active: 1, name: 1 });
+
 userSchema.methods.comparePassword = async function (candidate) {
   return candidate === this.password;
 };

@@ -9,8 +9,8 @@ router.get('/', auth, async (req, res) => {
   try {
     const { asal, tujuan, page = 1, limit = 20 } = req.query;
     let filter = {};
-    if (asal) filter.asal = { $regex: asal, $options: 'i' };
-    if (tujuan) filter.tujuan = { $regex: tujuan, $options: 'i' };
+    if (asal) filter.asal = { $regex: '^' + asal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    if (tujuan) filter.tujuan = { $regex: '^' + tujuan.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
 
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.max(1, Math.min(2000, parseInt(limit)));

@@ -560,6 +560,7 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
 
     if (confirm != true) return;
 
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _submitting = true);
     try {
       final repo = ref.read(transactionRepositoryProvider);
@@ -585,13 +586,22 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
 
       if (mounted) {
         final berhasil = result['berhasil'] as int? ?? 0;
+        final gagal = result['gagal'] as int? ?? 0;
+        final results = result['results'] as List<dynamic>? ?? [];
         final manifestData = result['manifest'] as Map<String, dynamic>?;
 
+        final errors = results.where((r) => r['status'] == 'error').map((r) => r['error'] as String? ?? '').where((e) => e.isNotEmpty).toList();
+
         if (manifestData != null) {
-          // Simpan manifest result di state
           ref.read(scanKeluarProvider.notifier).setManifestResult(manifestData);
 
-          SoundPlayer.instance.playSuccess();
+          if (gagal > 0) {
+            SoundPlayer.instance.playError();
+          } else {
+            SoundPlayer.instance.playSuccess();
+          }
+
+          setState(() => _submitting = false);
           await showManifestResultSheet(
             context,
             ManifestResultSheetData(
@@ -613,8 +623,24 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
           if (manifestProvider != null) {
             ref.invalidate(manifestProvider);
           }
+        } else if (gagal > 0) {
+          SoundPlayer.instance.playError();
+          setState(() => _submitting = false);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(errors.isNotEmpty ? errors.join(', ') : '$gagal gagal'),
+                backgroundColor: AppTheme.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          });
+          // Jangan clear state agar user bisa lihat item yang gagal
+          return;
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          SoundPlayer.instance.playSuccess();
+          messenger.showSnackBar(
             SnackBar(
               content: Text('$berhasil berhasil'),
               backgroundColor: Colors.green,
@@ -622,24 +648,27 @@ class _ScanKeluarScreenState extends ConsumerState<ScanKeluarScreen> {
               duration: const Duration(seconds: 2),
             ),
           );
-          SoundPlayer.instance.playSuccess();
         }
 
+        setState(() => _submitting = false);
         ref.read(scanKeluarProvider.notifier).clear();
       }
     } catch (e) {
       SoundPlayer.instance.playError();
-      if (mounted) {
-        final msg = e is DioException
-            ? (e.response?.data?['message'] as String? ?? 'Gagal mengirim')
-            : 'Gagal mengirim';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppTheme.error),
-        );
-      }
-    } finally {
       setState(() => _submitting = false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(e is DioException
+                ? (e.response?.data?['message'] as String? ?? 'Gagal mengirim')
+                : 'Gagal mengirim'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      });
+      return;
     }
+    if (mounted) setState(() => _submitting = false);
   }
 
   /// Helper untuk invalidate manifest providers

@@ -187,6 +187,158 @@ class LabelPrinter {
     );
   }
 
+  /// Cetak label retur dengan data resi asli, alamat penerima/pengirim swapped.
+  /// - [data] nomor resi asli
+  /// - [penerima] diisi data PENGIRIM asli (karena retur dikembalikan ke pengirim)
+  /// - [pengirim] diisi data cabang yang melakukan retur
+  /// - [paket] data paket sama
+  /// - [createdAt] tanggal buat
+  /// - [dicetakOleh] nama cabang yang mencetak
+  /// - [originalResi] nomor resi asli untuk referensi
+  static Future<void> printReturLabel({
+    required String data,
+    required Map<String, dynamic> penerima,
+    required Map<String, dynamic> pengirim,
+    Map<String, dynamic>? paket,
+    DateTime? createdAt,
+    String? dicetakOleh,
+    String? asalCabang,
+  }) async {
+    final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
+    final hiraFont = await _loadHiraFont();
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async {
+        final doc = pw.Document();
+
+        for (var i = 1; i <= jumlahKoli; i++) {
+          doc.addPage(
+            pw.Page(
+              pageFormat: PdfPageFormat(78 * PdfPageFormat.mm, 100 * PdfPageFormat.mm),
+              margin: const pw.EdgeInsets.only(left: 5, right: 2, top: 3, bottom: 3),
+              build: (pw.Context context) {
+                return pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: [
+                    // Label RETUR
+                    pw.Container(
+                      color: PdfColors.orange700,
+                      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'RESI RETUR',
+                          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Divider(height: 1),
+                    pw.SizedBox(height: 3),
+                    // Barcode
+                    pw.Center(
+                      child: pw.BarcodeWidget(
+                        barcode: pw.Barcode.code128(),
+                        data: data,
+                        width: 68 * PdfPageFormat.mm,
+                        height: 20 * PdfPageFormat.mm,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2),
+                    pw.Divider(height: 1),
+                    pw.SizedBox(height: 3),
+                    // Penerima (pengirim asli) + Pengirim (cabang retur)
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                            children: [
+                              _infoCard('Penerima (Retur)', penerima),
+                              pw.Divider(height: 1, thickness: 0.3),
+                              pw.SizedBox(height: 2),
+                              _infoCard(
+                                'Pengirim',
+                                {
+                                  'name': 'Cabang ${pengirim['name'] ?? ''}',
+                                  'phone': pengirim['phone'] ?? '',
+                                  'address': pengirim['address'] ?? '',
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        pw.SizedBox(width: 2),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Column(
+                            mainAxisAlignment: pw.MainAxisAlignment.center,
+                            children: [
+                              pw.SizedBox(height: 4),
+                              pw.BarcodeWidget(
+                                barcode: pw.Barcode.qrCode(),
+                                data: data,
+                                width: 22 * PdfPageFormat.mm,
+                                height: 22 * PdfPageFormat.mm,
+                              ),
+                              pw.SizedBox(height: 6),
+                              pw.Center(
+                                child: pw.Text(
+                                  String.fromCharCode(0xe000),
+                                  style: pw.TextStyle(font: hiraFont, fontSize: 25),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 2),
+                    // 1 kotak: nama cabang asal origin
+                    if (asalCabang != null && asalCabang.isNotEmpty)
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                        ),
+                        child: pw.Text(
+                          asalCabang,
+                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                          textAlign: pw.TextAlign.center,
+                          maxLines: 1,
+                        ),
+                      ),
+                    pw.SizedBox(height: 2),
+                    pw.Divider(height: 1),
+                    pw.SizedBox(height: 2),
+                    if (paket != null) _paketLine(paket, createdAt),
+                    if (jumlahKoli > 1) ...[
+                      pw.SizedBox(height: 3),
+                      pw.Container(
+                        color: PdfColors.black,
+                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                        child: pw.Center(
+                          child: pw.Text(
+                            'Koli $i/$jumlahKoli',
+                            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          );
+        }
+
+        return doc.save();
+      },
+    );
+  }
+
   static String _capitalize(String s) {
     if (s.isEmpty) return s;
     return s.split(' ').map((word) {

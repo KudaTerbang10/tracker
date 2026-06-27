@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const trackingLogSchema = new mongoose.Schema({
   status: {
     type: String,
-    enum: ['diterima_cabang', 'keluar_cabang', 'proses_kirim', 'diterima'],
+    enum: ['diterima_cabang', 'keluar_cabang', 'proses_kirim', 'diterima', 'hilang', 'gagal_kirim', 'kasus_selesai'],
     required: true,
   },
   deskripsi: { type: String, default: '' },
@@ -68,9 +68,25 @@ const transactionSchema = new mongoose.Schema({
 
   status_saat_ini: {
     type: String,
-    enum: ['diterima_cabang', 'keluar_cabang', 'proses_kirim', 'diterima'],
+    enum: ['diterima_cabang', 'keluar_cabang', 'proses_kirim', 'diterima', 'hilang', 'gagal_kirim', 'kasus_selesai'],
     default: 'diterima_cabang',
   },
+
+  jenis_masalah: { type: String, enum: ['hilang', 'gagal_kirim', null], default: null },
+  catatan_masalah: { type: String, default: '' },
+  dilaporkan_oleh: {
+    user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: '' },
+    role: { type: String, default: '' },
+    cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
+    cabang_name: { type: String, default: '' },
+  },
+  dilaporkan_pada: { type: Date, default: null },
+  diselesaikan_oleh: {
+    user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: '' },
+  },
+  diselesaikan_pada: { type: Date, default: null },
 
   nama_driver: { type: String, default: null },
   kontak_driver: { type: String, default: null },

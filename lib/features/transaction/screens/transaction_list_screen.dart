@@ -4,44 +4,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../data/models/transaction.dart';
-import '../../../data/models/manifest.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/transaction_repository.dart';
-import '../../../data/datasources/remote/api_service.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/utils/label_printer.dart';
+import '../../../shared/utils/sound_player.dart';
 import '../../../shared/utils/branch_report_printer.dart';
 import '../../../shared/utils/driver_report_printer.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../core/constants/api_constants.dart';
-import '../../manifest/utils/manifest_print.dart';
-import '../../manifest/providers/manifest_provider.dart';
 
 final _prosesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) {
-  return ref.read(transactionRepositoryProvider).getList(tab: 'current', limit: 999);
+  return ref
+      .read(transactionRepositoryProvider)
+      .getList(tab: 'current', limit: 999);
 });
 
 class TransactionListScreen extends ConsumerStatefulWidget {
   const TransactionListScreen({super.key});
   @override
-  ConsumerState<TransactionListScreen> createState() => _TransactionListScreenState();
+  ConsumerState<TransactionListScreen> createState() =>
+      _TransactionListScreenState();
 }
 
-class _TransactionListScreenState extends ConsumerState<TransactionListScreen> with SingleTickerProviderStateMixin {
+class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
+    with SingleTickerProviderStateMixin {
   TabController? _tabController;
-  bool get _isAdminCabang => ref.read(authProvider).user?.isAdminCabang ?? false;
+  bool get _isAdminCabang =>
+      ref.read(authProvider).user?.isAdminCabang ?? false;
 
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedStatus = '';
 
-  // Infinite scroll untuk history tab (manifest-based)
-  final _historyItems = <Manifest>[];
+  // Infinite scroll untuk history tab (transaction-based)
+  final _historyItems = <Transaction>[];
   int _historyPage = 1;
   int _historyTotalPages = 1;
   bool _historyLoadingMore = false;
@@ -75,13 +77,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
         }
       });
       _historyScrollC.addListener(() {
-        if (_historyScrollC.position.pixels >= _historyScrollC.position.maxScrollExtent - 200) {
+        if (_historyScrollC.position.pixels >=
+            _historyScrollC.position.maxScrollExtent - 200) {
           _loadHistory();
         }
       });
     } else {
       _superAdminScrollC.addListener(() {
-        if (_superAdminScrollC.position.pixels >= _superAdminScrollC.position.maxScrollExtent - 200) {
+        if (_superAdminScrollC.position.pixels >=
+            _superAdminScrollC.position.maxScrollExtent - 200) {
           _loadSuperAdmin();
         }
       });
@@ -114,7 +118,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     _generateReport(type: type, month: result['month']!, year: result['year']!);
   }
 
-  Future<void> _generateReport({required String type, required int month, required int year}) async {
+  Future<void> _generateReport({
+    required String type,
+    required int month,
+    required int year,
+  }) async {
     try {
       showDialog(
         context: context,
@@ -135,36 +143,49 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       if (data.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tidak ada data untuk bulan yang dipilih')),
+          const SnackBar(
+            content: Text('Tidak ada data untuk bulan yang dipilih'),
+          ),
         );
         return;
       }
 
       if (type == 'driver') {
-        await DriverReportPrinter.printReport(month: month, year: year, data: data);
+        await DriverReportPrinter.printReport(
+          month: month,
+          year: year,
+          data: data,
+        );
       } else {
-        await BranchReportPrinter.printReport(month: month, year: year, data: data);
+        await BranchReportPrinter.printReport(
+          month: month,
+          year: year,
+          data: data,
+        );
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil data: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengambil data: $e')));
     }
   }
 
   Future<void> _loadSuperAdmin() async {
-    if (_superAdminLoadingMore || _superAdminPage > _superAdminTotalPages) return;
+    if (_superAdminLoadingMore || _superAdminPage > _superAdminTotalPages)
+      return;
     if (_superAdminPage == 1) _superAdminItems.clear();
     _superAdminLoadingMore = true;
     try {
-      final result = await ref.read(transactionRepositoryProvider).getList(
-        page: _superAdminPage,
-        status: _selectedStatus.isEmpty ? null : _selectedStatus,
-        search: _searchQuery.isEmpty ? null : _searchQuery,
-        limit: 20,
-      );
+      final result = await ref
+          .read(transactionRepositoryProvider)
+          .getList(
+            page: _superAdminPage,
+            status: _selectedStatus.isEmpty ? null : _selectedStatus,
+            search: _searchQuery.isEmpty ? null : _searchQuery,
+            limit: 20,
+          );
       final list = result['data'] as List<Transaction>;
       _superAdminTotalPages = result['totalPages'] as int;
       _superAdminItems.addAll(list);
@@ -187,19 +208,17 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     if (_historyPage == 1) _historyItems.clear();
     _historyLoadingMore = true;
     try {
-      final params = <String, dynamic>{
-        'page': _historyPage,
-        'limit': 20,
-        // tanpa filter status — tampilkan semua manifest cabang ini
-        if (_startDate != null) 'start_date': _startDate!.toIso8601String().split('T')[0],
-        if (_endDate != null) 'end_date': _endDate!.toIso8601String().split('T')[0],
-      };
-      final res = await ApiService().get(ApiConstants.manifests, query: params);
-      final data = res.data as Map<String, dynamic>;
-      final list = (data['data'] as List<dynamic>)
-          .map((e) => Manifest.fromJson(e as Map<String, dynamic>))
-          .toList();
-      _historyTotalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
+      final result = await ref
+          .read(transactionRepositoryProvider)
+          .getList(
+            tab: 'history',
+            page: _historyPage,
+            limit: 20,
+            startDate: _startDate,
+            endDate: _endDate,
+          );
+      final list = result['data'] as List<Transaction>;
+      _historyTotalPages = result['totalPages'] as int;
       _historyItems.addAll(list);
       _historyPage++;
     } finally {
@@ -212,11 +231,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     _historyPage = 1;
     _historyTotalPages = 1;
     _historyItems.clear();
+    _historyLoadingMore = false;
     _loadHistory();
   }
 
   Future<void> _scanAndSearch() async {
-    final code = await BarcodeScannerDialog.show(context, label: 'Scan barcode untuk mencari transaksi');
+    final code = await BarcodeScannerDialog.show(
+      context,
+      label: 'Scan barcode untuk mencari transaksi',
+    );
     if (code != null && code.isNotEmpty) {
       _searchController.text = code;
       setState(() {
@@ -234,18 +257,43 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     return Scaffold(
       appBar: AppBar(
         title: const Text('Daftar Transaksi'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
         actions: [
           if (!isAdminCabang)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.print_rounded),
+              icon: const Icon(Icons.print_rounded, color: Colors.indigo),
               tooltip: 'Cetak Laporan',
               surfaceTintColor: Colors.transparent,
               color: Colors.white,
               onSelected: (v) => _showMonthYearPicker(v),
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'cabang', child: Row(children: [Icon(Icons.store, size: 18), SizedBox(width: 10), Text('Laporan Per Cabang')])),
-                const PopupMenuItem(value: 'driver', child: Row(children: [Icon(Icons.directions_car, size: 18), SizedBox(width: 10), Text('Laporan Kerja Driver')])),
+                const PopupMenuItem(
+                  value: 'cabang',
+                  child: Row(
+                    children: [
+                      Icon(Icons.store, size: 18, color: Colors.indigoAccent),
+                      SizedBox(width: 10),
+                      Text('Laporan Per Cabang'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'driver',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 18,
+                        color: Colors.indigoAccent,
+                      ),
+                      SizedBox(width: 10),
+                      Text('Laporan Kerja Driver'),
+                    ],
+                  ),
+                ),
               ],
             ),
         ],
@@ -262,10 +310,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       body: isAdminCabang
           ? TabBarView(
               controller: _tabController,
-              children: [
-                _buildProsesTab(dateFmt),
-                _buildHistoryTab(dateFmt),
-              ],
+              children: [_buildProsesTab(dateFmt), _buildHistoryTab(dateFmt)],
             )
           : _buildPaginatedSuperAdminView(dateFmt),
     );
@@ -301,8 +346,13 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                   ),
                 ],
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 0,
+                horizontal: 12,
+              ),
             ),
             onChanged: (v) {
               setState(() {
@@ -356,7 +406,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
           children: [
             Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text('Tidak ada transaksi', style: TextStyle(color: Colors.grey.shade500)),
+            Text(
+              'Tidak ada transaksi',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
           ],
         ),
       );
@@ -365,7 +418,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     return ListView.builder(
       controller: _superAdminScrollC,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      itemCount: _superAdminItems.length + (_superAdminPage <= _superAdminTotalPages ? 1 : 0),
+      itemCount:
+          _superAdminItems.length +
+          (_superAdminPage <= _superAdminTotalPages ? 1 : 0),
       itemBuilder: (_, i) {
         if (i == _superAdminItems.length) {
           return const Padding(
@@ -377,6 +432,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       },
     );
   }
+
   Widget _buildProsesTabBadge() {
     final async = ref.watch(_prosesProvider);
     final data = async.valueOrNull;
@@ -396,7 +452,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               ),
               child: Text(
                 '$count',
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -421,7 +481,10 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               children: [
                 Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                 const SizedBox(height: 12),
-                Text('Belum ada transaksi proses', style: TextStyle(color: Colors.grey.shade500)),
+                Text(
+                  'Belum ada transaksi proses',
+                  style: TextStyle(color: Colors.grey.shade500),
+                ),
               ],
             ),
           );
@@ -430,7 +493,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           itemCount: list.length,
-          itemBuilder: (_, i) => _buildItemCard(list[i], dateFmt, canDelete: true),
+          itemBuilder: (_, i) =>
+              _buildItemCard(list[i], dateFmt, canDelete: true),
         );
       },
     );
@@ -469,22 +533,41 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                       surfaceTintColor: Colors.white,
                       headerBackgroundColor: const Color(0xFF6366F1),
                       headerForegroundColor: Colors.white,
-                      todayBackgroundColor: WidgetStateProperty.all(const Color(0xFFEEF2FF)),
-                      todayForegroundColor: WidgetStateProperty.all(const Color(0xFF6366F1)),
-                      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.selected)) return const Color(0xFF6366F1);
+                      todayBackgroundColor: WidgetStateProperty.all(
+                        const Color(0xFFEEF2FF),
+                      ),
+                      todayForegroundColor: WidgetStateProperty.all(
+                        const Color(0xFF6366F1),
+                      ),
+                      dayBackgroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected))
+                          return const Color(0xFF6366F1);
                         return Colors.transparent;
                       }),
-                      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.selected)) return Colors.white;
+                      dayForegroundColor: WidgetStateProperty.resolveWith((
+                        states,
+                      ) {
+                        if (states.contains(WidgetState.selected))
+                          return Colors.white;
                         return const Color(0xFF0F172A);
                       }),
-                      dayOverlayColor: WidgetStateProperty.all(Colors.transparent),
+                      dayOverlayColor: WidgetStateProperty.all(
+                        Colors.transparent,
+                      ),
                       rangePickerBackgroundColor: Colors.white,
                       rangeSelectionBackgroundColor: const Color(0xFFEEF2FF),
-                      dayShape: WidgetStateProperty.all(const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8)))),
+                      dayShape: WidgetStateProperty.all(
+                        const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(8)),
+                        ),
+                      ),
                     ),
-                    dialogTheme: const DialogThemeData(backgroundColor: Colors.white, surfaceTintColor: Colors.white),
+                    dialogTheme: const DialogThemeData(
+                      backgroundColor: Colors.white,
+                      surfaceTintColor: Colors.white,
+                    ),
                     inputDecorationTheme: const InputDecorationTheme(
                       filled: true,
                       fillColor: Colors.white,
@@ -510,7 +593,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.date_range, size: 16, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.date_range,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -519,7 +606,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                           : 'Filter berdasarkan tanggal',
                       style: TextStyle(
                         fontSize: 12,
-                        color: _startDate != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                        color: _startDate != null
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                   ),
@@ -532,7 +621,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                           _resetHistory();
                         });
                       },
-                      child: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
                   ],
                 ],
@@ -540,7 +633,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
             ),
           ),
         ),
-        // Manifest list
+        // Transaction list
         Expanded(
           child: _historyItems.isEmpty && !_historyLoadingMore
               ? Center(
@@ -549,30 +642,37 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     children: [
                       Icon(Icons.inbox, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
-                      Text('Tidak ada riwayat manifest', style: TextStyle(color: Colors.grey.shade500)),
+                      Text(
+                        'Tidak ada riwayat transaksi',
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
                     ],
                   ),
                 )
               : RefreshIndicator(
                   onRefresh: () async {
-                    _historyPage = 1;
-                    _historyTotalPages = 1;
-                    _historyItems.clear();
-                    _historyLoadingMore = false;
-                    await _loadHistory();
+                    _resetHistory();
                   },
                   child: ListView.builder(
                     controller: _historyScrollC,
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                    itemCount: _historyItems.length + (_historyPage <= _historyTotalPages ? 1 : 0),
+                    itemCount:
+                        _historyItems.length +
+                        (_historyPage <= _historyTotalPages ? 1 : 0),
                     itemBuilder: (_, i) {
-                      if (i >= _historyItems.length) {
+                      if (i == _historyItems.length) {
                         return const Padding(
                           padding: EdgeInsets.all(16),
-                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         );
                       }
-                      return _AdminRiwayatManifestCard(manifest: _historyItems[i]);
+                      return _buildItemCard(
+                        _historyItems[i],
+                        dateFmt,
+                        canDelete: false,
+                      );
                     },
                   ),
                 ),
@@ -581,14 +681,20 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     );
   }
 
-  Widget _buildItemCard(Transaction tx, DateFormat dateFmt, {required bool canDelete}) {
+  Widget _buildItemCard(
+    Transaction tx,
+    DateFormat dateFmt, {
+    required bool canDelete,
+  }) {
     final user = ref.read(authProvider).user;
     final isDriver = user?.isDriver ?? false;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
         onTap: () => _showDetail(tx),
-        onLongPress: canDelete && _canDelete(tx, user) ? () => _confirmDelete(tx) : null,
+        onLongPress: canDelete && _canDelete(tx, user)
+            ? () => _confirmDelete(tx)
+            : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
@@ -597,45 +703,233 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
               // Top row: Resi number + Status badge
               Row(
                 children: [
-                  Expanded(
-                    child: Text(tx.noResi, style: const TextStyle(fontWeight: FontWeight.w500, letterSpacing: 1), overflow: TextOverflow.ellipsis),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.blue.withValues(alpha: 0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      tx.noResi,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        color: Colors.blue,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const Spacer(),
                   StatusBadge(status: tx.statusSaatIni),
                 ],
               ),
               const SizedBox(height: 4),
-              Text('${tx.pengirimName} → ${tx.penerimaName}'),
+              Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            tx.pengirimName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            tx.penerimaName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 2),
               Row(
                 children: [
-                  Text(dateFmt.format(toJakarta(tx.createdAt)),
-                      style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                  Text(
+                    dateFmt.format(toJakarta(tx.createdAt)),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
                   const Spacer(),
-                  if (!isDriver) ...[
+                  if (tx.jenisMasalah == 'gagal_kirim' &&
+                      (tx.statusSaatIni == 'diterima_cabang' ||
+                          tx.statusSaatIni == 'keluar_cabang')) ...[
                     InkWell(
-                      onTap: () => LabelPrinter.printBarcodeLabel(
-                        data: tx.noResi,
-                        pengirim: tx.pengirim,
-                        penerima: tx.penerima,
-                        paket: tx.paket,
-                        createdAt: tx.createdAt,
-                        asal: tx.createdBy['cabang_name']?.toString() ??
-                            tx.createdBy['konter_name']?.toString() ??
-                            tx.createdBy['gudang_name']?.toString(),
-                        dicetakOleh: user?.lokasi?['name']?.toString(),
-                      ),
+                      onTap: () => _serahTerimaRetur(tx),
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          color: Colors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Icon(Icons.print, size: 16, color: AppTheme.primary),
+                        child: const Icon(
+                          Icons.how_to_reg_rounded,
+                          size: 16,
+                          color: Colors.green,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                   ],
+                  if (tx.jenisMasalah == 'gagal_kirim')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.replay,
+                            size: 12,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Barang Retur',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange.shade800,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(width: 8),
                   ResiCopyButton(resi: tx.noResi),
+                  if (!isDriver) ...[
+                    const SizedBox(width: 8),
+                    if (tx.statusSaatIni == 'gagal_kirim' ||
+                        tx.jenisMasalah == 'gagal_kirim')
+                      PopupMenuButton<String>(
+                        tooltip: 'Cetak',
+                        color: Colors.white,
+                        surfaceTintColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        onSelected: (value) {
+                          if (value == 'asli') {
+                            LabelPrinter.printBarcodeLabel(
+                              data: tx.noResi,
+                              pengirim: tx.pengirim,
+                              penerima: tx.penerima,
+                              paket: tx.paket,
+                              createdAt: tx.createdAt,
+                              asal:
+                                  tx.createdBy['cabang_name']?.toString() ??
+                                  tx.createdBy['konter_name']?.toString() ??
+                                  tx.createdBy['gudang_name']?.toString(),
+                              dicetakOleh: user?.lokasi?['name']?.toString(),
+                            );
+                          } else {
+                            _cetakRetur(tx);
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'asli',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.print_rounded,
+                                  size: 18,
+                                  color: Color(0xFF3B82F6),
+                                ),
+                                SizedBox(width: 10),
+                                Text('Cetak Asli'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'retur',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 18,
+                                  color: Colors.orange.shade700,
+                                ),
+                                const SizedBox(width: 10),
+                                const Text('Cetak Resi Retur'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            Icons.print,
+                            size: 16,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      )
+                    else
+                      InkWell(
+                        onTap: () => LabelPrinter.printBarcodeLabel(
+                          data: tx.noResi,
+                          pengirim: tx.pengirim,
+                          penerima: tx.penerima,
+                          paket: tx.paket,
+                          createdAt: tx.createdAt,
+                          asal:
+                              tx.createdBy['cabang_name']?.toString() ??
+                              tx.createdBy['konter_name']?.toString() ??
+                              tx.createdBy['gudang_name']?.toString(),
+                          dicetakOleh: user?.lokasi?['name']?.toString(),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            Icons.print,
+                            size: 16,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ],
@@ -650,9 +944,14 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Hapus Transaksi?'),
-        content: Text('Transaksi dengan No. Resi ${tx.noResi} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.'),
+        content: Text(
+          'Transaksi dengan No. Resi ${tx.noResi} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -674,9 +973,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menghapus: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menghapus: $e')));
     }
   }
 
@@ -685,15 +984,107 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     if (!user.isAdminCabang) return false;
     if (tx.statusSaatIni != 'diterima_cabang') return false;
     if (tx.trackingLogs.isNotEmpty) {
-      final firstCabang = tx.trackingLogs.first.lokasi?['cabang_id']?.toString();
+      final firstCabang = tx.trackingLogs.first.lokasi?['cabang_id']
+          ?.toString();
       if (firstCabang != null) return firstCabang == user.cabangId;
     }
     return tx.trackingLogs.length == 1;
   }
+
+  Future<void> _cetakRetur(Transaction tx) async {
+    try {
+      final user = ref.read(authProvider).user;
+      final cabangRetur = {
+        'name': user?.lokasi?['name']?.toString() ?? 'Cabang',
+        'phone': user?.lokasi?['phone']?.toString() ?? '',
+        'address': '',
+      };
+      final asalCabang = tx.createdBy['cabang_name']?.toString() ?? '';
+      await LabelPrinter.printReturLabel(
+        data: tx.noResi,
+        penerima: tx.pengirim,
+        pengirim: cabangRetur,
+        paket: tx.paket,
+        createdAt: tx.createdAt,
+        dicetakOleh: user?.lokasi?['name']?.toString(),
+        asalCabang: asalCabang,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal cetak retur: $e')));
+      }
+    }
+  }
+
+  Future<void> _serahTerimaRetur(Transaction tx) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Serah Terima Barang Retur?'),
+        content: Text(
+          'Resi ${tx.noResi} akan ditandai sebagai "Diterima" (pengirim telah mengambil barang).',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              minimumSize: const Size(0, 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Serah Terima', style: TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    try {
+      final repo = ref.read(transactionRepositoryProvider);
+      await repo.batchUpdateStatus(
+        noResiList: [tx.noResi],
+        statusBaru: 'diterima',
+        catatan: 'Barang retur diambil langsung oleh pengirim di cabang',
+      );
+      ref.invalidate(_prosesProvider);
+      SoundPlayer.instance.playSuccess();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${tx.noResi} selesai serah terima'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: AppTheme.error),
+        );
+      }
+    }
+  }
+
   void _showDetail(Transaction tx) {
-    final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final fmt = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
     final showDriver = _isDeliveredToRecipient(tx) && tx.namaDriver != null;
-    final isDriver = ref.read(authProvider).user?.isDriver ?? false;
+    final user = ref.read(authProvider).user;
+    final isDriver = user?.isDriver ?? false;
+    final isAdminCabang = user?.isAdminCabang ?? false;
 
     showModalBottomSheet(
       context: context,
@@ -736,9 +1127,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                               children: [
                                 const Text(
                                   'Nomor Resi Pengiriman',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
                                 ),
-                                StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                                StatusBadge(
+                                  status: tx.statusSaatIni,
+                                  fontSize: 10,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -759,31 +1157,129 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                                 ResiCopyButton(resi: tx.noResi),
                                 if (!isDriver) ...[
                                   const SizedBox(width: 8),
-                                  Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () => LabelPrinter.printBarcodeLabel(
-                                        data: tx.noResi,
-                                        pengirim: tx.pengirim,
-                                        penerima: tx.penerima,
-                                        paket: tx.paket,
-                                        createdAt: tx.createdAt,
-                                        asal: tx.createdBy['cabang_name']?.toString() ??
-                                            tx.createdBy['konter_name']?.toString() ??
-                                            tx.createdBy['gudang_name']?.toString(),
-                                        dicetakOleh: ref.read(authProvider).user?.lokasi?['name']?.toString(),
+                                  if (tx.statusSaatIni == 'gagal_kirim' ||
+                                      tx.jenisMasalah == 'gagal_kirim')
+                                    PopupMenuButton<String>(
+                                      tooltip: 'Cetak',
+                                      color: Colors.white,
+                                      surfaceTintColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: const BorderSide(
+                                          color: Color(0xFFE2E8F0),
+                                        ),
                                       ),
-                                      borderRadius: BorderRadius.circular(20),
+                                      onSelected: (value) {
+                                        if (value == 'asli') {
+                                          LabelPrinter.printBarcodeLabel(
+                                            data: tx.noResi,
+                                            pengirim: tx.pengirim,
+                                            penerima: tx.penerima,
+                                            paket: tx.paket,
+                                            createdAt: tx.createdAt,
+                                            asal:
+                                                tx.createdBy['cabang_name']
+                                                    ?.toString() ??
+                                                tx.createdBy['konter_name']
+                                                    ?.toString() ??
+                                                tx.createdBy['gudang_name']
+                                                    ?.toString(),
+                                            dicetakOleh: ref
+                                                .read(authProvider)
+                                                .user
+                                                ?.lokasi?['name']
+                                                ?.toString(),
+                                          );
+                                        } else {
+                                          _cetakRetur(tx);
+                                        }
+                                      },
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem(
+                                          value: 'asli',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.print_rounded,
+                                                size: 18,
+                                                color: Color(0xFF3B82F6),
+                                              ),
+                                              SizedBox(width: 10),
+                                              Text('Cetak Asli'),
+                                            ],
+                                          ),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'retur',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.swap_horiz_rounded,
+                                                size: 18,
+                                                color: Colors.orange.shade700,
+                                              ),
+                                              const SizedBox(width: 10),
+                                              const Text('Cetak Resi Retur'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                       child: Container(
                                         padding: const EdgeInsets.all(6),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.primary.withValues(alpha: 0.08),
+                                          color: AppTheme.primary.withValues(
+                                            alpha: 0.08,
+                                          ),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: const Icon(Icons.print_rounded, size: 16, color: AppTheme.primary),
+                                        child: const Icon(
+                                          Icons.print_rounded,
+                                          size: 16,
+                                          color: AppTheme.primary,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () =>
+                                            LabelPrinter.printBarcodeLabel(
+                                              data: tx.noResi,
+                                              pengirim: tx.pengirim,
+                                              penerima: tx.penerima,
+                                              paket: tx.paket,
+                                              createdAt: tx.createdAt,
+                                              asal:
+                                                  tx.createdBy['cabang_name']
+                                                      ?.toString() ??
+                                                  tx.createdBy['konter_name']
+                                                      ?.toString() ??
+                                                  tx.createdBy['gudang_name']
+                                                      ?.toString(),
+                                              dicetakOleh: ref
+                                                  .read(authProvider)
+                                                  .user
+                                                  ?.lokasi?['name']
+                                                  ?.toString(),
+                                            ),
+                                        borderRadius: BorderRadius.circular(20),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primary.withValues(
+                                              alpha: 0.08,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.print_rounded,
+                                            size: 16,
+                                            color: AppTheme.primary,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               ],
                             ),
@@ -828,15 +1324,44 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     Card(
                       color: Colors.white,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 8,
+                        ),
                         child: Row(
                           children: [
-                            Expanded(child: _InfoCell(icon: Icons.scale_rounded, label: 'Berat', value: tx.beratLabel)),
-                            Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                            Expanded(child: _InfoCell(icon: Icons.inventory_2_rounded, label: 'Jumlah Koli', value: '${tx.jumlahKoli} koli')),
+                            Expanded(
+                              child: _InfoCell(
+                                icon: Icons.scale_rounded,
+                                label: 'Berat',
+                                value: tx.beratLabel,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 40,
+                              color: const Color(0xFFE2E8F0),
+                            ),
+                            Expanded(
+                              child: _InfoCell(
+                                icon: Icons.inventory_2_rounded,
+                                label: 'Jumlah Koli',
+                                value: '${tx.jumlahKoli} koli',
+                              ),
+                            ),
                             if (tx.biayaKirim > 0) ...[
-                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                              Expanded(child: _InfoCell(icon: Icons.payments_rounded, label: 'Biaya Kirim', value: fmt.format(tx.biayaKirim))),
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                              Expanded(
+                                child: _InfoCell(
+                                  icon: Icons.payments_rounded,
+                                  label: 'Biaya Kirim',
+                                  value: fmt.format(tx.biayaKirim),
+                                ),
+                              ),
                             ],
                           ],
                         ),
@@ -844,7 +1369,9 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                     ),
 
                     // Driver details
-                    if (showDriver || (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)) ...[
+                    if (showDriver ||
+                        (tx.namaPenerimaAkhir != null &&
+                            tx.namaPenerimaAkhir!.isNotEmpty)) ...[
                       const SizedBox(height: 12),
                       IntrinsicHeight(
                         child: Row(
@@ -861,8 +1388,12 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                                   accentColor: Colors.amber.shade700,
                                 ),
                               ),
-                            if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty) const SizedBox(width: 8),
-                            if (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
+                            if (showDriver &&
+                                tx.namaPenerimaAkhir != null &&
+                                tx.namaPenerimaAkhir!.isNotEmpty)
+                              const SizedBox(width: 8),
+                            if (tx.namaPenerimaAkhir != null &&
+                                tx.namaPenerimaAkhir!.isNotEmpty)
                               Expanded(
                                 child: _InfoCard(
                                   title: 'Diterima oleh',
@@ -878,15 +1409,50 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
                       ),
                     ],
                     const SizedBox(height: 24),
-
-                    const Text(
-                      'RIWAYAT PENGIRIMAN',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF64748B),
-                        letterSpacing: 1,
-                      ),
+                    Row(
+                      children: [
+                        const Text(
+                          'RIWAYAT PENGIRIMAN',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF64748B),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        if (isAdminCabang &&
+                            tx.currentCabangId == user?.cabangId &&
+                            ![
+                              'hilang',
+                              'gagal_kirim',
+                              'kasus_selesai',
+                              'diterima',
+                            ].contains(tx.statusSaatIni)) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: 'Laporkan Kehilangan / Gagal Kirim',
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _laporkanHilang(tx),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.report_problem_rounded,
+                                    size: 16,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 8),
                     TrackingTimeline(logs: tx.trackingLogs),
@@ -901,8 +1467,142 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen> w
     );
   }
 
+  Future<void> _laporkanHilang(Transaction tx) async {
+    final resiText = tx.noResi;
+    final jenis = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Laporkan Masalah'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Resi: $resiText'),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.help_outline, color: Colors.red),
+              title: const Text('Barang Hilang'),
+              subtitle: const Text('Paket tidak ditemukan saat verifikasi'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              onTap: () => Navigator.of(ctx).pop('hilang'),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.cancel_outlined, color: Colors.orange),
+              title: const Text('Gagal Kirim'),
+              subtitle: const Text(
+                'Paket tidak dapat dikirim, retur ke pengirim',
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              onTap: () => Navigator.of(ctx).pop('gagal_kirim'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+        ],
+      ),
+    );
+    if (jenis == null) return;
+
+    final catatanC = TextEditingController();
+    final catatan = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          '${jenis == 'hilang' ? 'Barang Hilang' : 'Gagal Kirim'} — Catatan',
+        ),
+        content: TextField(
+          controller: catatanC,
+          textCapitalization: TextCapitalization.words,
+          inputFormatters: [
+            TextInputFormatter.withFunction((oldValue, newValue) {
+              if (newValue.text.isEmpty) return newValue;
+              final capitalized = newValue.text
+                  .split(' ')
+                  .map((word) {
+                    if (word.isEmpty) return word;
+                    return word[0].toUpperCase() + word.substring(1);
+                  })
+                  .join(' ');
+              return TextEditingValue(
+                text: capitalized,
+                selection: TextSelection.collapsed(offset: capitalized.length),
+              );
+            }),
+          ],
+          decoration: const InputDecoration(
+            hintText: 'Deskripsi / kronologi kejadian...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          textInputAction: TextInputAction.done,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              catatanC.dispose();
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Batal'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              final v = catatanC.text.trim();
+              catatanC.dispose();
+              Navigator.of(ctx).pop(v.isEmpty ? null : v);
+            },
+            icon: const Icon(Icons.warning_amber_rounded, size: 18),
+            label: const Text('Laporkan'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (catatan == null) return;
+
+    try {
+      await ref
+          .read(transactionRepositoryProvider)
+          .laporkanMasalah(id: tx.id, jenis: jenis, catatan: catatan);
+      ref.invalidate(_prosesProvider);
+      SoundPlayer.instance.playScan();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Resi $resiText berhasil dilaporkan sebagai ${jenis == 'hilang' ? 'Barang Hilang' : 'Gagal Kirim'}',
+            ),
+            backgroundColor: jenis == 'hilang' ? Colors.red : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   bool _isDeliveredToRecipient(Transaction tx) {
-    if (tx.statusSaatIni == 'proses_kirim' || tx.statusSaatIni == 'diterima') return true;
+    if (tx.statusSaatIni == 'proses_kirim' || tx.statusSaatIni == 'diterima')
+      return true;
     final tipe = tx.tujuanSelanjutnya?['tipe'] as String?;
     if (tipe == 'penerima') return true;
     for (final log in tx.trackingLogs) {
@@ -945,7 +1645,11 @@ class _InfoCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   title,
-                  style: TextStyle(color: accentColor, fontWeight: FontWeight.w700, fontSize: 12),
+                  style: TextStyle(
+                    color: accentColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -961,7 +1665,11 @@ class _InfoCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           name,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Color(0xFF0F172A),
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -972,7 +1680,11 @@ class _InfoCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       address,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF475569), height: 1.3),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF475569),
+                        height: 1.3,
+                      ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -988,12 +1700,20 @@ class _InfoCard extends StatelessWidget {
               color: accentColor.withValues(alpha: 0.08),
               child: Row(
                 children: [
-                  Icon(Icons.phone_iphone_rounded, size: 11, color: accentColor),
+                  Icon(
+                    Icons.phone_iphone_rounded,
+                    size: 11,
+                    color: accentColor,
+                  ),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       phone,
-                      style: TextStyle(color: accentColor, fontWeight: FontWeight.w600, fontSize: 11),
+                      style: TextStyle(
+                        color: accentColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1003,499 +1723,25 @@ class _InfoCard extends StatelessWidget {
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: phone));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nomor telepon disalin'), duration: Duration(seconds: 1)),
+                        const SnackBar(
+                          content: Text('Nomor telepon disalin'),
+                          duration: Duration(seconds: 1),
+                        ),
                       );
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.content_copy_rounded, size: 13, color: accentColor),
+                      child: Icon(
+                        Icons.content_copy_rounded,
+                        size: 13,
+                        color: accentColor,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// Widget card untuk riwayat manifest admin cabang (history tab)
-class _AdminRiwayatManifestCard extends ConsumerStatefulWidget {
-  final Manifest manifest;
-  const _AdminRiwayatManifestCard({required this.manifest});
-
-  @override
-  ConsumerState<_AdminRiwayatManifestCard> createState() =>
-      _AdminRiwayatManifestCardState();
-}
-
-class _AdminRiwayatManifestCardState
-    extends ConsumerState<_AdminRiwayatManifestCard> {
-  List<Transaction>? _transactions;
-  bool _loadingTxs = false;
-
-  Future<void> _loadTransactions() async {
-    if (_transactions != null || _loadingTxs) return;
-    setState(() => _loadingTxs = true);
-    try {
-      final res =
-          await ApiService().get('${ApiConstants.manifests}/${widget.manifest.id}');
-      final data = res.data as Map<String, dynamic>;
-      final detail = Manifest.fromJson(data);
-      setState(() {
-        _transactions = detail.transactions ?? [];
-        _loadingTxs = false;
-      });
-    } catch (_) {
-      setState(() => _loadingTxs = false);
-    }
-  }
-
-  Future<void> _handlePrint(String format) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final detail = await ref.read(manifestDetailProvider(widget.manifest.id).future);
-      if (detail == null || context.mounted == false) {
-        if (context.mounted) Navigator.of(context).pop();
-        return;
-      }
-
-      Navigator.of(context).pop();
-
-      if (format == 'a4') {
-        await printManifestA4(detail);
-      } else {
-        await printManifest80mm(detail);
-      }
-    } catch (_) {
-      if (context.mounted) Navigator.of(context).pop();
-    }
-  }
-
-  void _showDetail(Transaction tx) {
-    final fmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    final showDriver = tx.namaDriver != null;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        expand: false,
-        builder: (_, scrollC) => Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: scrollC,
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Card(
-                      color: Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Nomor Resi Pengiriman',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-                                ),
-                                StatusBadge(status: tx.statusSaatIni, fontSize: 10),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    tx.noResi,
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: Color(0xFF0F172A)),
-                                  ),
-                                ),
-                                ResiCopyButton(resi: tx.noResi),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _InfoCard(
-                              title: 'Penerima',
-                              name: tx.penerimaName,
-                              phone: tx.penerima['phone'] as String? ?? '',
-                              address: tx.penerimaAddress,
-                              icon: Icons.call_received_rounded,
-                              accentColor: AppTheme.secondary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _InfoCard(
-                              title: 'Pengirim',
-                              name: tx.pengirimName,
-                              phone: tx.pengirim['phone'] as String? ?? '',
-                              address: tx.pengirim['address'] as String? ?? '',
-                              icon: Icons.send_rounded,
-                              accentColor: AppTheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Card(
-                      color: Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                        child: Row(
-                          children: [
-                            Expanded(child: _InfoCell(icon: Icons.scale_rounded, label: 'Berat', value: tx.beratLabel)),
-                            Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                            Expanded(child: _InfoCell(icon: Icons.inventory_2_rounded, label: 'Jumlah Koli', value: '${tx.jumlahKoli} koli')),
-                            if (tx.biayaKirim > 0) ...[
-                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                              Expanded(child: _InfoCell(icon: Icons.payments_rounded, label: 'Biaya Kirim', value: fmt.format(tx.biayaKirim))),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (showDriver || (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)) ...[
-                      const SizedBox(height: 12),
-                      IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (showDriver)
-                              Expanded(
-                                child: _InfoCard(
-                                  title: 'Driver Kurir',
-                                  name: tx.namaDriver!,
-                                  phone: tx.kontakDriver ?? '',
-                                  address: '',
-                                  icon: Icons.directions_car_filled_rounded,
-                                  accentColor: Colors.amber.shade700,
-                                ),
-                              ),
-                            if (showDriver && tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
-                              const SizedBox(width: 8),
-                            if (tx.namaPenerimaAkhir != null && tx.namaPenerimaAkhir!.isNotEmpty)
-                              Expanded(
-                                child: _InfoCard(
-                                  title: 'Diterima oleh',
-                                  name: tx.namaPenerimaAkhir!,
-                                  phone: '',
-                                  address: '',
-                                  icon: Icons.check_circle_rounded,
-                                  accentColor: Colors.green.shade600,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    const Text(
-                      'RIWAYAT PENGIRIMAN',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 1),
-                    ),
-                    const SizedBox(height: 8),
-                    TrackingTimeline(logs: tx.trackingLogs),
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final txs = _transactions ?? <Transaction>[];
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.fromLTRB(14, 8, 12, 8),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        shape: const Border(),
-        collapsedShape: const Border(),
-        initiallyExpanded: false,
-        onExpansionChanged: (expanded) {
-          if (expanded) _loadTransactions();
-        },
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: widget.manifest.isAntarCabang
-                ? AppTheme.primary.withValues(alpha: 0.08)
-                : Colors.orange.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            Icons.description_rounded,
-            size: 22,
-            color: widget.manifest.isAntarCabang
-                ? AppTheme.primary
-                : Colors.orange,
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.manifest.noManifest,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      fontFamily: 'monospace',
-                      letterSpacing: 0.5,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.manifest.tujuanNama} · ${widget.manifest.totalResi} resi · ${widget.manifest.workUnit} work',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-            ),
-            Material(
-              color: Colors.transparent,
-              child: PopupMenuButton<String>(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.print_rounded,
-                      size: 16, color: AppTheme.primary),
-                ),
-                tooltip: 'Cetak',
-                color: Colors.white,
-                surfaceTintColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                onSelected: (value) => _handlePrint(value),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'a4',
-                    child: Row(
-                      children: [
-                        Icon(Icons.description_outlined, size: 18, color: Color(0xFF3B82F6)),
-                        SizedBox(width: 10),
-                        Text('Print A4'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: '80mm',
-                    child: Row(
-                      children: [
-                        Icon(Icons.receipt_long_outlined, size: 18, color: Color(0xFF3B82F6)),
-                        SizedBox(width: 10),
-                        Text('Print 80 mm'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        children: [
-          const Divider(height: 1),
-          const SizedBox(height: 8),
-          if (_loadingTxs)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else if (txs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Text(
-                  'Tidak ada data resi',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                ),
-              ),
-            )
-          else
-            ...txs.map((tx) => _AdminRiwayatResiItem(
-              tx: tx,
-              onTap: () => _showDetail(tx),
-            )),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () =>
-                  context.push('/dashboard/manifest/${widget.manifest.id}'),
-              icon: const Icon(Icons.open_in_new_rounded, size: 16),
-              label: const Text('Detail Manifest'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 38),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AdminRiwayatResiItem extends StatelessWidget {
-  final Transaction tx;
-  final VoidCallback? onTap;
-  const _AdminRiwayatResiItem({required this.tx, this.onTap});
-
-  static const _statusSelesai = ['diterima', 'diterima_cabang'];
-
-  @override
-  Widget build(BuildContext context) {
-    final selesai = _statusSelesai.contains(tx.statusSaatIni);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      child: Material(
-        type: MaterialType.transparency,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: selesai ? Colors.green.withValues(alpha: 0.03) : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selesai
-                  ? Colors.green.withValues(alpha: 0.2)
-                  : const Color(0xFFE2E8F0),
-            ),
-          ),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: selesai
-                          ? Colors.green.withValues(alpha: 0.08)
-                          : Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      selesai ? Icons.check_circle_rounded : Icons.pending_rounded,
-                      size: 16,
-                      color: selesai ? Colors.green : Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                tx.noResi,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                  fontFamily: 'monospace',
-                                  color: selesai ? const Color(0xFF6B7280) : const Color(0xFF0F172A),
-                                  decoration: selesai ? TextDecoration.lineThrough : null,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            ResiCopyButton(resi: tx.noResi),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${tx.pengirimName} → ${tx.penerimaName}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: selesai ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    selesai ? '✅' : tx.beratLabel,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: selesai ? Colors.green : const Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1521,8 +1767,18 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
   late int _year;
 
   static const _months = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'September',
+    'Oktober',
+    'November',
+    'Desember',
   ];
 
   @override
@@ -1579,7 +1835,8 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
           child: const Text('Batal'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop({'month': _month, 'year': _year}),
+          onPressed: () =>
+              Navigator.of(context).pop({'month': _month, 'year': _year}),
           child: const Text('Cetak'),
         ),
       ],
@@ -1591,7 +1848,11 @@ class _InfoCell extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _InfoCell({required this.icon, required this.label, required this.value});
+  const _InfoCell({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1602,11 +1863,22 @@ class _InfoCell extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: AppTheme.primary),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: Color(0xFF0F172A),
+            ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

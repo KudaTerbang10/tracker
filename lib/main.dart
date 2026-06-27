@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'data/datasources/local/hive_cache.dart';
@@ -15,15 +14,7 @@ void main() async {
   await OngkirService.init();
   await CabangLokasiService.init();
   await _bootstrapSync();
-  await _requestLocationPermission();
   runApp(const ProviderScope(child: TrackerApp()));
-}
-
-Future<void> _requestLocationPermission() async {
-  final permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    await Geolocator.requestPermission();
-  }
 }
 
 Future<void> _bootstrapSync() async {

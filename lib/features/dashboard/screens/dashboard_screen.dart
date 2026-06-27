@@ -66,6 +66,13 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           iconColor: const Color(0xFFD97706),
           pastelColor: const Color(0xFFFEF3C7),
         ),
+        _DashboardMenuItem(
+          icon: Icons.report_problem_rounded,
+          label: 'Transaksi Bermasalah',
+          onTap: () => context.go('/dashboard/barang-bermasalah'),
+          iconColor: const Color(0xFFEF4444),
+          pastelColor: const Color(0xFFFEE2E2),
+        ),
       ];
     case 'admin_cabang':
       return [
@@ -98,11 +105,25 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           pastelColor: const Color(0xFFFEE2E2),
         ),
         _DashboardMenuItem(
+          icon: Icons.check_circle_rounded,
+          label: 'Scan Barang Diterima',
+          onTap: () => context.go('/dashboard/scan-diterima'),
+          iconColor: const Color(0xFF059669),
+          pastelColor: const Color(0xFFD1FAE5),
+        ),
+        _DashboardMenuItem(
           icon: Icons.description_rounded,
           label: 'Daftar Manifest',
           onTap: () => context.go('/dashboard/manifests'),
           iconColor: const Color(0xFFD97706),
           pastelColor: const Color(0xFFFEF3C7),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.report_problem_rounded,
+          label: 'Transaksi Bermasalah',
+          onTap: () => context.go('/dashboard/barang-bermasalah'),
+          iconColor: const Color(0xFFEF4444),
+          pastelColor: const Color(0xFFFEE2E2),
         ),
       ];
     case 'driver':

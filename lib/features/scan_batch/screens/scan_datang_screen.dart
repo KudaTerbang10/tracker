@@ -63,8 +63,8 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
                     },
                   ),
           ),
-        ],
-      ),
+          ],
+        ),
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -605,7 +605,7 @@ class _ScanDatangScreenState extends ConsumerState<ScanDatangScreen> {
             const Text(
               'Status paket akan diperbarui menjadi "Diterima Cabang".',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
             ),
           ],
         ),

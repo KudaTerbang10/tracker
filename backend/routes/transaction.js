@@ -126,6 +126,11 @@ router.post('/batch-status', auth, async (req, res) => {
           pushResult(no_resi, 'error', 'Driver dan tujuan wajib diisi');
           continue;
         }
+        // Safety: barang hilang tidak boleh discan keluar
+        if (tx.jenis_masalah === 'hilang') {
+          pushResult(no_resi, 'error', 'Barang hilang tidak dapat diproses, selesaikan kasus terlebih dahulu');
+          continue;
+        }
       }
 
       if (status_baru === 'diterima' && req.user.role === 'driver') {
@@ -285,7 +290,7 @@ router.post('/batch-status', auth, async (req, res) => {
           for (const nm of manifestNos) {
             const remaining = await Transaction.countDocuments({
               no_manifest: nm,
-              status_saat_ini: { $nin: ['diterima', 'diterima_cabang'] },
+              status_saat_ini: { $nin: ['diterima', 'diterima_cabang', 'hilang', 'gagal_kirim', 'kasus_selesai'] },
             });
             if (remaining === 0) {
               await Manifest.findOneAndUpdate(
@@ -400,8 +405,17 @@ router.get('/', auth, async (req, res) => {
       if (tab === 'history') {
         filter['tracking_logs.lokasi.cabang_id'] = cabangId;
         filter.current_cabang_id = { $ne: cabangId };
+        filter.status_saat_ini = { $ne: 'kasus_selesai' };
+      } else if (tab === 'bermasalah') {
+        filter.$or = [
+          { current_cabang_id: cabangId, status_saat_ini: { $in: ['hilang', 'gagal_kirim', 'kasus_selesai'] } },
+          { jenis_masalah: 'gagal_kirim', 'dilaporkan_oleh.cabang_id': cabangId },
+          { 'dilaporkan_oleh.cabang_id': cabangId, status_saat_ini: 'kasus_selesai' },
+        ];
       } else {
         filter.current_cabang_id = cabangId;
+        // Sembunyikan kasus yang sudah selesai dari daftar transaksi utama
+        filter.status_saat_ini = { $ne: 'kasus_selesai' };
       }
     } else if (req.user.role === 'driver') {
       const tab = req.query.tab || 'current';
@@ -419,18 +433,33 @@ router.get('/', auth, async (req, res) => {
         filter.status_saat_ini = { $in: statusArr };
       }
     } else {
-      if (status) {
+      const tab = req.query.tab || '';
+      if (tab === 'bermasalah') {
+        filter.$or = [
+          { status_saat_ini: { $in: ['hilang', 'gagal_kirim', 'kasus_selesai'] } },
+          { jenis_masalah: 'gagal_kirim' },
+        ];
+      } else if (status) {
         const statusArr = status.split(',').map(s => s.trim());
         filter.status_saat_ini = { $in: statusArr };
+      } else {
+        // Default: sembunyikan barang bermasalah — hanya tampil di halaman khusus
+        filter.status_saat_ini = { $nin: ['hilang', 'gagal_kirim', 'kasus_selesai'] };
       }
     }
 
     if (search) {
       const upper = search.toUpperCase();
-      filter.$or = [
+      const searchOr = [
         { no_resi: { $regex: `^${upper}` } },
         { barcode_data: { $regex: `^${upper}` } },
       ];
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = searchOr;
+      }
     }
 
     if (kode_gerai) filter.kode_gerai = kode_gerai;
@@ -454,6 +483,131 @@ router.get('/', auth, async (req, res) => {
       .lean();
 
     res.json({ data, total, page: parseInt(page), totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/:id/laporkan-masalah', auth, rbac('admin_cabang'), async (req, res) => {
+  try {
+    const { jenis, catatan } = req.body;
+    if (!jenis || !['hilang', 'gagal_kirim'].includes(jenis)) {
+      return res.status(400).json({ message: 'Jenis masalah harus "hilang" atau "gagal_kirim"' });
+    }
+    if (!catatan || !catatan.trim()) {
+      return res.status(400).json({ message: 'Catatan masalah wajib diisi' });
+    }
+
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    if (!tx.current_cabang_id || tx.current_cabang_id.toString() !== req.user.cabang_id?.toString()) {
+      return res.status(403).json({ message: 'Hanya admin cabang tujuan yang dapat melaporkan masalah pada resi ini' });
+    }
+
+    if (['hilang', 'gagal_kirim', 'kasus_selesai', 'diterima'].includes(tx.status_saat_ini)) {
+      return res.status(400).json({ message: `Transaksi sudah dalam status ${tx.status_saat_ini}` });
+    }
+
+    const userLokasi = await getLokasiForUser(req.user);
+
+    const log = {
+      status: jenis,
+      deskripsi: `Dilaporkan ${jenis === 'hilang' ? 'hilang' : 'gagal dikirim'} oleh ${req.user.name}: ${catatan}`,
+      pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
+      lokasi: userLokasi,
+      timestamp: new Date(),
+    };
+
+    tx.status_saat_ini = jenis;
+    tx.jenis_masalah = jenis;
+    tx.catatan_masalah = catatan;
+    tx.dilaporkan_oleh = {
+      user_id: req.user._id,
+      name: req.user.name,
+      role: req.user.role,
+      cabang_id: req.user.cabang_id,
+      cabang_name: userLokasi?.nama || '',
+    };
+    tx.dilaporkan_pada = new Date();
+    tx.tracking_logs.push(log);
+
+    if (jenis === 'gagal_kirim' && tx.created_by?.cabang_id) {
+      tx.tujuan_selanjutnya = {
+        tipe: 'cabang',
+        cabang_id: tx.created_by.cabang_id,
+        nama: tx.created_by.cabang_name || 'Cabang Asal',
+      };
+    }
+
+    await tx.save();
+    res.json(tx);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/:id/tandai-selesai', auth, rbac('super_admin'), async (req, res) => {
+  try {
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    if (tx.status_saat_ini !== 'hilang') {
+      return res.status(400).json({ message: 'Hanya transaksi hilang yang dapat ditandai selesai' });
+    }
+
+    const log = {
+      status: 'kasus_selesai',
+      deskripsi: `Kasus diselesaikan oleh ${req.user.name} (Super Admin)`,
+      pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
+      timestamp: new Date(),
+    };
+
+    tx.status_saat_ini = 'kasus_selesai';
+    tx.current_cabang_id = null;
+    tx.diselesaikan_oleh = { user_id: req.user._id, name: req.user.name };
+    tx.diselesaikan_pada = new Date();
+    tx.tracking_logs.push(log);
+
+    await tx.save();
+    res.json(tx);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// — BATALKAN HILANG (barang ketemu) —
+router.post('/:id/batalkan-hilang', auth, rbac('super_admin'), async (req, res) => {
+  try {
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    if (tx.jenis_masalah !== 'hilang') {
+      return res.status(400).json({ message: 'Bukan transaksi hilang' });
+    }
+
+    const cabangId = tx.dilaporkan_oleh?.cabang_id || tx.created_by?.cabang_id;
+    const cabangNama = tx.dilaporkan_oleh?.cabang_name || tx.created_by?.cabang_name || '';
+
+    const log = {
+      status: 'diterima_cabang',
+      deskripsi: `Barang ditemukan oleh ${req.user.name} (Super Admin), dikembalikan ke ${cabangNama}`,
+      pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
+      lokasi: { nama: cabangNama, tipe: 'cabang', cabang_id: cabangId },
+      timestamp: new Date(),
+    };
+
+    tx.status_saat_ini = 'diterima_cabang';
+    tx.current_cabang_id = cabangId;
+    tx.jenis_masalah = null;
+    tx.catatan_masalah = '';
+    tx.dilaporkan_oleh = null;
+    tx.dilaporkan_pada = null;
+    tx.diselesaikan_oleh = null;
+    tx.diselesaikan_pada = null;
+
+    tx.tracking_logs.push(log);
+    await tx.save();
+    res.json(tx);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

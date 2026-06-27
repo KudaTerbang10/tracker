@@ -7,6 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
 import '../../../data/models/manifest.dart';
 import '../../../data/models/transaction.dart';
+import '../../../data/repositories/transaction_repository.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../../shared/widgets/tracking_timeline.dart';
@@ -684,6 +686,8 @@ class ManifestDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
+                    if (_canReportProblem(context, tx))
+                      _buildLaporkanHilangButton(context, tx),
                     const SizedBox(height: 24),
                     const Text(
                       'RIWAYAT PENGIRIMAN',
@@ -703,6 +707,94 @@ class ManifestDetailScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  bool _canReportProblem(BuildContext context, Transaction tx) {
+    if (['hilang', 'gagal_kirim', 'kasus_selesai', 'diterima'].contains(tx.statusSaatIni)) return false;
+    final user = ProviderScope.containerOf(context).read(authProvider).user;
+    if (user == null || !user.isAdminCabang) return false;
+    return tx.currentCabangId == user.cabangId;
+  }
+
+  Widget _buildLaporkanHilangButton(BuildContext context, Transaction tx) {
+    return ElevatedButton.icon(
+      onPressed: () async {
+        final jenis = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Laporkan Masalah'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Resi: ${tx.noResi}'),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.help_outline, color: Colors.red),
+                  title: const Text('Barang Hilang'),
+                  subtitle: const Text('Paket tidak ditemukan saat verifikasi'),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  onTap: () => Navigator.of(ctx).pop('hilang'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.cancel_outlined, color: Colors.orange),
+                  title: const Text('Gagal Kirim'),
+                  subtitle: const Text('Paket tidak dapat dikirim, retur ke pengirim'),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  onTap: () => Navigator.of(ctx).pop('gagal_kirim'),
+                ),
+              ],
+            ),
+            actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Batal'))],
+          ),
+        );
+        if (jenis == null || !context.mounted) return;
+
+        final catatanC = TextEditingController();
+        final catatan = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('${jenis == 'hilang' ? 'Barang Hilang' : 'Gagal Kirim'} — Catatan'),
+            content: TextField(
+              controller: catatanC,
+              decoration: const InputDecoration(hintText: 'Deskripsi / kronologi...', border: OutlineInputBorder()),
+              maxLines: 3,
+            ),
+            actions: [
+              TextButton(onPressed: () { catatanC.dispose(); Navigator.of(ctx).pop(); }, child: const Text('Batal')),
+              TextButton(
+                onPressed: () { final v = catatanC.text.trim(); catatanC.dispose(); Navigator.of(ctx).pop(v.isEmpty ? null : v); },
+                child: const Text('Laporkan'),
+              ),
+            ],
+          ),
+        );
+        if (catatan == null || !context.mounted) return;
+
+        try {
+          await ProviderScope.containerOf(context).read(transactionRepositoryProvider).laporkanMasalah(id: tx.id, jenis: jenis, catatan: catatan);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Resi ${tx.noResi} dilaporkan ${jenis == 'hilang' ? 'Hilang' : 'Gagal Kirim'}'),
+              backgroundColor: jenis == 'hilang' ? Colors.red : Colors.orange,
+            ));
+            Navigator.of(context).pop();
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red));
+          }
+        }
+      },
+      icon: const Icon(Icons.report_problem_rounded, size: 18),
+      label: const Text('Laporkan Barang Hilang'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 44),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

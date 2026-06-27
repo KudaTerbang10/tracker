@@ -1,4 +1,5 @@
 # flutter
+- Use `backgroundColor: Colors.white` and `surfaceTintColor: Colors.white` on all AlertDialogs to ensure a clean white background. Confidence: 0.75
 - Avoid duplicating the same information across multiple UI cards — if data (e.g., work unit count, total resi, total selesai) is already displayed in one card/section, do not repeat it in another card. Confidence: 0.70
 - Use dedicated action buttons (e.g., a colored button at the bottom of a card) for navigation instead of making the entire card body tappable with GestureDetector/InkWell. Confidence: 0.70
 - For navigation buttons on the driver "Perlu Dikirim" tab: If the manifest is antar cabang (cabang to cabang), the navigation button appears in the expansion tile header next to the manifest number. If the manifest is antar penerima (cabang to penerima), the navigation button appears inside the expansion tile on each resi card next to the copy button. Confidence: 0.80
@@ -32,3 +33,5 @@
 - For content-heavy displays like manifest details: Avoid bottom sheets as they overflow — instead use expandable widgets (e.g., ExpansionTile) embedded in the tab list, with action buttons (like print) placed in the expandable header. Confidence: 0.75
 - When accessing `ScrollController.position` (e.g., `position.pixels`, `position.maxScrollExtent`), always guard with `hasClients` first — both in listener callbacks AND in builder methods (like `ValueListenableBuilder`). Accessing `.position` without `hasClients` causes "Unexpected null value" `TypeErrorImpl`. Confidence: 0.80
 - For manifest sheet (lembar manifest) signature columns: Use 2 columns (admin cabang left, driver right, middle empty) for antar_penerima (cabang → customer). Use 3 columns for antar_cabang (cabang → cabang). Confidence: 0.65
+- For the problematic transactions screen: Place month filter as a month picker in the app bar's top right corner (actions/actions area), not as a separate navigation row with chevron buttons in the screen body. Confidence: 0.65
+- Use a plain `Container` (no `Flexible`/`Expanded` wrapper) for inline badges that should be only as wide as their text content — especially when placed in a `Row` with `Spacer()` pushing other content to the right, as `Flexible` still allocates proportional space and causes the badge to appear floating/centered rather than at the left edge. Confidence: 0.70

@@ -64,6 +64,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
   @override
   void initState() {
     super.initState();
+    _requestLocationIfNeeded();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging || !mounted) return;
@@ -246,6 +247,13 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
       return position;
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<void> _requestLocationIfNeeded() async {
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      await Geolocator.requestPermission();
     }
   }
 

@@ -35,6 +35,7 @@ class User {
 
   bool get isAdminCabang => role == 'admin_cabang';
   bool get isDriver => role == 'driver';
+  bool get isSuperAdmin => role == 'super_admin';
 
   String get roleLabel {
     switch (role) {

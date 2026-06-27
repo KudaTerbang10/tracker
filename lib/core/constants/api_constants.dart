@@ -37,6 +37,9 @@ class StatusList {
     'keluar_cabang': 'Keluar Cabang',
     'proses_kirim': 'Proses Kirim',
     'diterima': 'Diterima',
+    'hilang': 'Barang Hilang',
+    'gagal_kirim': 'Gagal Kirim',
+    'kasus_selesai': 'Kasus Selesai',
   };
 
   static String label(String status) => labels[status] ?? status;

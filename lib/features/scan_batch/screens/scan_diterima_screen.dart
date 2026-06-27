@@ -382,14 +382,15 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       final res = await ApiService().get('${ApiConstants.track}/$code');
       final tx = Transaction.fromJson(res.data as Map<String, dynamic>);
 
-      // Validasi: hanya driver yg ditugaskan ke transaksi ini yg boleh scan
-      final currentUserId = ref.read(authProvider).user?.id;
-      if (tx.driverUserId != currentUserId) {
+      // Validasi: driver yg ditugaskan atau admin cabang boleh scan diterima
+      final user = ref.read(authProvider).user;
+      final isAdminCabang = user?.isAdminCabang ?? false;
+      if (!isAdminCabang && tx.driverUserId != user?.id) {
         SoundPlayer.instance.playError();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Anda bukan driver yang bertugas untuk transaksi ini'),
+              content: const Text('Anda tidak memiliki akses untuk transaksi ini'),
               backgroundColor: AppTheme.error,
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 3),

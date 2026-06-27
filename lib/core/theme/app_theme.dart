@@ -16,7 +16,11 @@ class AppTheme {
       secondary: secondary,
       error: error,
       surface: Colors.white,
-      background: surface,
+    ).copyWith(
+      surfaceContainerHigh: Colors.white,
+      surfaceContainerLow: Colors.white,
+      surfaceContainerLowest: Colors.white,
+      surfaceContainer: Colors.white,
     ),
     scaffoldBackgroundColor: surface,
     appBarTheme: const AppBarTheme(
@@ -59,6 +63,10 @@ class AppTheme {
         side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
       ),
     ),
+    dialogTheme: const DialogThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
@@ -90,6 +98,9 @@ class AppTheme {
       case 'keluar_cabang': return const Color(0xFF6366F1); // Indigo-500
       case 'proses_kirim': return const Color(0xFFF59E0B); // Amber-500
       case 'diterima': return const Color(0xFF10B981); // Emerald-500
+      case 'hilang': return const Color(0xFFEF4444); // Rose-500
+      case 'gagal_kirim': return const Color(0xFFF97316); // Orange-500
+      case 'kasus_selesai': return const Color(0xFF22C55E); // Green-500
       default: return const Color(0xFF64748B); // Slate-500
     }
   }

@@ -201,7 +201,11 @@ class _ScannerDialogContentState extends State<_ScannerDialogContent> with Singl
               _lastCode = code;
               _processing = true;
               HapticFeedback.heavyImpact();
-              Navigator.of(context).pop(code);
+              // Defer pop ke microtask berikutnya untuk menghindari
+              // konflik mouse tracker assertion di Flutter 3.44+
+              Future.microtask(() {
+                if (context.mounted) Navigator.of(context).pop(code);
+              });
             }
           },
         ),

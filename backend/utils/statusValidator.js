@@ -1,6 +1,7 @@
 const ROLE_SCAN_PERMISSIONS = {
-  admin_cabang: ['diterima_cabang', 'keluar_cabang'],
+  admin_cabang: ['diterima_cabang', 'keluar_cabang', 'hilang', 'gagal_kirim', 'diterima'],
   driver: ['diterima'],
+  super_admin: ['kasus_selesai'],
 };
 
 function canRoleSetStatus(role, targetStatus) {

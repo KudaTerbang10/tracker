@@ -50,6 +50,23 @@ class TransactionRepository {
     return res.data as Map<String, dynamic>;
   }
 
+  Future<Transaction> laporkanMasalah({
+    required String id,
+    required String jenis,
+    required String catatan,
+  }) async {
+    final res = await _api.post('${ApiConstants.transactions}/$id/laporkan-masalah', data: {
+      'jenis': jenis,
+      'catatan': catatan,
+    });
+    return Transaction.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<Transaction> tandaiSelesai(String id) async {
+    final res = await _api.put('${ApiConstants.transactions}/$id/tandai-selesai');
+    return Transaction.fromJson(res.data as Map<String, dynamic>);
+  }
+
   Future<void> delete(String id) async {
     await _api.delete('${ApiConstants.transactions}/$id');
   }

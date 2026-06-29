@@ -1,5 +1,6 @@
 const express = require('express');
 const Transaction = require('../models/Transaction');
+const Manifest = require('../models/Manifest');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
@@ -19,7 +20,7 @@ router.get('/traffic', auth, rbac('super_admin'), async (req, res) => {
     const traffic = await Transaction.aggregate([
       { $match: match },
       { $group: { _id: '$kode_gerai', total: { $sum: 1 } } },
-      { $sort: { antar_cabang: -1, total: -1 } },
+      { $sort: { total: -1 } },
       { $limit: 10 },
     ]);
 
@@ -31,7 +32,18 @@ router.get('/traffic', auth, rbac('super_admin'), async (req, res) => {
 
 router.get('/customers-top', auth, rbac('super_admin'), async (req, res) => {
   try {
+    const month = parseInt(req.query.month);
+    const year = parseInt(req.query.year);
+    const match = {};
+    if (month && year && month >= 1 && month <= 12) {
+      match.createdAt = {
+        $gte: new Date(year, month - 1, 1),
+        $lte: new Date(year, month, 0, 23, 59, 59, 999),
+      };
+    }
+
     const topCustomers = await Transaction.aggregate([
+      ...(Object.keys(match).length > 0 ? [{ $match: match }] : []),
       { $group: { _id: { name: '$pengirim.name', phone: '$pengirim.phone' }, total: { $sum: 1 }, total_biaya: { $sum: '$paket.biaya_kirim' } } },
       { $sort: { total: -1 } },
       { $limit: 10 },
@@ -47,7 +59,7 @@ router.get('/customers-top', auth, rbac('super_admin'), async (req, res) => {
 router.get('/summary', auth, rbac('super_admin'), async (req, res) => {
   try {
     const [totalTransaksi, statusCount, totalDriver] = await Promise.all([
-      Transaction.countDocuments(),
+      Transaction.estimatedDocumentCount(),
       Transaction.aggregate([{ $group: { _id: '$status_saat_ini', count: { $sum: 1 } } }, { $sort: { _id: 1 } }]),
       User.countDocuments({ role: 'driver', is_active: true }),
     ]);
@@ -199,6 +211,66 @@ router.get('/drivers', auth, rbac('super_admin'), async (req, res) => {
     ]);
 
     res.json({ data, month, year });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/driver-performance', auth, rbac('super_admin'), async (req, res) => {
+  try {
+    const month = parseInt(req.query.month);
+    const year = parseInt(req.query.year);
+    if (!month || !year || month < 1 || month > 12)
+      return res.status(400).json({ message: 'month (1-12) and year required' });
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const data = await Manifest.aggregate([
+      {
+        $match: {
+          status: 'selesai',
+          completed_at: { $gte: startDate, $lte: endDate },
+          'driver.user_id': { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            tipe: '$tipe_manifest',
+            driver_id: '$driver.user_id',
+          },
+          driver_name: { $first: '$driver.name' },
+          total_manifest: { $sum: 1 },
+          total_work_unit: { $sum: '$work_unit' },
+          total_resi: { $sum: '$total_resi' },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.tipe',
+          drivers: {
+            $push: {
+              driver_id: '$_id.driver_id',
+              driver_name: '$driver_name',
+              total_manifest: '$total_manifest',
+              total_work_unit: '$total_work_unit',
+              total_resi: '$total_resi',
+            },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const result = { month, year, antar_cabang: [], antar_penerima: [] };
+    for (const group of data) {
+      group.drivers.sort((a, b) => b.total_work_unit - a.total_work_unit);
+      if (group._id === 'antar_cabang') result.antar_cabang = group.drivers;
+      else if (group._id === 'antar_penerima') result.antar_penerima = group.drivers;
+    }
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

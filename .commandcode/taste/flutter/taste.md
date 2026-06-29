@@ -15,6 +15,7 @@
 - Use OpenStreetMap via `flutter_map` for map features (e.g., "Cari Cabang Terdekat", location picker). Confidence: 0.60
 - For map camera fitting on "Cari Cabang Terdekat" feature: Fit bounds between user location and the single nearest cabang only, not all cabang in radius. Confidence: 0.65
 - For zero-network local data features: load from Hive cache first, fallback to bundled JSON asset (follow the `OngkirService`/`CabangLokasiService` pattern) to minimize API hits. Confidence: 0.80
+- For zero-network features that need fresh data (e.g., tariffs, cities): Sync from backend at app startup and periodically in background (e.g., via dashboard sync or timer), so read-time operations remain zero-network but data stays current. Do NOT add network calls during the user-facing read path (cek tarif). Confidence: 0.80
 - For cabang/branch cards on the landing page grid: Use responsive grid layout — 4 columns on web/desktop, 2 columns on tablet, and 1 column (vertical list, single card scrolling down) on mobile. Confidence: 0.75
 - For grid card layouts: Cards should have uniform heights matching the tallest card in the row, not individual heights based on each card's content. Confidence: 0.75
 - For `flutter_map` layouts: Remove `CameraConstraint` to allow the map to be freely zoomable and pannable. Confidence: 0.75

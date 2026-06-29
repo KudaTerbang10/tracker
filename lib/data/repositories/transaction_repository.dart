@@ -120,4 +120,12 @@ class TransactionRepository {
     final data = res.data['data'] as List<dynamic>;
     return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
+
+  Future<Map<String, dynamic>> getDriverPerformance({required int month, required int year}) async {
+    final res = await _api.get(ApiConstants.analyticsDriverPerformance, query: {
+      'month': month.toString(),
+      'year': year.toString(),
+    });
+    return Map<String, dynamic>.from(res.data);
+  }
 }

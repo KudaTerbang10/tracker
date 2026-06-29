@@ -135,4 +135,7 @@ transactionSchema.index({ 'tracking_logs.no_manifest': 1, createdAt: 1 });
 // 🚀 Optimasi aggregate analytics traffic per cabang
 transactionSchema.index({ createdAt: -1, kode_gerai: 1 });
 
+// 🚀 Optimasi aggregate analytics drivers (lama) — filter date range + elemMatch tracking_logs
+transactionSchema.index({ createdAt: -1, 'tracking_logs.status': 1, 'tracking_logs.driver_ditugaskan.user_id': 1 });
+
 module.exports = mongoose.model('Transaction', transactionSchema);

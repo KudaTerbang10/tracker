@@ -14,6 +14,7 @@ import '../../../shared/utils/label_printer.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../../shared/utils/branch_report_printer.dart';
 import '../../../shared/utils/driver_report_printer.dart';
+import '../../../shared/utils/driver_performance_printer.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/datetime_utils.dart';
@@ -110,7 +111,11 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
       builder: (ctx) => _MonthYearPickerDialog(
         initialMonth: now.month,
         initialYear: now.year,
-        label: type == 'driver' ? 'Laporan Kerja Driver' : 'Laporan Per Cabang',
+        label: type == 'driver_antar_cabang'
+            ? 'Laporan Driver Antar Cabang'
+            : type == 'driver_antar_penerima'
+                ? 'Laporan Driver ke Penerima'
+                : 'Laporan Per Cabang',
       ),
     );
 
@@ -132,7 +137,20 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
 
       final repo = ref.read(transactionRepositoryProvider);
       final List<Map<String, dynamic>> data;
-      if (type == 'driver') {
+      final bool isDriverPerf =
+          type == 'driver_antar_cabang' || type == 'driver_antar_penerima';
+
+      if (isDriverPerf) {
+        final result =
+            await repo.getDriverPerformance(month: month, year: year);
+        final tipeKey =
+            type == 'driver_antar_cabang' ? 'antar_cabang' : 'antar_penerima';
+        final list = (result[tipeKey] as List<dynamic>?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [];
+        data = list;
+      } else if (type == 'driver') {
         data = await repo.getDriverReport(month: month, year: year);
       } else {
         data = await repo.getPerCabangReport(month: month, year: year);
@@ -150,7 +168,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
         return;
       }
 
-      if (type == 'driver') {
+      if (isDriverPerf) {
+        final tipeKey =
+            type == 'driver_antar_cabang' ? 'antar_cabang' : 'antar_penerima';
+        await DriverPerformancePrinter.printReport(
+          month: month,
+          year: year,
+          data: data,
+          type: tipeKey,
+        );
+      } else if (type == 'driver') {
         await DriverReportPrinter.printReport(
           month: month,
           year: year,
@@ -281,16 +308,22 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                   ),
                 ),
                 const PopupMenuItem(
-                  value: 'driver',
+                  value: 'driver_antar_cabang',
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.directions_car,
-                        size: 18,
-                        color: Colors.indigoAccent,
-                      ),
+                      Icon(Icons.local_shipping, size: 18, color: Colors.indigoAccent),
                       SizedBox(width: 10),
-                      Text('Laporan Kerja Driver'),
+                      Text('Laporan Driver Antar Cabang'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'driver_antar_penerima',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_pin_circle, size: 18, color: Colors.indigoAccent),
+                      SizedBox(width: 10),
+                      Text('Laporan Driver ke Penerima'),
                     ],
                   ),
                 ),

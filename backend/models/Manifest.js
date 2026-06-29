@@ -58,4 +58,7 @@ manifestSchema.index({ 'driver.user_id': 1, status: 1 });
 manifestSchema.index({ asal_cabang_id: 1, createdAt: -1 });
 manifestSchema.index({ status: 1, createdAt: -1 });
 
+// 🚀 Optimasi aggregate analytics driver-performance (status selesai + completed_at range)
+manifestSchema.index({ status: 1, completed_at: -1, 'driver.user_id': 1 });
+
 module.exports = mongoose.model('Manifest', manifestSchema);

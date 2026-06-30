@@ -417,48 +417,71 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   const SizedBox(height: 8),
                   Consumer(builder: (context, ref, child) => _cabangDropdown(ref, selectedCabangId, (v) => setDialogState(() => selectedCabangId = v))),
                 ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: const Size(0, 36),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: const Size(0, 36),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () async {
+                          try {
+                            final data = <String, dynamic>{
+                              'name': nameC.text,
+                              'email': emailC.text,
+                              'phone': phoneC.text,
+                              'role': selectedRole,
+                            };
+                            if (!isEdit) data['password'] = passC.text;
+                            if (isEdit && passC.text.isNotEmpty) data['password'] = passC.text;
+                            if (selectedRole == 'admin_cabang' && selectedCabangId != null) data['cabang_id'] = selectedCabangId;
+
+                            if (isEdit) {
+                              await ApiService().put('${ApiConstants.users}/${user.id}', data: data);
+                            } else {
+                              await ApiService().post(ApiConstants.users, data: data);
+                            }
+                            Navigator.pop(ctx);
+                            ref.invalidate(_usersProvider);
+                            SoundPlayer.instance.playSuccess();
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text(isEdit ? 'Akun berhasil diperbarui' : 'Akun berhasil ditambahkan'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                          }
+                        },
+                        child: Text(isEdit ? 'Simpan' : 'Tambah', style: const TextStyle(fontSize: 13)),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  final data = <String, dynamic>{
-                    'name': nameC.text,
-                    'email': emailC.text,
-                    'phone': phoneC.text,
-                    'role': selectedRole,
-                  };
-                  if (!isEdit) data['password'] = passC.text;
-                  if (isEdit && passC.text.isNotEmpty) data['password'] = passC.text;
-                  if (selectedRole == 'admin_cabang' && selectedCabangId != null) data['cabang_id'] = selectedCabangId;
-
-                  if (isEdit) {
-                    await ApiService().put('${ApiConstants.users}/${user.id}', data: data);
-                  } else {
-                    await ApiService().post(ApiConstants.users, data: data);
-                  }
-                  Navigator.pop(ctx);
-                  ref.invalidate(_usersProvider);
-                  SoundPlayer.instance.playSuccess();
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(
-                        content: Text(isEdit ? 'Akun berhasil diperbarui' : 'Akun berhasil ditambahkan'),
-                        backgroundColor: const Color(0xFF10B981),
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                }
-              },
-              child: Text(isEdit ? 'Simpan' : 'Tambah'),
-            ),
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL')),
-          ],
         ),
       ),
     );

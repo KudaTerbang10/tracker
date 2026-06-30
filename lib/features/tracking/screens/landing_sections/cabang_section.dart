@@ -387,31 +387,84 @@ class CabangSectionState extends State<CabangSection> {
               Positioned(
                 right: 12,
                 top: 12,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  elevation: 3,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () {
-                      if (!_cabangMapReady) return;
-                      _cabangMapController.move(
-                        LatLng(
-                          _userPosition!.latitude,
-                          _userPosition!.longitude,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      elevation: 3,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          if (!_cabangMapReady) return;
+                          _cabangMapController.move(
+                            LatLng(
+                              _userPosition!.latitude,
+                              _userPosition!.longitude,
+                            ),
+                            _cabangInitZoom,
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.my_location_rounded,
+                            color: AppTheme.primary,
+                            size: 22,
+                          ),
                         ),
-                        _cabangInitZoom,
-                      );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Icon(
-                        Icons.my_location_rounded,
-                        color: AppTheme.primary,
-                        size: 22,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      elevation: 3,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          if (!_cabangMapReady) return;
+                          _cabangMapController.move(
+                            _cabangMapController.camera.center,
+                            _cabangMapController.camera.zoom + 1,
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.add_rounded,
+                            color: Color(0xFF0F172A),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      elevation: 3,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          if (!_cabangMapReady) return;
+                          _cabangMapController.move(
+                            _cabangMapController.camera.center,
+                            _cabangMapController.camera.zoom - 1,
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.remove_rounded,
+                            color: Color(0xFF0F172A),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

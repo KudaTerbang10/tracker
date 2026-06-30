@@ -47,6 +47,19 @@ class SyncRepository {
     }
   }
 
+  Future<bool> syncTariffsPublic() async {
+    try {
+      final res = await _api.get(ApiConstants.tariffsPublic);
+      final list = (res.data['tariffs'] as List<dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      await HiveCache.saveTariffs(list);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Map<String, bool>> syncAll() async {
     final results = await Future.wait([
       syncDrivers(),

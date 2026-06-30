@@ -5,9 +5,48 @@ const rbac = require('../middleware/rbac');
 
 const router = express.Router();
 
+const publicRateLimitMap = new Map();
+const PUBLIC_WINDOW = 300_000;
+const PUBLIC_MAX = 1;
+
+function getPublicRateLimit(ip) {
+  const now = Date.now();
+  let entry = publicRateLimitMap.get(ip);
+  if (!entry || now - entry.windowStart > PUBLIC_WINDOW) {
+    entry = { windowStart: now, count: 0 };
+    publicRateLimitMap.set(ip, entry);
+  }
+  return entry;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of publicRateLimitMap) {
+    if (now - entry.windowStart > PUBLIC_WINDOW) {
+      publicRateLimitMap.delete(ip);
+    }
+  }
+}, 300_000).unref();
+
 router.get('/', async (req, res) => {
   try {
-    const cabangs = await Cabang.find({ is_active: true }).sort({ kode: 1 }).lean();
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+
+    if (!req.headers.authorization) {
+      const rate = getPublicRateLimit(ip);
+      rate.count++;
+
+      if (rate.count > PUBLIC_MAX) {
+        return res.status(429).json({
+          message: 'Terlalu banyak permintaan.',
+          retry_after_seconds: Math.ceil((rate.windowStart + PUBLIC_WINDOW - Date.now()) / 1000),
+        });
+      }
+    }
+
+    const isAuth = !!req.headers.authorization;
+    const filter = isAuth ? {} : { is_active: true };
+    const cabangs = await Cabang.find(filter).sort({ kode: 1 }).lean();
     res.json({ data: cabangs.map(c => {
       const [lng, lat] = c.lokasi?.coordinates ?? [];
       return { cabang_id: c._id, kode: c.kode, name: c.name, address: c.address, phone: c.phone, kota: c.kota, is_active: c.is_active, latitude: lat ?? null, longitude: lng ?? null };

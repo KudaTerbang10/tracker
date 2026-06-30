@@ -105,13 +105,6 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           pastelColor: const Color(0xFFFEE2E2),
         ),
         _DashboardMenuItem(
-          icon: Icons.check_circle_rounded,
-          label: 'Scan Barang Diterima',
-          onTap: () => context.go('/dashboard/scan-diterima'),
-          iconColor: const Color(0xFF059669),
-          pastelColor: const Color(0xFFD1FAE5),
-        ),
-        _DashboardMenuItem(
           icon: Icons.description_rounded,
           label: 'Daftar Manifest',
           onTap: () => context.go('/dashboard/manifests'),
@@ -124,6 +117,20 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           onTap: () => context.go('/dashboard/barang-bermasalah'),
           iconColor: const Color(0xFFEF4444),
           pastelColor: const Color(0xFFFEE2E2),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.contacts_rounded,
+          label: 'Daftar Kontak Cabang',
+          onTap: () => context.go('/dashboard/cabang-kontak'),
+          iconColor: const Color(0xFF4F46E5),
+          pastelColor: const Color(0xFFE0E7FF),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.check_circle_rounded,
+          label: 'Scan Barang Diterima',
+          onTap: () => context.go('/dashboard/scan-diterima'),
+          iconColor: const Color(0xFF059669),
+          pastelColor: const Color(0xFFD1FAE5),
         ),
       ];
     case 'driver':

@@ -5,6 +5,58 @@ const rbac = require('../middleware/rbac');
 
 const router = express.Router();
 
+const publicRateLimitMap = new Map();
+const PUBLIC_WINDOW = 300_000;
+const PUBLIC_MAX = 1;
+
+function getPublicRateLimit(ip) {
+  const now = Date.now();
+  let entry = publicRateLimitMap.get(ip);
+  if (!entry || now - entry.windowStart > PUBLIC_WINDOW) {
+    entry = { windowStart: now, count: 0 };
+    publicRateLimitMap.set(ip, entry);
+  }
+  return entry;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of publicRateLimitMap) {
+    if (now - entry.windowStart > PUBLIC_WINDOW) {
+      publicRateLimitMap.delete(ip);
+    }
+  }
+}, 300_000).unref();
+
+router.get('/public', async (req, res) => {
+  try {
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    const rate = getPublicRateLimit(ip);
+    rate.count++;
+
+    if (rate.count > PUBLIC_MAX) {
+      return res.status(429).json({
+        message: 'Terlalu banyak permintaan.',
+        retry_after_seconds: Math.ceil((rate.windowStart + PUBLIC_WINDOW - Date.now()) / 1000),
+      });
+    }
+
+    const tariffs = await Tariff.find({}).sort({ asal: 1, tujuan: 1 }).lean();
+    res.json({
+      tariffs: tariffs.map(t => ({
+        key: t.key,
+        asal: t.asal,
+        tujuan: t.tujuan,
+        min: t.min,
+        perkg: t.perkg,
+        est: t.est,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const { asal, tujuan, page = 1, limit = 20 } = req.query;

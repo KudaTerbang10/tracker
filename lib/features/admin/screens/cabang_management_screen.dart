@@ -78,7 +78,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
       counts[k] = (counts[k] ?? 0) + 1;
     }
     final filters = <Map<String, String>>[];
-    filters.add({'key': 'all', 'label': 'Semua'});
+    filters.add({'key': 'all', 'label': 'Aktif'});
     if ((counts['jakarta'] ?? 0) > 0) filters.add({'key': 'jakarta', 'label': 'Jakarta'});
     for (final entry in counts.entries) {
       if (entry.key == 'jakarta') continue;
@@ -129,9 +129,9 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                 }
                 final filters = _buildFilters(cabangs);
                 final filterCounts = <String, int>{
-                  'all': cabangs.length,
+                  'all': cabangs.where((c) => c.isActive).length,
                   'nonaktif': cabangs.where((c) => !c.isActive).length,
-                  'jakarta': cabangs.where((c) => c.kota.startsWith('Jakarta')).length,
+                  'jakarta': cabangs.where((c) => c.kota.startsWith('Jakarta') && c.isActive).length,
                   'lainnya': cabangs.where((c) {
                     final k = c.kota.startsWith('Jakarta') ? 'jakarta' : c.kota;
                     return (counts[k] ?? 0) <= 1 && c.isActive;
@@ -415,52 +415,75 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        minimumSize: const Size(0, 36),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        minimumSize: const Size(0, 36),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () async {
+                        try {
+                          double? lat, lng;
+                          final parts = latLngC.text.trim().split(RegExp(r'\s*,\s*'));
+                          if (parts.length == 2) {
+                            lat = double.tryParse(parts[0]);
+                            lng = double.tryParse(parts[1]);
+                          }
+                          final data = <String, dynamic>{
+                            'kode': kodeC.text.toUpperCase(),
+                            'name': nameC.text,
+                            'address': addressC.text,
+                            'phone': phoneC.text,
+                            'kota': kotaC.text,
+                            if (lat != null && lng != null) ...{
+                              'latitude': lat,
+                              'longitude': lng,
+                            },
+                          };
+                          if (isEdit) {
+                            await ApiService().put('/cabangs/${cabang.id}', data: data);
+                          } else {
+                            await ApiService().post('/cabangs', data: data);
+                          }
+                          Navigator.pop(ctx);
+                          ref.invalidate(_cabangsProvider);
+                          SoundPlayer.instance.playSuccess();
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text(isEdit ? 'Cabang berhasil diperbarui' : 'Cabang berhasil ditambahkan'), backgroundColor: const Color(0xFF10B981)),
+                            );
+                          }
+                        } catch (e) {
+                          final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+                        }
+                      },
+                      child: Text(isEdit ? 'Simpan' : 'Tambah', style: const TextStyle(fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                double? lat, lng;
-                final parts = latLngC.text.trim().split(RegExp(r'\s*,\s*'));
-                if (parts.length == 2) {
-                  lat = double.tryParse(parts[0]);
-                  lng = double.tryParse(parts[1]);
-                }
-                final data = <String, dynamic>{
-                  'kode': kodeC.text.toUpperCase(),
-                  'name': nameC.text,
-                  'address': addressC.text,
-                  'phone': phoneC.text,
-                  'kota': kotaC.text,
-                  if (lat != null && lng != null) ...{
-                    'latitude': lat,
-                    'longitude': lng,
-                  },
-                };
-                if (isEdit) {
-                  await ApiService().put('/cabangs/${cabang.id}', data: data);
-                } else {
-                  await ApiService().post('/cabangs', data: data);
-                }
-                Navigator.pop(ctx);
-                ref.invalidate(_cabangsProvider);
-                SoundPlayer.instance.playSuccess();
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(isEdit ? 'Cabang berhasil diperbarui' : 'Cabang berhasil ditambahkan'), backgroundColor: const Color(0xFF10B981)),
-                  );
-                }
-              } catch (e) {
-                final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Error') : 'Error';
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-              }
-            },
-            child: Text(isEdit ? 'Simpan' : 'Tambah'),
-          ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL')),
-        ],
       ),
     );
   }

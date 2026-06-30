@@ -18,17 +18,23 @@ void main() async {
 }
 
 Future<void> _bootstrapSync() async {
-  final lastSynced = HiveCache.getLastSynced();
   final now = DateTime.now();
-  final needSync = lastSynced == null || now.difference(lastSynced).inHours >= 24;
+  final lastSynced = HiveCache.getLastSynced();
+  final needFullSync = lastSynced == null || now.difference(lastSynced).inHours >= 24;
 
-  if (!needSync) return;
   final sync = SyncRepository();
-  await Future.wait([
+  final futures = <Future>[
     if (HiveCache.getDrivers().isEmpty) sync.syncDrivers(),
-    sync.syncCabangs(),
-    sync.syncTariffs(),
-  ]);
-  OngkirService.updateFromHive();
-  CabangLokasiService.updateFromHive();
+    if (needFullSync) sync.syncCabangs(),
+  ];
+  await Future.wait(futures);
+
+  // Tarif selalu sync via endpoint publik — tarif terbaru dari admin
+  // akan tersedia untuk user public tanpa perlu login.
+  final tariffsOk = await sync.syncTariffsPublic();
+  if (tariffsOk) OngkirService.updateFromHive();
+
+  if (needFullSync) {
+    CabangLokasiService.updateFromHive();
+  }
 }

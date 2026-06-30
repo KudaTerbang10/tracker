@@ -1615,6 +1615,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
       ref.invalidate(_prosesProvider);
       SoundPlayer.instance.playScan();
       if (mounted) {
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

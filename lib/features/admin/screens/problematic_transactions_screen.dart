@@ -14,6 +14,7 @@ import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/utils/label_printer.dart';
 import '../../../shared/utils/sound_player.dart';
+import '../../../shared/utils/problematic_report_printer.dart';
 
 class ProblematicTransactionsScreen extends ConsumerStatefulWidget {
   const ProblematicTransactionsScreen({super.key});
@@ -31,6 +32,7 @@ class _ProblematicTransactionsScreenState
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
   final _dateFmt = DateFormat('MMMM yyyy', 'id_ID');
+  List<Transaction>? _cachedBermasalah;
 
   @override
   void dispose() {
@@ -649,6 +651,48 @@ class _ProblematicTransactionsScreenState
     }
   }
 
+  Future<void> _printReport(String jenis) async {
+    try {
+      final list = _cachedBermasalah;
+      if (list == null || list.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tidak ada data untuk dicetak')),
+          );
+        }
+        return;
+      }
+      final filtered = list.where((tx) => tx.jenisMasalah == jenis).toList();
+      final data = filtered.map((tx) {
+        final pelapor = tx.dilaporkanOleh as Map<String, dynamic>?;
+        return {
+          'no_resi': tx.noResi,
+          'jenis_masalah': tx.jenisMasalah ?? '',
+          'pengirim': tx.pengirimName,
+          'penerima': tx.penerimaName,
+          'pelapor': pelapor?['name'] as String? ?? '-',
+          'cabang': pelapor?['cabang_name'] as String? ?? '-',
+          'dilaporkan_pada': tx.dilaporkanPada?.toIso8601String(),
+          'status': tx.statusSaatIni,
+          'catatan': tx.catatanMasalah ?? '-',
+        };
+      }).toList();
+
+      await ProblematicReportPrinter.printReport(
+        month: _selectedMonth,
+        year: _selectedYear,
+        data: data,
+        jenis: jenis,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal cetak laporan: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _scanResi() async {
     final code = await BarcodeScannerDialog.show(
       context,
@@ -688,6 +732,39 @@ class _ProblematicTransactionsScreenState
               _dateFmt.format(DateTime(_selectedYear, _selectedMonth)),
               style: const TextStyle(fontSize: 13),
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.print_rounded, size: 20, color: Colors.blue),
+            tooltip: 'Cetak Laporan',
+            color: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            onSelected: _printReport,
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'gagal_kirim',
+                child: Row(
+                  children: [
+                    Icon(Icons.cancel_outlined, size: 20, color: Colors.orange),
+                    SizedBox(width: 10),
+                    Text('Cetak Laporan Gagal Kirim'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'hilang',
+                child: Row(
+                  children: [
+                    Icon(Icons.report_problem_rounded, size: 20, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text('Cetak Laporan Barang Hilang'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -797,6 +874,9 @@ class _ProblematicTransactionsScreenState
                   return const Center(child: CircularProgressIndicator());
                 }
                 final list = snap.data ?? [];
+                if (_cachedBermasalah == null || list.isNotEmpty) {
+                  _cachedBermasalah = list;
+                }
                 final filtered = _filter.isEmpty
                     ? list
                     : list

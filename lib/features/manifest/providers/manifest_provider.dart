@@ -95,10 +95,8 @@ class ManifestListData {
 }
 
 /// Provider untuk detail manifest + transaksi di dalamnya
-/// Tidak autoDispose agar data tetap tercache saat kembali dari detail screen,
-/// sehingga tombol print di list screen bisa langsung pakai tanpa fetch ulang.
 final manifestDetailProvider =
-    FutureProvider.family<Manifest?, String>((ref, id) async {
+    FutureProvider.autoDispose.family<Manifest?, String>((ref, id) async {
   try {
     final response =
         await ApiService().get('${ApiConstants.manifests}/$id');

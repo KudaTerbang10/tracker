@@ -3,6 +3,7 @@ import '../../core/constants/api_constants.dart';
 import '../datasources/remote/api_service.dart';
 import '../datasources/local/auth_local.dart';
 import '../models/user.dart';
+import '../../shared/utils/cabang_lokasi_service.dart';
 import 'sync_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
@@ -55,6 +56,7 @@ class AuthRepository {
         _sync.syncDrivers(),
         _sync.syncCabangs(),
       ]);
+      CabangLokasiService.updateFromHive();
     } catch (_) {}
   }
 }

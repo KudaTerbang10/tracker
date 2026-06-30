@@ -14,6 +14,7 @@ import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/admin/screens/user_management_screen.dart';
 import '../features/admin/screens/cabang_management_screen.dart';
 import '../features/admin/screens/tariff_management_screen.dart';
+import '../features/admin/screens/tariff_bulk_screen.dart';
 import '../features/admin/screens/traffic_analytics_screen.dart';
 import '../features/admin/screens/cabang_contact_screen.dart';
 import '../features/admin/screens/problematic_transactions_screen.dart';
@@ -61,6 +62,7 @@ class _AuthListenable extends ChangeNotifier {
         GoRoute(path: 'cabangs', builder: (_, __) => const CabangManagementScreen()),
         GoRoute(path: 'driver-tab', builder: (_, __) => const DriverTabScreen()),
         GoRoute(path: 'tariffs', builder: (_, __) => const TariffManagementScreen()),
+        GoRoute(path: 'tariffs-bulk', builder: (_, __) => const TariffBulkScreen()),
         GoRoute(path: 'traffic', builder: (_, __) => const TrafficAnalyticsScreen()),
         GoRoute(path: 'manifests', builder: (_, __) => const ManifestListScreen()),
         GoRoute(path: 'manifest/:id', builder: (_, state) => ManifestDetailScreen(manifestId: state.pathParameters['id']!)),

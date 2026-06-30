@@ -29,12 +29,13 @@ Future<void> _bootstrapSync() async {
   ];
   await Future.wait(futures);
 
+  // Refresh cabang dulu agar OngkirService.availableCities pakai data terbaru
+  if (needFullSync) {
+    CabangLokasiService.updateFromHive();
+  }
+
   // Tarif selalu sync via endpoint publik — tarif terbaru dari admin
   // akan tersedia untuk user public tanpa perlu login.
   final tariffsOk = await sync.syncTariffsPublic();
   if (tariffsOk) OngkirService.updateFromHive();
-
-  if (needFullSync) {
-    CabangLokasiService.updateFromHive();
-  }
 }

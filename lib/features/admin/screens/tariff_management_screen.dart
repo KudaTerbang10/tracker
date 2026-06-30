@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../data/datasources/remote/api_service.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../shared/utils/capitalize_formatter.dart';
 import '../../../shared/utils/sound_player.dart';
 
 class TariffItem {
@@ -137,6 +138,13 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
       appBar: AppBar(
         title: const Text('Manajemen Tarif'),
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
+        actions: [
+          TextButton.icon(
+            onPressed: () => context.go('/dashboard/tariffs-bulk'),
+            icon: const Icon(Icons.table_rows_rounded, size: 18),
+            label: const Text('Input Massal', style: TextStyle(fontSize: 12)),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF3B82F6),
@@ -328,7 +336,30 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
               children: [
                 _buildAutocomplete(ctx, cities, 'Kota Asal', Icons.trip_origin, (v) => setDialogState(() => asal = v)),
                 const SizedBox(height: 12),
-                _buildAutocomplete(ctx, cities, 'Kota Tujuan', Icons.location_on, (v) => setDialogState(() => tujuan = v)),
+                Autocomplete<String>(
+                  optionsBuilder: (value) {
+                    if (value.text.isEmpty) return cities;
+                    return cities.where((c) => c.toLowerCase().contains(value.text.toLowerCase()));
+                  },
+                  onSelected: (v) => setDialogState(() => tujuan = v),
+                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                    controller.addListener(() {
+                      final v = controller.text;
+                      if (v.isNotEmpty) tujuan = v;
+                    });
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [CapitalizeWordsFormatter()],
+                      decoration: const InputDecoration(
+                        labelText: 'Kota Tujuan',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
                 TextField(controller: minC, decoration: const InputDecoration(labelText: 'Tarif Awal 5 Kg', border: OutlineInputBorder(), prefixIcon: Icon(Icons.inventory_2)), keyboardType: TextInputType.number, inputFormatters: [_RupiahFormatter()]),
                 const SizedBox(height: 12),
@@ -403,17 +434,27 @@ class _TariffManagementScreenState extends ConsumerState<TariffManagementScreen>
     );
   }
 
-  Widget _buildAutocomplete(BuildContext ctx, List<String> cities, String label, IconData icon, void Function(String) onSelected) {
+  Widget _buildAutocomplete(
+    BuildContext ctx,
+    List<String> cities,
+    String label,
+    IconData icon,
+    void Function(String) onSelected, {
+    TextEditingController? controller,
+  }) {
     return Autocomplete<String>(
       optionsBuilder: (value) {
         if (value.text.isEmpty) return cities;
         return cities.where((c) => c.toLowerCase().contains(value.text.toLowerCase()));
       },
       onSelected: onSelected,
-      fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+      fieldViewBuilder: (context, fieldController, focusNode, onSubmitted) {
+        final ctrl = controller ?? fieldController;
         return TextField(
-          controller: controller,
+          controller: ctrl,
           focusNode: focusNode,
+          textCapitalization: TextCapitalization.words,
+          inputFormatters: [CapitalizeWordsFormatter()],
           decoration: InputDecoration(
             labelText: label,
             border: const OutlineInputBorder(),

@@ -6,6 +6,7 @@ import '../../../data/repositories/sync_repository.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../data/models/user.dart';
 import '../../../shared/utils/ongkir_service.dart';
+import '../../../shared/utils/cabang_lokasi_service.dart';
 
 final _connectionProvider = FutureProvider<bool>(
   (ref) => ref.read(syncRepositoryProvider).checkConnection(),
@@ -582,6 +583,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final driversOk = result['drivers'] ?? false;
     final cabangsOk = result['cabangs'] ?? false;
     final tariffsOk = result['tariffs'] ?? false;
+    // Refresh cabang dulu agar OngkirService.availableCities pakai data terbaru
+    if (cabangsOk) {
+      CabangLokasiService.updateFromHive();
+    }
     if (tariffsOk) {
       OngkirService.updateFromHive();
     }

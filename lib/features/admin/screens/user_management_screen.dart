@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/datasources/remote/api_service.dart';
 import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../shared/utils/capitalize_formatter.dart';
 import '../../../shared/utils/sound_player.dart';
 
 final _usersProvider = FutureProvider.autoDispose<List<User>>((ref) async {
@@ -386,7 +387,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Nama')),
+                TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Nama'), textCapitalization: TextCapitalization.words, inputFormatters: [CapitalizeWordsFormatter()]),
                 const SizedBox(height: 8),
                 TextField(controller: emailC, decoration: const InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
                 const SizedBox(height: 8),

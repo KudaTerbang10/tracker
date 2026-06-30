@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../../../data/datasources/remote/api_service.dart';
+import '../../../data/repositories/sync_repository.dart';
+import '../../../shared/utils/cabang_lokasi_service.dart';
+import '../../../shared/utils/capitalize_formatter.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../../shared/widgets/location_picker.dart';
 
@@ -364,15 +367,15 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: kodeC, decoration: const InputDecoration(labelText: 'Kode'), textCapitalization: TextCapitalization.characters),
+              TextField(controller: kodeC, decoration: const InputDecoration(labelText: 'Kode'), textCapitalization: TextCapitalization.characters, inputFormatters: [UpperCaseTextFormatter()]),
               const SizedBox(height: 8),
-              TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Nama Cabang')),
+              TextField(controller: nameC, decoration: const InputDecoration(labelText: 'Nama Cabang'), textCapitalization: TextCapitalization.words, inputFormatters: [CapitalizeWordsFormatter()]),
               const SizedBox(height: 8),
-              TextField(controller: addressC, decoration: const InputDecoration(labelText: 'Alamat'), maxLines: 2),
+              TextField(controller: addressC, decoration: const InputDecoration(labelText: 'Alamat'), textCapitalization: TextCapitalization.words, inputFormatters: [CapitalizeWordsFormatter()], maxLines: 2),
               const SizedBox(height: 8),
               TextField(controller: phoneC, decoration: const InputDecoration(labelText: 'Kontak'), keyboardType: TextInputType.phone),
               const SizedBox(height: 8),
-              TextField(controller: kotaC, decoration: const InputDecoration(labelText: 'Kota')),
+              TextField(controller: kotaC, decoration: const InputDecoration(labelText: 'Kota'), textCapitalization: TextCapitalization.words, inputFormatters: [CapitalizeWordsFormatter()]),
               const SizedBox(height: 8),
               TextField(
                 controller: latLngC,
@@ -405,6 +408,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                             context,
                             latitude: lat,
                             longitude: lng,
+                            address: kotaC.text.isNotEmpty ? kotaC.text : null,
                           );
                           if (result != null) {
                             latLngC.text = '${result.latitude.toStringAsFixed(6)}, ${result.longitude.toStringAsFixed(6)}';
@@ -465,6 +469,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                           }
                           Navigator.pop(ctx);
                           ref.invalidate(_cabangsProvider);
+                          ref.read(syncRepositoryProvider).syncCabangs().then((_) => CabangLokasiService.updateFromHive());
                           SoundPlayer.instance.playSuccess();
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
@@ -517,6 +522,7 @@ class _CabangManagementScreenState extends ConsumerState<CabangManagementScreen>
                     }
                     Navigator.pop(ctx);
                     ref.invalidate(_cabangsProvider);
+                    ref.read(syncRepositoryProvider).syncCabangs().then((_) => CabangLokasiService.updateFromHive());
                     SoundPlayer.instance.playSuccess();
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/ongkir_service.dart';
+import '../../../../shared/utils/capitalize_formatter.dart';
 
 class CekTarifSection extends StatefulWidget {
   final GlobalKey sectionKey;
@@ -99,6 +100,8 @@ class _CekTarifSectionState extends State<CekTarifSection> {
         return TextField(
           controller: controller, focusNode: focusNode,
           onSubmitted: (_) => onSubmitted(),
+          textCapitalization: TextCapitalization.words,
+          inputFormatters: [CapitalizeWordsFormatter()],
           decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, size: 20)),
         );
       },

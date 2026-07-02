@@ -520,34 +520,54 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: List.generate(12, (i) {
-              final m = i + 1;
-              final selected = _month == m;
-              return GestureDetector(
-                onTap: () => setState(() => _month = m),
-                child: Container(
-                  width: 68,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: selected ? AppTheme.primary : Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Text(
-                    _months[i],
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : const Color(0xFF475569),
+          Builder(
+            builder: (context) {
+              final perRow = MediaQuery.of(context).size.width > 380 ? 6 : 3;
+              final rows = <List<int>>[];
+              for (var i = 0; i < 12; i += perRow) {
+                rows.add(List.generate(
+                  (i + perRow > 12 ? 12 - i : perRow),
+                  (j) => i + j,
+                ));
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: rows.map((rowIndices) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: rowIndices.map((i) {
+                        final m = i + 1;
+                        final selected = _month == m;
+                        return GestureDetector(
+                          onTap: () => setState(() => _month = m),
+                          child: Container(
+                            width: 68,
+                            margin: const EdgeInsets.all(3),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: selected ? AppTheme.primary : Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Text(
+                              _months[i],
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: selected ? Colors.white : const Color(0xFF475569),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  ),
-                ),
+                  );
+                }).toList(),
               );
-            }),
+            },
           ),
           const SizedBox(height: 12),
           Row(
@@ -576,13 +596,22 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Batal'),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop({'month': _month, 'year': _year}),
-          child: const Text('Lihat'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Batal'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop({'month': _month, 'year': _year}),
+                child: const Text('Lihat'),
+              ),
+            ),
+          ],
         ),
       ],
     );

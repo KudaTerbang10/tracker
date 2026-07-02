@@ -132,6 +132,9 @@ transactionSchema.index({ 'tracking_logs.driver_ditugaskan.user_id': 1, 'trackin
 // 🚀 Optimasi query $or di manifest detail (branch tracking_logs.no_manifest)
 transactionSchema.index({ 'tracking_logs.no_manifest': 1, createdAt: 1 });
 
+// 🚀 Optimasi recent contacts per cabang
+transactionSchema.index({ 'created_by.cabang_id': 1, createdAt: -1 });
+
 // 🚀 Optimasi aggregate analytics traffic per cabang
 transactionSchema.index({ createdAt: -1, kode_gerai: 1 });
 

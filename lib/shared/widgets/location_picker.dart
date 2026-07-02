@@ -63,11 +63,11 @@ class _LocationPickerState extends State<LocationPicker> {
     } else {
       // default center Indonesia
       _center = const LatLng(-2.0, 118.0);
-    }
-    // Pre-fill search with initial address and auto-search
-    if (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) {
-      _searchC.text = widget.initialAddress!;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _searchAddress());
+      // Pre-fill search with initial address and auto-search only if no coordinates
+      if (widget.initialAddress != null && widget.initialAddress!.isNotEmpty) {
+        _searchC.text = widget.initialAddress!;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _searchAddress());
+      }
     }
   }
 

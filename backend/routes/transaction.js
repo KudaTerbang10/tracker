@@ -488,6 +488,79 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// GET /api/transactions/recent-contacts?cabang_id=xxx&limit=50
+router.get('/recent-contacts', auth, async (req, res) => {
+  try {
+    const { cabang_id, limit = 500 } = req.query;
+    if (!cabang_id) {
+      return res.status(400).json({ error: 'cabang_id diperlukan' });
+    }
+
+    const cabangObjectId = new mongoose.Types.ObjectId(cabang_id);
+    const limitNum = Math.min(parseInt(limit) || 500, 500);
+
+    const [result] = await Transaction.aggregate([
+      { $match: { 'created_by.cabang_id': cabangObjectId } },
+      { $sort: { createdAt: -1 } },
+      { $limit: 1000 },
+      {
+        $facet: {
+          pengirim: [
+            {
+              $group: {
+                _id: { name: '$pengirim.name', phone: '$pengirim.phone' },
+                address: { $first: '$pengirim.address' },
+                lastUsed: { $first: '$createdAt' },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { lastUsed: -1 } },
+            { $limit: limitNum },
+            {
+              $project: {
+                _id: 0, name: '$_id.name', phone: '$_id.phone',
+                address: 1, lastUsed: 1, count: 1,
+              },
+            },
+          ],
+          penerima: [
+            {
+              $group: {
+                _id: { name: '$penerima.name', phone: '$penerima.phone' },
+                address: { $first: '$penerima.address' },
+                kecamatan: { $first: '$penerima.kecamatan' },
+                kota: { $first: '$penerima.kota' },
+                lokasi_penerima: { $first: '$lokasi_penerima' },
+                lastUsed: { $first: '$createdAt' },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { lastUsed: -1 } },
+            { $limit: limitNum },
+            {
+              $project: {
+                _id: 0, name: '$_id.name', phone: '$_id.phone',
+                address: 1, kecamatan: 1, kota: 1, lokasi_penerima: 1, lastUsed: 1, count: 1,
+              },
+            },
+          ],
+          oldestDate: [
+            { $group: { _id: null, oldest: { $min: '$createdAt' } } },
+            { $project: { _id: 0, oldest: 1 } },
+          ],
+        },
+      },
+    ]);
+
+    const response = result || { pengirim: [], penerima: [], oldestDate: [] };
+    response.oldestDate = response.oldestDate?.[0]?.oldest || null;
+    res.json(response);
+  } catch (err) {
+    console.error('Error mengambil recent contacts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/:id/laporkan-masalah', auth, rbac('admin_cabang'), async (req, res) => {
   try {
     const { jenis, catatan } = req.body;

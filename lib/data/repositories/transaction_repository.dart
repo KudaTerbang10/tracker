@@ -71,6 +71,14 @@ class TransactionRepository {
     await _api.delete('${ApiConstants.transactions}/$id');
   }
 
+  Future<Map<String, dynamic>> getRecentContacts(String cabangId) async {
+    final response = await _api.get(
+      ApiConstants.recentContacts,
+      query: {'cabang_id': cabangId},
+    );
+    return response.data;
+  }
+
   Future<Map<String, dynamic>> getList({String? status, String? search, String? kodeGerai, String? tab, int page = 1, int limit = 20, DateTime? startDate, DateTime? endDate}) async {
     final res = await _api.get(ApiConstants.transactions, query: {
       if (status != null) 'status': status,

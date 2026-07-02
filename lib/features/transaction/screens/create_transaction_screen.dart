@@ -16,10 +16,12 @@ import '../../auth/providers/auth_provider.dart';
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
   @override
-  ConsumerState<CreateTransactionScreen> createState() => _CreateTransactionScreenState();
+  ConsumerState<CreateTransactionScreen> createState() =>
+      _CreateTransactionScreenState();
 }
 
-class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScreen> {
+class _CreateTransactionScreenState
+    extends ConsumerState<CreateTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _pengirimNameC = TextEditingController();
@@ -44,6 +46,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
   bool _isFormattingAddr = false;
   bool _isFormattingPhone = false;
 
+  List<Map<String, dynamic>> _recentPenerima = [];
+  List<Map<String, dynamic>> _recentPengirim = [];
+  bool _recentLoaded = false;
+  DateTime? _recentOldestDate;
+
   String? _originApiKota() {
     final user = ref.read(authProvider).user;
     final cabangKota = user?.lokasi?['kota'] as String?;
@@ -54,16 +61,255 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final asal = _originApiKota();
     final tujuan = _kotaTujuan;
     final beratText = _beratC.text.trim();
-    if (asal == null) { setState(() { _originFound = false; _ongkirResult = null; }); return; }
-    if (tujuan == null || tujuan.isEmpty || beratText.isEmpty) { setState(() { _ongkirResult = null; }); return; }
+    if (asal == null) {
+      setState(() {
+        _originFound = false;
+        _ongkirResult = null;
+      });
+      return;
+    }
+    if (tujuan == null || tujuan.isEmpty || beratText.isEmpty) {
+      setState(() {
+        _ongkirResult = null;
+      });
+      return;
+    }
     final berat = double.tryParse(beratText);
-    if (berat == null || berat <= 0) { setState(() { _ongkirResult = null; }); return; }
+    if (berat == null || berat <= 0) {
+      setState(() {
+        _ongkirResult = null;
+      });
+      return;
+    }
     final result = OngkirService.hitung(asal, tujuan, berat);
     setState(() {
       _originFound = true;
       _ongkirResult = result;
       if (result != null) _biayaC.text = result.total.toString();
     });
+  }
+
+  Future<void> _loadRecentContacts() async {
+    if (_recentLoaded) return;
+    try {
+      final user = ref.read(authProvider).user;
+      final cabangId = user?.cabangId;
+      if (cabangId == null) return;
+
+      final repo = ref.read(transactionRepositoryProvider);
+      final result = await repo.getRecentContacts(cabangId);
+      setState(() {
+        _recentPenerima = List<Map<String, dynamic>>.from(
+          result['penerima'] ?? [],
+        );
+        _recentPengirim = List<Map<String, dynamic>>.from(
+          result['pengirim'] ?? [],
+        );
+        _recentLoaded = true;
+        if (result['oldestDate'] != null) {
+          _recentOldestDate = DateTime.tryParse(
+            result['oldestDate'].toString(),
+          );
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _showRecentPicker({
+    required String title,
+    required String type,
+    required void Function(Map<String, dynamic>) onSelected,
+  }) async {
+    await _loadRecentContacts();
+    if (!mounted) return;
+
+    final items = type == 'penerima' ? _recentPenerima : _recentPengirim;
+    final searchC = TextEditingController();
+
+    // Hitung jumlah bulan berdasarkan tanggal tertua
+    int? monthRange;
+    if (_recentOldestDate != null) {
+      final now = DateTime.now();
+      monthRange =
+          ((now.year - _recentOldestDate!.year) * 12 +
+                  now.month -
+                  _recentOldestDate!.month)
+              .abs();
+      if (monthRange < 1) monthRange = 1;
+    }
+    final monthLabel = monthRange != null
+        ? ' dalam $monthRange bulan terakhir'
+        : '';
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final q = searchC.text.toLowerCase();
+            final filtered = q.isEmpty
+                ? items
+                : items.where((item) {
+                    final name = (item['name'] as String? ?? '').toLowerCase();
+                    final phone = (item['phone'] as String? ?? '')
+                        .toLowerCase();
+                    return name.contains(q) || phone.contains(q);
+                  }).toList();
+
+            final screenWidth = MediaQuery.of(context).size.width;
+            final dialogWidth = screenWidth * 0.3;
+
+            return AlertDialog(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.history_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Riwayat Data ${type == 'penerima' ? 'Penerima' : 'Pengirim'}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (monthRange != null) ...[
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 28),
+                      child: Text(
+                        'Dalam $monthRange Bulan Terakhir',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              content: SizedBox(
+                width: dialogWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: searchC,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama atau telepon...',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: searchC.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  searchC.clear();
+                                  setDialogState(() {});
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: filtered.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(
+                                child: Text(
+                                  'Tidak ada data',
+                                  style: TextStyle(color: Color(0xFF94A3B8)),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              itemBuilder: (_, i) {
+                                final item = filtered[i];
+                                return ListTile(
+                                  dense: true,
+                                  leading: CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: AppTheme.primary
+                                        .withValues(alpha: 0.1),
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 16,
+                                      color: AppTheme.primary,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    item['name'] ?? '',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  subtitle: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        item['phone'] ?? '',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${item['count'] ?? 0}x Transaksi',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    onSelected(item);
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Tutup'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -85,7 +331,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final formatted = _formatAddress(_pengirimAddrC.text);
     if (formatted != _pengirimAddrC.text) {
       _pengirimAddrC.text = formatted;
-      _pengirimAddrC.selection = TextSelection.collapsed(offset: formatted.length);
+      _pengirimAddrC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingAddr = false;
   }
@@ -95,13 +343,18 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     _isFormattingAddr = true;
     final text = _penerimaKecC.text;
     // Split kata, kapital huruf pertama tiap kata
-    final formatted = text.split(' ').map((w) {
-      if (w.isEmpty) return w;
-      return w[0].toUpperCase() + w.substring(1).toLowerCase();
-    }).join(' ');
+    final formatted = text
+        .split(' ')
+        .map((w) {
+          if (w.isEmpty) return w;
+          return w[0].toUpperCase() + w.substring(1).toLowerCase();
+        })
+        .join(' ');
     if (formatted != text) {
       _penerimaKecC.text = formatted;
-      _penerimaKecC.selection = TextSelection.collapsed(offset: formatted.length);
+      _penerimaKecC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingAddr = false;
   }
@@ -112,7 +365,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final formatted = _formatAddress(_penerimaAddrC.text);
     if (formatted != _penerimaAddrC.text) {
       _penerimaAddrC.text = formatted;
-      _penerimaAddrC.selection = TextSelection.collapsed(offset: formatted.length);
+      _penerimaAddrC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingAddr = false;
   }
@@ -123,7 +378,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final formatted = _formatPhoneDisplay(_pengirimPhoneC.text);
     if (formatted != _pengirimPhoneC.text) {
       _pengirimPhoneC.text = formatted;
-      _pengirimPhoneC.selection = TextSelection.collapsed(offset: formatted.length);
+      _pengirimPhoneC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingPhone = false;
   }
@@ -134,7 +391,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final formatted = _formatPhoneDisplay(_penerimaPhoneC.text);
     if (formatted != _penerimaPhoneC.text) {
       _penerimaPhoneC.text = formatted;
-      _penerimaPhoneC.selection = TextSelection.collapsed(offset: formatted.length);
+      _penerimaPhoneC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingPhone = false;
   }
@@ -162,7 +421,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final formatted = _formatAddress(_pengirimNameC.text);
     if (formatted != _pengirimNameC.text) {
       _pengirimNameC.text = formatted;
-      _pengirimNameC.selection = TextSelection.collapsed(offset: formatted.length);
+      _pengirimNameC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingAddr = false;
   }
@@ -173,23 +434,31 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     final formatted = _formatAddress(_penerimaNameC.text);
     if (formatted != _penerimaNameC.text) {
       _penerimaNameC.text = formatted;
-      _penerimaNameC.selection = TextSelection.collapsed(offset: formatted.length);
+      _penerimaNameC.selection = TextSelection.collapsed(
+        offset: formatted.length,
+      );
     }
     _isFormattingAddr = false;
   }
 
   static String _formatAddress(String text) {
     final words = text.split(' ');
-    final formatted = words.map((w) {
-      if (w.isEmpty) return w;
-      final lower = w.toLowerCase();
-      if (lower == 'rt' || lower == 'rw') return lower.toUpperCase();
-      final match = RegExp(r'^(rt|rw)(\d+)$', caseSensitive: false).firstMatch(w);
-      if (match != null) return '${match.group(1)!.toUpperCase()}${match.group(2)}';
-      // biarkan ALL UPPERCASE (PT, CV, dll), title-case-kan sisanya
-      if (!w.contains(RegExp(r'[a-z]'))) return w;
-      return w[0].toUpperCase() + w.substring(1).toLowerCase();
-    }).join(' ');
+    final formatted = words
+        .map((w) {
+          if (w.isEmpty) return w;
+          final lower = w.toLowerCase();
+          if (lower == 'rt' || lower == 'rw') return lower.toUpperCase();
+          final match = RegExp(
+            r'^(rt|rw)(\d+)$',
+            caseSensitive: false,
+          ).firstMatch(w);
+          if (match != null)
+            return '${match.group(1)!.toUpperCase()}${match.group(2)}';
+          // biarkan ALL UPPERCASE (PT, CV, dll), title-case-kan sisanya
+          if (!w.contains(RegExp(r'[a-z]'))) return w;
+          return w[0].toUpperCase() + w.substring(1).toLowerCase();
+        })
+        .join(' ');
     return formatted;
   }
 
@@ -245,54 +514,155 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _sectionTitle('DATA PENERIMA', Icons.person_pin_rounded),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _sectionTitle(
+                                    'DATA PENERIMA',
+                                    Icons.person_pin_rounded,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.history_rounded,
+                                    size: 20,
+                                  ),
+                                  tooltip: 'Riwayat Penerima',
+                                  onPressed: () {
+                                    _showRecentPicker(
+                                      title: 'Riwayat Penerima',
+                                      type: 'penerima',
+                                      onSelected: (item) {
+                                        setState(() {
+                                          _penerimaNameC.text = _formatAddress(
+                                            item['name'] ?? '',
+                                          );
+                                          _penerimaPhoneC.text =
+                                              _formatPhoneDisplay(
+                                                item['phone'] ?? '',
+                                              );
+                                          _penerimaAddrC.text = _formatAddress(
+                                            item['address'] ?? '',
+                                          );
+                                          _penerimaKecC.text = _formatAddress(
+                                            item['kecamatan'] ?? '',
+                                          );
+                                          _kotaTujuan =
+                                              (item['kota'] as String?)
+                                                      ?.isNotEmpty ==
+                                                  true
+                                              ? item['kota']
+                                              : null;
+                                          // Set koordinat dari lokasi_penerima
+                                          final lokasi =
+                                              item['lokasi_penerima']
+                                                  as Map<String, dynamic>?;
+                                          if (lokasi != null &&
+                                              lokasi['coordinates'] != null) {
+                                            final coords =
+                                                lokasi['coordinates'] as List;
+                                            if (coords.length >= 2) {
+                                              _penerimaLng = (coords[0] as num?)
+                                                  ?.toDouble();
+                                              _penerimaLat = (coords[1] as num?)
+                                                  ?.toDouble();
+                                            }
+                                          } else {
+                                            _penerimaLat = null;
+                                            _penerimaLng = null;
+                                          }
+                                          _autocompleteResetKey++;
+                                        });
+                                        _calcOngkir();
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _penerimaNameC,
-                              decoration: const InputDecoration(labelText: 'Nama Penerima *', prefixIcon: Icon(Icons.person_outline_rounded)),
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Nama Penerima *',
+                                prefixIcon: Icon(Icons.person_outline_rounded),
+                              ),
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _penerimaPhoneC,
-                              decoration: const InputDecoration(labelText: 'Kontak Penerima *', prefixIcon: Icon(Icons.phone_outlined)),
+                              decoration: const InputDecoration(
+                                labelText: 'Kontak Penerima *',
+                                prefixIcon: Icon(Icons.phone_outlined),
+                              ),
                               keyboardType: TextInputType.phone,
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _penerimaAddrC,
-                              decoration: const InputDecoration(labelText: 'Alamat Lengkap Penerima *', prefixIcon: Icon(Icons.location_on_outlined)),
+                              decoration: const InputDecoration(
+                                labelText: 'Alamat Lengkap Penerima *',
+                                prefixIcon: Icon(Icons.location_on_outlined),
+                              ),
                               maxLines: 2,
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                             const SizedBox(height: 12),
                             Autocomplete<String>(
                               key: ValueKey(_autocompleteResetKey),
                               optionsBuilder: (textEditingValue) {
-                                if (textEditingValue.text.isEmpty) return OngkirService.availableCities;
-                                return OngkirService.availableCities.where((c) =>
-                                  c.toLowerCase().contains(textEditingValue.text.toLowerCase()),
-                                );
-                              },
-                              initialValue: _kotaTujuan == null ? null : TextEditingValue(text: _kotaTujuan!),
-                              onSelected: (v) => setState(() { _kotaTujuan = v; _calcOngkir(); }),
-                              displayStringForOption: (v) => v,
-                              fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                                return TextFormField(
-                                  controller: controller,
-                                  focusNode: focusNode,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Kota Tujuan *',
-                                    prefixIcon: Icon(Icons.location_city_rounded),
+                                if (textEditingValue.text.isEmpty)
+                                  return OngkirService.availableCities;
+                                return OngkirService.availableCities.where(
+                                  (c) => c.toLowerCase().contains(
+                                    textEditingValue.text.toLowerCase(),
                                   ),
-                                  validator: (v) => _kotaTujuan == null ? 'Pilih kota tujuan' : null,
                                 );
                               },
+                              initialValue: _kotaTujuan == null
+                                  ? null
+                                  : TextEditingValue(text: _kotaTujuan!),
+                              onSelected: (v) => setState(() {
+                                _kotaTujuan = v;
+                                _calcOngkir();
+                              }),
+                              displayStringForOption: (v) => v,
+                              fieldViewBuilder:
+                                  (
+                                    context,
+                                    controller,
+                                    focusNode,
+                                    onSubmitted,
+                                  ) {
+                                    return TextFormField(
+                                      controller: controller,
+                                      focusNode: focusNode,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Kota Tujuan *',
+                                        prefixIcon: Icon(
+                                          Icons.location_city_rounded,
+                                        ),
+                                      ),
+                                      validator: (v) => _kotaTujuan == null
+                                          ? 'Pilih kota tujuan'
+                                          : null,
+                                    );
+                                  },
                             ),
                             if (!_originFound) ...[
                               const SizedBox(height: 8),
-                              const Text('Kota asal tidak dapat ditentukan — atur di data cabang', style: TextStyle(color: Colors.red, fontSize: 11)),
+                              const Text(
+                                'Kota asal tidak dapat ditentukan — atur di data cabang',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                             const SizedBox(height: 12),
                             Row(
@@ -307,7 +677,9 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                       hintText: 'Contoh: Margahayu',
                                     ),
                                     textCapitalization: TextCapitalization.none,
-                                    validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                                    validator: (v) => (v?.isEmpty ?? true)
+                                        ? 'Wajib diisi'
+                                        : null,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -341,9 +713,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                       padding: EdgeInsets.zero,
                                       minimumSize: Size(double.infinity, 56),
                                     ),
-                                    child: MediaQuery.of(context).size.width >= 800
+                                    child:
+                                        MediaQuery.of(context).size.width >= 800
                                         ? Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               const Icon(
                                                 Icons.gps_fixed,
@@ -353,16 +727,16 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                               const Flexible(
                                                 child: Text(
                                                   'Pin Koordinat',
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(fontSize: 12),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                  ),
                                                 ),
                                               ),
                                             ],
                                           )
-                                        : const Icon(
-                                            Icons.gps_fixed,
-                                            size: 28,
-                                          ),
+                                        : const Icon(Icons.gps_fixed, size: 28),
                                   ),
                                 ),
                               ],
@@ -381,26 +755,74 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _sectionTitle('DATA PENGIRIM', Icons.send_rounded),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _sectionTitle(
+                                    'DATA PENGIRIM',
+                                    Icons.send_rounded,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.history_rounded,
+                                    size: 20,
+                                  ),
+                                  tooltip: 'Riwayat Pengirim',
+                                  onPressed: () {
+                                    _showRecentPicker(
+                                      title: 'Riwayat Pengirim',
+                                      type: 'pengirim',
+                                      onSelected: (item) {
+                                        setState(() {
+                                          _pengirimNameC.text = _formatAddress(
+                                            item['name'] ?? '',
+                                          );
+                                          _pengirimPhoneC.text =
+                                              _formatPhoneDisplay(
+                                                item['phone'] ?? '',
+                                              );
+                                          _pengirimAddrC.text = _formatAddress(
+                                            item['address'] ?? '',
+                                          );
+                                        });
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _pengirimNameC,
-                              decoration: const InputDecoration(labelText: 'Nama Pengirim *', prefixIcon: Icon(Icons.person_outline_rounded)),
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Nama Pengirim *',
+                                prefixIcon: Icon(Icons.person_outline_rounded),
+                              ),
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _pengirimPhoneC,
-                              decoration: const InputDecoration(labelText: 'Kontak Pengirim *', prefixIcon: Icon(Icons.phone_outlined)),
+                              decoration: const InputDecoration(
+                                labelText: 'Kontak Pengirim *',
+                                prefixIcon: Icon(Icons.phone_outlined),
+                              ),
                               keyboardType: TextInputType.phone,
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _pengirimAddrC,
-                              decoration: const InputDecoration(labelText: 'Alamat Lengkap Pengirim *', prefixIcon: Icon(Icons.location_on_outlined)),
+                              decoration: const InputDecoration(
+                                labelText: 'Alamat Lengkap Pengirim *',
+                                prefixIcon: Icon(Icons.location_on_outlined),
+                              ),
                               maxLines: 2,
-                              validator: (v) => (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
+                              validator: (v) =>
+                                  (v?.isEmpty ?? true) ? 'Wajib diisi' : null,
                             ),
                           ],
                         ),
@@ -416,7 +838,10 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _sectionTitle('RINCIAN BARANG KIRIMAN', Icons.inventory_2_rounded),
+                            _sectionTitle(
+                              'RINCIAN BARANG KIRIMAN',
+                              Icons.inventory_2_rounded,
+                            ),
                             const SizedBox(height: 16),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,18 +849,27 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                 Expanded(
                                   child: TextFormField(
                                     controller: _beratC,
-                                    decoration: const InputDecoration(labelText: 'Berat *', prefixIcon: Icon(Icons.scale_rounded), suffixText: 'kg'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Berat *',
+                                      prefixIcon: Icon(Icons.scale_rounded),
+                                      suffixText: 'kg',
+                                    ),
                                     keyboardType: TextInputType.number,
-                                    validator: (v) => (v?.isEmpty ?? true) ? 'Wajib' : null,
+                                    validator: (v) =>
+                                        (v?.isEmpty ?? true) ? 'Wajib' : null,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: TextFormField(
                                     controller: _koliC,
-                                    decoration: const InputDecoration(labelText: 'Jumlah Koli *', prefixIcon: Icon(Icons.apps_rounded)),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Jumlah Koli *',
+                                      prefixIcon: Icon(Icons.apps_rounded),
+                                    ),
                                     keyboardType: TextInputType.number,
-                                    validator: (v) => (v?.isEmpty ?? true) ? 'Wajib' : null,
+                                    validator: (v) =>
+                                        (v?.isEmpty ?? true) ? 'Wajib' : null,
                                   ),
                                 ),
                               ],
@@ -443,7 +877,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _biayaC,
-                              decoration: const InputDecoration(labelText: 'Biaya Kirim', prefixIcon: Icon(Icons.payments_rounded), prefixText: 'Rp '),
+                              decoration: const InputDecoration(
+                                labelText: 'Biaya Kirim',
+                                prefixIcon: Icon(Icons.payments_rounded),
+                                prefixText: 'Rp ',
+                              ),
                               keyboardType: TextInputType.number,
                             ),
                             if (_ongkirResult != null) ...[
@@ -454,46 +892,107 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEEF2FF),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFE0E7FF)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE0E7FF),
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('Estimasi', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                        Text(_ongkirResult!.est, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+                                        const Text(
+                                          'Estimasi',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B),
+                                          ),
+                                        ),
+                                        Text(
+                                          _ongkirResult!.est,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF6366F1),
+                                          ),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 6),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('5 kg pertama', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                        Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_ongkirResult!.min),
-                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                        const Text(
+                                          '5 kg pertama',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B),
+                                          ),
+                                        ),
+                                        Text(
+                                          NumberFormat.currency(
+                                            locale: 'id_ID',
+                                            symbol: 'Rp ',
+                                            decimalDigits: 0,
+                                          ).format(_ongkirResult!.min),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('/kg selanjutnya', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                        Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_ongkirResult!.perkg),
-                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                        const Text(
+                                          '/kg selanjutnya',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(0xFF64748B),
+                                          ),
+                                        ),
+                                        Text(
+                                          NumberFormat.currency(
+                                            locale: 'id_ID',
+                                            symbol: 'Rp ',
+                                            decimalDigits: 0,
+                                          ).format(_ongkirResult!.perkg),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ],
                                     ),
                                     const Divider(height: 16),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('Total', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-                                        Text(NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(_ongkirResult!.total),
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF6366F1)),
+                                        const Text(
+                                          'Total',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        Text(
+                                          NumberFormat.currency(
+                                            locale: 'id_ID',
+                                            symbol: 'Rp ',
+                                            decimalDigits: 0,
+                                          ).format(_ongkirResult!.total),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF6366F1),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -513,7 +1012,14 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                       child: ElevatedButton(
                         onPressed: _submitting ? null : _submit,
                         child: _submitting
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: const [
@@ -570,7 +1076,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                 color: Colors.green.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_rounded, size: 54, color: Colors.green),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                size: 54,
+                color: Colors.green,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -589,7 +1099,12 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                   children: [
                     const Text(
                       'NOMOR RESI PENGIRIMAN',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     BarcodeDisplay(data: _createdTransaction!.noResi),
@@ -604,9 +1119,13 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
                           penerima: _createdTransaction!.penerima,
                           paket: _createdTransaction!.paket,
                           createdAt: _createdTransaction!.createdAt,
-                          asal: _createdTransaction!.createdBy['cabang_name']?.toString() ??
-                              _createdTransaction!.createdBy['konter_name']?.toString() ??
-                              _createdTransaction!.createdBy['gudang_name']?.toString(),
+                          asal:
+                              _createdTransaction!.createdBy['cabang_name']
+                                  ?.toString() ??
+                              _createdTransaction!.createdBy['konter_name']
+                                  ?.toString() ??
+                              _createdTransaction!.createdBy['gudang_name']
+                                  ?.toString(),
                         ),
                         icon: const Icon(Icons.print_rounded, size: 18),
                         label: const Text('Cetak Resi'),
@@ -673,7 +1192,11 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     try {
       final repo = ref.read(transactionRepositoryProvider);
       final tx = await repo.create(
-        pengirim: { 'name': _pengirimNameC.text.trim(), 'phone': _pengirimPhoneC.text.replaceAll(RegExp(r'[^0-9]'), ''), 'address': _pengirimAddrC.text.trim() },
+        pengirim: {
+          'name': _pengirimNameC.text.trim(),
+          'phone': _pengirimPhoneC.text.replaceAll(RegExp(r'[^0-9]'), ''),
+          'address': _pengirimAddrC.text.trim(),
+        },
         penerima: {
           'name': _penerimaNameC.text.trim(),
           'phone': _penerimaPhoneC.text.replaceAll(RegExp(r'[^0-9]'), ''),
@@ -687,7 +1210,10 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
           'biaya_kirim': double.tryParse(_biayaC.text) ?? 0,
         },
         lokasiPenerima: _penerimaLat != null && _penerimaLng != null
-            ? { 'type': 'Point', 'coordinates': [_penerimaLng, _penerimaLat] }
+            ? {
+                'type': 'Point',
+                'coordinates': [_penerimaLng, _penerimaLat],
+              }
             : null,
       );
       SoundPlayer.instance.playSuccess();
@@ -695,8 +1221,13 @@ class _CreateTransactionScreenState extends ConsumerState<CreateTransactionScree
     } catch (e) {
       SoundPlayer.instance.playError();
       if (mounted) {
-        final msg = e is DioException ? (e.response?.data?['message'] as String? ?? 'Gagal membuat transaksi') : 'Gagal membuat transaksi';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppTheme.error));
+        final msg = e is DioException
+            ? (e.response?.data?['message'] as String? ??
+                  'Gagal membuat transaksi')
+            : 'Gagal membuat transaksi';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: AppTheme.error),
+        );
       }
     } finally {
       setState(() => _submitting = false);

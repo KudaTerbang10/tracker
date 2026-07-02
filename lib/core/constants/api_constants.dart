@@ -31,6 +31,7 @@ class ApiConstants {
   static const String tariffs = '/tariffs';
   static const String tariffsPublic = '/tariffs/public';
   static const String manifests = '/manifests';
+  static const String recentContacts = '/transactions/recent-contacts';
 }
 
 class StatusList {

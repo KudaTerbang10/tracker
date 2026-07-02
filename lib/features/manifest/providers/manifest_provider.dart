@@ -127,33 +127,17 @@ final driverManifestProvider =
 });
 
 /// Provider khusus driver — manifest aktif + detail transaksi di dalamnya
+/// Sekarang pake ?include=transactions — backend batch query, no N+1
 final driverActiveManifestsProvider =
     FutureProvider.autoDispose<List<Manifest>>((ref) async {
-  // Step 1: Fetch all active manifests
-  final response = await ApiService().get(ApiConstants.manifests,
-      query: {'status': 'dibuat,dalam_perjalanan'});
+  final response = await ApiService().get(ApiConstants.manifests, query: {
+    'status': 'dibuat,dalam_perjalanan',
+    'include': 'transactions',
+  });
   final data = response.data['data'] as List<dynamic>;
-  if (data.isEmpty) return [];
-
-  final manifests = data
+  return data
       .map((e) => Manifest.fromJson(Map<String, dynamic>.from(e as Map)))
       .toList();
-
-  // Step 2: Fetch detail for each manifest (parallel)
-  final details = await Future.wait(
-    manifests.map((m) async {
-      try {
-        final detailResp =
-            await ApiService().get('${ApiConstants.manifests}/${m.id}');
-        return Manifest.fromJson(
-            Map<String, dynamic>.from(detailResp.data as Map));
-      } catch (_) {
-        return m;
-      }
-    }),
-  );
-
-  return details;
 });
 
 /// Provider untuk riwayat manifest driver (selesai, with pagination)

@@ -11,9 +11,10 @@ const router = express.Router();
 // Admin_cabang: lihat manifest yang dibuat di cabangnya
 // Driver: lihat manifest yang ditugaskan ke dirinya
 // Super_admin: lihat semua
+// Query: ?include=transactions — embed transaksi + progress ke tiap manifest (hilangkan N+1)
 router.get('/', auth, async (req, res) => {
   try {
-    const { status, start_date, end_date, page = 1, limit = 20 } = req.query;
+    const { status, start_date, end_date, page = 1, limit = 20, include } = req.query;
     const filter = {};
 
     if (req.user.role === 'admin_cabang') {
@@ -51,6 +52,47 @@ router.get('/', auth, async (req, res) => {
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .lean();
+
+    // ── Batch embed transactions (hilangkan N+1) ──
+    if (include && include.split(',').map(s => s.trim()).includes('transactions')) {
+      const noManifests = data.map(m => m.no_manifest);
+
+      // 1 query batch untuk SEMUA transaksi di semua manifest
+      const allTx = await Transaction.find({
+        $or: [
+          { no_manifest: { $in: noManifests } },
+          { 'tracking_logs.no_manifest': { $in: noManifests } },
+        ],
+      })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      // Group transaksi per no_manifest
+      const txByManifest = {};
+      for (const tx of allTx) {
+        const key = tx.no_manifest;
+        if (!key) continue;
+        if (!txByManifest[key]) txByManifest[key] = [];
+        txByManifest[key].push(tx);
+      }
+
+      // Attach ke tiap manifest
+      for (const m of data) {
+        const txs = txByManifest[m.no_manifest] || [];
+        const totalTx = txs.length;
+        const selesai = m.status === 'selesai'
+          ? totalTx
+          : txs.filter(tx =>
+              tx.status_saat_ini === 'diterima' ||
+              tx.status_saat_ini === 'diterima_cabang'
+            ).length;
+
+        m.transactions = txs;
+        m.jumlah_koli = txs.reduce((sum, tx) => sum + (tx.paket?.jumlah_koli || 0), 0);
+        m.total_berat = txs.reduce((sum, tx) => sum + (tx.paket?.berat_kg || 0), 0);
+        m.progress = { total: totalTx, selesai };
+      }
+    }
 
     res.json({
       data,

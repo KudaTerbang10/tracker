@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../data/datasources/remote/api_service.dart';
+import '../../../data/datasources/local/hive_cache.dart';
 
 class CabangContact {
   final String kode;
@@ -27,10 +27,9 @@ class CabangContact {
 }
 
 final _cabangContactsProvider = FutureProvider.autoDispose<List<CabangContact>>((ref) async {
-  final res = await ApiService().get('/cabangs');
-  final data = res.data['data'] as List<dynamic>;
+  final data = HiveCache.getCabangs();
   return data
-      .map((e) => CabangContact.fromJson(Map<String, dynamic>.from(e as Map)))
+      .map((e) => CabangContact.fromJson(e))
       .where((c) => c.isActive && c.kota.isNotEmpty && c.phone.isNotEmpty)
       .toList();
 });

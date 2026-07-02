@@ -1002,25 +1002,17 @@ class _CabangAutocompleteFieldState extends State<_CabangAutocompleteField> {
   }
 
   Future<void> _loadCabangs() async {
-    try {
-      final res = await ApiService().get('/cabangs');
-      final data = res.data['data'] as List<dynamic>;
-      if (mounted) {
-        setState(() {
-          final all = data
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-          _cabangs = widget.excludeCabangId != null
-              ? all
-                    .where(
-                      (c) =>
-                          c['cabang_id']?.toString() != widget.excludeCabangId,
-                    )
-                    .toList()
-              : all;
-        });
+    final all = HiveCache.getCabangs().where((c) {
+      final aktif = c['is_active'] == true || c['is_active'] == 'true';
+      if (widget.excludeCabangId != null &&
+          c['cabang_id']?.toString() == widget.excludeCabangId) {
+        return false;
       }
-    } catch (_) {}
+      return aktif;
+    }).toList();
+    if (mounted) {
+      setState(() => _cabangs = all);
+    }
   }
 
   @override

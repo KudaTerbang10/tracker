@@ -47,3 +47,6 @@
 
 # flutter-web
 - Avoid `LayoutBuilder` inside `AlertDialog` on Flutter web — it triggers `_debugDuringDeviceUpdate` assertion failures in `mouse_tracker.dart`. Use `Builder` + `MediaQuery.of(context).size.width` as a stable alternative. Confidence: 0.70
+
+# data-sourcing
+- For read-only screens that display data without edit/CRUD functionality: Use Hive cache (zero-network) to load data instantly. For CRUD/management screens with edit, toggle, or delete actions: Use live API calls to ensure data freshness. Confidence: 0.70

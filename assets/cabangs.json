@@ -180,24 +180,6 @@
     }
   },
   {
-    "cabang_id": "6a2ae54ab3eebd71449f3f2f",
-    "kode": "BDC",
-    "name": "Bandung Pungkur",
-    "address": "Jl. Pungkur No. 127 B, Bandung",
-    "phone": "0811-2696-463",
-    "is_active": true,
-    "createdAt": "2026-06-11T16:41:46.810Z",
-    "updatedAt": "2026-06-15T07:04:21.916Z",
-    "kota": "Bandung",
-    "lokasi": {
-      "type": "Point",
-      "coordinates": [
-        107.60963180564696,
-        -6.928318281457911
-      ]
-    }
-  },
-  {
     "cabang_id": "6a2ae54ab3eebd71449f3f32",
     "kode": "CBN",
     "name": "Cirebon",

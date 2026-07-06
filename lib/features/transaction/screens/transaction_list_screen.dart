@@ -733,13 +733,13 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: Resi number + Status badge
+              // Top row: Resi number + COD/Tempo badge + Copy/Print
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.blue.withValues(alpha: 0.08),
@@ -752,115 +752,43 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                     child: Text(
                       tx.noResi,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1,
+                        fontWeight: FontWeight.w700,
                         color: Colors.blue,
-                        fontSize: 12,
+                        fontSize: 11,
+                        height: 1.1,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
-                  StatusBadge(status: tx.statusSaatIni),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            tx.pengirimName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            tx.penerimaName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Text(
-                    dateFmt.format(toJakarta(tx.createdAt)),
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                  ),
-                  const Spacer(),
-                  if (tx.jenisMasalah == 'gagal_kirim' &&
-                      (tx.statusSaatIni == 'diterima_cabang' ||
-                          tx.statusSaatIni == 'keluar_cabang')) ...[
-                    InkWell(
-                      onTap: () => _serahTerimaRetur(tx),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(
-                          Icons.how_to_reg_rounded,
-                          size: 16,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
+                  if (tx.jenisPembayaran == 'cod' || tx.jenisPembayaran == 'tempo') ...[
                     const SizedBox(width: 8),
-                  ],
-                  if (tx.jenisMasalah == 'gagal_kirim')
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.08),
+                        color: tx.jenisPembayaran == 'cod'
+                            ? const Color(0xFFFFF8E1)
+                            : const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.2),
-                          width: 1,
+                          color: tx.jenisPembayaran == 'cod'
+                              ? const Color(0xFFFFE082)
+                              : const Color(0xFFA5D6A7),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.replay,
-                            size: 12,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Barang Retur',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orange.shade800,
-                              height: 1.1,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        tx.jenisPembayaran == 'cod' ? 'COD' : 'Tempo',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: tx.jenisPembayaran == 'cod'
+                              ? const Color(0xFFF57F17)
+                              : const Color(0xFF2E7D32),
+                          height: 1.1,
+                        ),
                       ),
                     ),
-                  const SizedBox(width: 8),
+                  ],
+                  const Spacer(),
                   ResiCopyButton(resi: tx.noResi),
                   if (!isDriver) ...[
                     const SizedBox(width: 8),
@@ -876,18 +804,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                         ),
                         onSelected: (value) {
                           if (value == 'asli') {
-                            LabelPrinter.printBarcodeLabel(
-                              data: tx.noResi,
-                              pengirim: tx.pengirim,
-                              penerima: tx.penerima,
-                              paket: tx.paket,
-                              createdAt: tx.createdAt,
-                              asal:
-                                  tx.createdBy['cabang_name']?.toString() ??
-                                  tx.createdBy['konter_name']?.toString() ??
-                                  tx.createdBy['gudang_name']?.toString(),
-                              dicetakOleh: user?.lokasi?['name']?.toString(),
-                            );
+                            _cetakAsli(tx);
                           } else {
                             _cetakRetur(tx);
                           }
@@ -937,18 +854,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                       )
                     else
                       InkWell(
-                        onTap: () => LabelPrinter.printBarcodeLabel(
-                          data: tx.noResi,
-                          pengirim: tx.pengirim,
-                          penerima: tx.penerima,
-                          paket: tx.paket,
-                          createdAt: tx.createdAt,
-                          asal:
-                              tx.createdBy['cabang_name']?.toString() ??
-                              tx.createdBy['konter_name']?.toString() ??
-                              tx.createdBy['gudang_name']?.toString(),
-                          dicetakOleh: user?.lokasi?['name']?.toString(),
-                        ),
+                        onTap: () => _cetakAsli(tx),
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
@@ -963,6 +869,110 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                         ),
                       ),
                   ],
+                ],
+              ),
+              const SizedBox(height: 4),
+              // Second row: pengirim → penerima
+              Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            tx.pengirimName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            tx.penerimaName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              // Third row: badges left, date right
+              Row(
+                children: [
+                  StatusBadge(status: tx.statusSaatIni),
+                  if (tx.jenisMasalah == 'gagal_kirim' &&
+                      (tx.statusSaatIni == 'diterima_cabang' ||
+                          tx.statusSaatIni == 'keluar_cabang'))
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: InkWell(
+                        onTap: () => _serahTerimaRetur(tx),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            Icons.how_to_reg_rounded,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (tx.jenisMasalah == 'gagal_kirim') ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.replay,
+                            size: 12,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Barang Retur',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange.shade800,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    dateFmt.format(toJakarta(tx.createdAt)),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  ),
                 ],
               ),
             ],
@@ -1024,6 +1034,31 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
     return tx.trackingLogs.length == 1;
   }
 
+  Future<void> _cetakAsli(Transaction tx) async {
+    try {
+      final user = ref.read(authProvider).user;
+      final asal = tx.createdBy['cabang_name']?.toString() ??
+          tx.createdBy['konter_name']?.toString() ??
+          tx.createdBy['gudang_name']?.toString();
+      await LabelPrinter.printBarcodeLabel(
+        data: tx.noResi,
+        pengirim: tx.pengirim,
+        penerima: tx.penerima,
+        paket: tx.paket,
+        createdAt: tx.createdAt,
+        asal: asal,
+        dicetakOleh: user?.lokasi?['name']?.toString(),
+        isCOD: tx.jenisPembayaran == 'cod',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal cetak resi: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _cetakRetur(Transaction tx) async {
     try {
       final user = ref.read(authProvider).user;
@@ -1041,6 +1076,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
         createdAt: tx.createdAt,
         dicetakOleh: user?.lokasi?['name']?.toString(),
         asalCabang: asalCabang,
+        isCOD: tx.jenisPembayaran == 'cod',
       );
     } catch (e) {
       if (mounted) {
@@ -1159,16 +1195,49 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Nomor Resi Pengiriman',
+                                  'Nomor Resi',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF64748B),
                                   ),
                                 ),
-                                StatusBadge(
-                                  status: tx.statusSaatIni,
-                                  fontSize: 10,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (tx.jenisPembayaran == 'cod' || tx.jenisPembayaran == 'tempo') ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: tx.jenisPembayaran == 'cod'
+                                              ? const Color(0xFFFFF8E1)
+                                              : const Color(0xFFE8F5E9),
+                                          borderRadius: BorderRadius.circular(30),
+                                          border: Border.all(
+                                            color: tx.jenisPembayaran == 'cod'
+                                                ? const Color(0xFFFFE082)
+                                                : const Color(0xFFA5D6A7),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          tx.jenisPembayaran == 'cod' ? 'COD' : 'Tempo',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: tx.jenisPembayaran == 'cod'
+                                                ? const Color(0xFFF57F17)
+                                                : const Color(0xFF2E7D32),
+                                            height: 1.1,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    StatusBadge(
+                                      status: tx.statusSaatIni,
+                                      fontSize: 10,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1204,25 +1273,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                                       ),
                                       onSelected: (value) {
                                         if (value == 'asli') {
-                                          LabelPrinter.printBarcodeLabel(
-                                            data: tx.noResi,
-                                            pengirim: tx.pengirim,
-                                            penerima: tx.penerima,
-                                            paket: tx.paket,
-                                            createdAt: tx.createdAt,
-                                            asal:
-                                                tx.createdBy['cabang_name']
-                                                    ?.toString() ??
-                                                tx.createdBy['konter_name']
-                                                    ?.toString() ??
-                                                tx.createdBy['gudang_name']
-                                                    ?.toString(),
-                                            dicetakOleh: ref
-                                                .read(authProvider)
-                                                .user
-                                                ?.lokasi?['name']
-                                                ?.toString(),
-                                          );
+                                          _cetakAsli(tx);
                                         } else {
                                           _cetakRetur(tx);
                                         }
@@ -1276,26 +1327,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                                     Material(
                                       color: Colors.transparent,
                                       child: InkWell(
-                                        onTap: () =>
-                                            LabelPrinter.printBarcodeLabel(
-                                              data: tx.noResi,
-                                              pengirim: tx.pengirim,
-                                              penerima: tx.penerima,
-                                              paket: tx.paket,
-                                              createdAt: tx.createdAt,
-                                              asal:
-                                                  tx.createdBy['cabang_name']
-                                                      ?.toString() ??
-                                                  tx.createdBy['konter_name']
-                                                      ?.toString() ??
-                                                  tx.createdBy['gudang_name']
-                                                      ?.toString(),
-                                              dicetakOleh: ref
-                                                  .read(authProvider)
-                                                  .user
-                                                  ?.lokasi?['name']
-                                                  ?.toString(),
-                                            ),
+                                        onTap: () => _cetakAsli(tx),
                                         borderRadius: BorderRadius.circular(20),
                                         child: Container(
                                           padding: const EdgeInsets.all(6),

@@ -10,10 +10,16 @@ const router = express.Router();
 
 router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
   try {
-    const { pengirim, penerima, paket, catatan, lokasi_penerima } = req.body;
+    const { pengirim, penerima, paket, catatan, lokasi_penerima, jenis_pembayaran } = req.body;
     if (!pengirim || !penerima || !paket) {
       return res.status(400).json({ message: 'Data pengirim, penerima, dan paket wajib diisi' });
     }
+
+    const pembayaran = (jenis_pembayaran && ['cash', 'cod', 'tempo'].includes(jenis_pembayaran))
+      ? jenis_pembayaran
+      : 'cash';
+    const statusPembayaran = pembayaran === 'cash' ? 'paid' : 'unpaid';
+    const tempoHari = req.body.tempo_hari != null ? parseInt(req.body.tempo_hari) : 14;
 
     const Cabang = require('../models/Cabang');
     const cabang = await Cabang.findById(req.user.cabang_id);
@@ -46,6 +52,9 @@ router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => 
       },
       created_by: createdBy,
       status_saat_ini: 'diterima_cabang',
+      jenis_pembayaran: pembayaran,
+      status_pembayaran: statusPembayaran,
+      tempo_hari: tempoHari,
       tracking_logs: [{
         status: 'diterima_cabang',
         deskripsi: `Paket diterima di ${lokasi.nama}`,
@@ -126,11 +135,12 @@ router.post('/batch-status', auth, async (req, res) => {
           pushResult(no_resi, 'error', 'Driver dan tujuan wajib diisi');
           continue;
         }
-        // Safety: barang hilang tidak boleh discan keluar
-        if (tx.jenis_masalah === 'hilang') {
-          pushResult(no_resi, 'error', 'Barang hilang tidak dapat diproses, selesaikan kasus terlebih dahulu');
-          continue;
-        }
+      }
+
+      // Safety: barang hilang tidak boleh diproses lewat scan biasa
+      if (tx.jenis_masalah === 'hilang' && (status_baru === 'keluar_cabang' || status_baru === 'diterima_cabang' || status_baru === 'diterima')) {
+        pushResult(no_resi, 'error', 'Barang hilang tidak dapat diproses, selesaikan kasus terlebih dahulu');
+        continue;
       }
 
       if (status_baru === 'diterima' && req.user.role === 'driver') {
@@ -211,6 +221,7 @@ router.post('/batch-status', auth, async (req, res) => {
             log.tujuan = { tipe: 'penerima', nama: tx.penerima.name };
             const dariLokasi = userLokasi.nama || 'lokasi';
             log.deskripsi = `Paket keluar dari ${dariLokasi}, diantar langsung ke ${tx.penerima.name}${driverName ? ` oleh ${driverName}` : ''}`;
+            setFields.cod_cabang_id = userLokasi?.cabang_id || null;
 
             if (driverName) {
               const autoLog = {
@@ -234,6 +245,18 @@ router.post('/batch-status', auth, async (req, res) => {
           log.nama_penerima = namaPenerimaFinal;
           log.deskripsi = `Paket telah diterima oleh ${namaPenerimaFinal}${catatan ? ` (${catatan})` : ''}`;
           setFields.nama_penerima_akhir = namaPenerimaFinal;
+
+          // Jika serah terima retur (gagal_kirim diterima oleh pengirim walk-in), auto selesai
+          if (tx.jenis_masalah === 'gagal_kirim') {
+            setFields.status_saat_ini = 'kasus_selesai';
+            setFields.diselesaikan_pada = new Date();
+            setFields.diselesaikan_oleh = {
+              user_id: req.user._id,
+              name: req.user.name,
+            };
+            log.status = 'kasus_selesai';
+            log.deskripsi = `Barang retur gagal kirim telah diterima oleh pengirim (${namaPenerimaFinal})${catatan ? ` — ${catatan}` : ''}`;
+          }
         }
 
         bulkOps.push({
@@ -395,14 +418,16 @@ router.post('/batch-status', auth, async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { status, search, kode_gerai, page = 1, limit = 20, start_date, end_date } = req.query;
+    const { status, search, kode_gerai, page = 1, limit = 20, start_date, end_date, jenis_pembayaran, status_pembayaran, driver_user_id } = req.query;
     const filter = {};
 
     if (req.user.role === 'admin_cabang') {
       const cabangId = new mongoose.Types.ObjectId(req.user.cabang_id);
       const tab = req.query.tab || 'current';
 
-      if (tab === 'history') {
+      // Jika query jenis_pembayaran, skip filter tab default
+      if (!jenis_pembayaran) {
+        if (tab === 'history') {
         filter['tracking_logs.lokasi.cabang_id'] = cabangId;
         filter.current_cabang_id = { $ne: cabangId };
         filter.status_saat_ini = { $ne: 'kasus_selesai' };
@@ -417,6 +442,7 @@ router.get('/', auth, async (req, res) => {
         // Sembunyikan kasus yang sudah selesai dari daftar transaksi utama
         filter.status_saat_ini = { $ne: 'kasus_selesai' };
       }
+      } // end if (!jenis_pembayaran)
     } else if (req.user.role === 'driver') {
       const tab = req.query.tab || 'current';
       if (tab === 'history') {
@@ -448,6 +474,17 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
+    // Universal status filter (berlaku untuk semua role, termasuk admin_cabang)
+    if (status) {
+      const statusArr = status.split(',').map(s => s.trim());
+      filter.status_saat_ini = { $in: statusArr };
+    }
+
+    // Driver filter
+    if (driver_user_id) {
+      filter.driver_user_id = new mongoose.Types.ObjectId(driver_user_id);
+    }
+
     if (search) {
       const upper = search.toUpperCase();
       const searchOr = [
@@ -463,6 +500,27 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (kode_gerai) filter.kode_gerai = kode_gerai;
+    if (jenis_pembayaran) filter.jenis_pembayaran = jenis_pembayaran;
+    if (status_pembayaran) filter.status_pembayaran = status_pembayaran;
+
+    // Filter COD — admin_cabang melihat transaksi di cod_cabang_id (last mile) atau gagal_kirim di cabang asal, kecuali hilang
+    if (jenis_pembayaran === 'cod' && req.user.role === 'admin_cabang') {
+      const codOr = [
+        { cod_cabang_id: new mongoose.Types.ObjectId(req.user.cabang_id), jenis_masalah: { $nin: ['hilang', 'gagal_kirim'] } },
+        { jenis_masalah: 'gagal_kirim', 'created_by.cabang_id': new mongoose.Types.ObjectId(req.user.cabang_id) },
+      ];
+      if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: codOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = codOr;
+      }
+    }
+    // Filter Tempo berdasarkan created_by.cabang_id untuk admin_cabang
+    if (jenis_pembayaran === 'tempo' && req.user.role === 'admin_cabang') {
+      filter['created_by.cabang_id'] = new mongoose.Types.ObjectId(req.user.cabang_id);
+      filter.jenis_masalah = { $nin: ['hilang', 'gagal_kirim'] };
+    }
 
     if (start_date || end_date) {
       filter.createdAt = {};
@@ -475,7 +533,11 @@ router.get('/', auth, async (req, res) => {
     }
 
     const total = await Transaction.countDocuments(filter);
-    const sortField = req.query.tab === 'history' ? { 'tracking_logs.timestamp': -1 } : { createdAt: -1 };
+    const sortField = req.query.tab === 'history'
+      ? { 'tracking_logs.timestamp': -1 }
+      : req.query.tab === 'bermasalah'
+        ? { dilaporkan_pada: -1, createdAt: -1 }
+        : { createdAt: -1 };
     const data = await Transaction.find(filter)
       .sort(sortField)
       .skip((page - 1) * limit)
@@ -649,13 +711,13 @@ router.put('/:id/tandai-selesai', auth, rbac('super_admin'), async (req, res) =>
   }
 });
 
-// — BATALKAN HILANG (barang ketemu) —
-router.post('/:id/batalkan-hilang', auth, rbac('super_admin'), async (req, res) => {
+// — BATALKAN KASUS SELESAI (revert terminal state) —
+router.post('/:id/batalkan-kasus-selesai', auth, rbac('super_admin'), async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.id);
     if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
-    if (tx.jenis_masalah !== 'hilang') {
-      return res.status(400).json({ message: 'Bukan transaksi hilang' });
+    if (tx.status_saat_ini !== 'kasus_selesai') {
+      return res.status(400).json({ message: 'Hanya transaksi kasus selesai yang dapat dibatalkan' });
     }
 
     const cabangId = tx.dilaporkan_oleh?.cabang_id || tx.created_by?.cabang_id;
@@ -663,7 +725,57 @@ router.post('/:id/batalkan-hilang', auth, rbac('super_admin'), async (req, res) 
 
     const log = {
       status: 'diterima_cabang',
-      deskripsi: `Barang ditemukan oleh ${req.user.name} (Super Admin), dikembalikan ke ${cabangNama}`,
+      deskripsi: `Pembatalan kasus selesai oleh ${req.user.name} (Super Admin), dikembalikan ke ${cabangNama}`,
+      pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
+      lokasi: { nama: cabangNama, tipe: 'cabang', cabang_id: cabangId },
+      timestamp: new Date(),
+    };
+
+    tx.status_saat_ini = 'diterima_cabang';
+    tx.current_cabang_id = cabangId;
+    tx.diselesaikan_oleh = null;
+    tx.diselesaikan_pada = null;
+    tx.jenis_masalah = null;
+    tx.catatan_masalah = '';
+    tx.dilaporkan_oleh = null;
+    tx.dilaporkan_pada = null;
+    tx.tujuan_selanjutnya = null;
+    tx.nama_driver = null;
+    tx.kontak_driver = null;
+    tx.driver_user_id = null;
+    tx.no_manifest = null;
+    tx.tracking_logs.push(log);
+
+    await tx.save();
+    res.json(tx);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// — BATALKAN HILANG (barang ketemu) —
+router.post('/:id/batalkan-hilang', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
+  try {
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    if (tx.jenis_masalah !== 'hilang') {
+      return res.status(400).json({ message: 'Bukan transaksi hilang' });
+    }
+
+    // admin_cabang hanya bisa batalkan milik cabangnya sendiri
+    if (req.user.role === 'admin_cabang') {
+      const cabangPelapor = tx.dilaporkan_oleh?.cabang_id?.toString();
+      if (!cabangPelapor || cabangPelapor !== req.user.cabang_id?.toString()) {
+        return res.status(403).json({ message: 'Hanya admin cabang pelapor yang dapat membatalkan' });
+      }
+    }
+
+    const cabangId = tx.dilaporkan_oleh?.cabang_id || tx.created_by?.cabang_id;
+    const cabangNama = tx.dilaporkan_oleh?.cabang_name || tx.created_by?.cabang_name || '';
+
+    const log = {
+      status: 'diterima_cabang',
+      deskripsi: `Barang ditemukan oleh ${req.user.name} (${req.user.role === 'super_admin' ? 'Super Admin' : 'Admin Cabang'}), dikembalikan ke ${cabangNama}`,
       pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
       lokasi: { nama: cabangNama, tipe: 'cabang', cabang_id: cabangId },
       timestamp: new Date(),
@@ -677,9 +789,118 @@ router.post('/:id/batalkan-hilang', auth, rbac('super_admin'), async (req, res) 
     tx.dilaporkan_pada = null;
     tx.diselesaikan_oleh = null;
     tx.diselesaikan_pada = null;
+    tx.tujuan_selanjutnya = null;
+    tx.nama_driver = null;
+    tx.kontak_driver = null;
+    tx.driver_user_id = null;
+    tx.no_manifest = null;
 
     tx.tracking_logs.push(log);
     await tx.save();
+    res.json(tx);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// — BATALKAN GAGAL KIRIM —
+router.post('/:id/batalkan-gagal-kirim', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
+  try {
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    if (tx.jenis_masalah !== 'gagal_kirim') {
+      return res.status(400).json({ message: 'Bukan transaksi gagal kirim' });
+    }
+
+    // admin_cabang hanya bisa batalkan milik cabangnya sendiri
+    if (req.user.role === 'admin_cabang') {
+      const cabangPelapor = tx.dilaporkan_oleh?.cabang_id?.toString();
+      if (!cabangPelapor || cabangPelapor !== req.user.cabang_id?.toString()) {
+        return res.status(403).json({ message: 'Hanya admin cabang pelapor yang dapat membatalkan' });
+      }
+    }
+
+    const cabangId = tx.dilaporkan_oleh?.cabang_id || tx.created_by?.cabang_id;
+    const cabangNama = tx.dilaporkan_oleh?.cabang_name || tx.created_by?.cabang_name || '';
+
+    const log = {
+      status: 'diterima_cabang',
+      deskripsi: `Anulir gagal kirim oleh ${req.user.name} (${req.user.role === 'super_admin' ? 'Super Admin' : 'Admin Cabang'}), dikembalikan ke ${cabangNama}`,
+      pelaku: { user_id: req.user._id, name: req.user.name, role: req.user.role },
+      lokasi: { nama: cabangNama, tipe: 'cabang', cabang_id: cabangId },
+      timestamp: new Date(),
+    };
+
+    tx.status_saat_ini = 'diterima_cabang';
+    tx.current_cabang_id = cabangId;
+    tx.jenis_masalah = null;
+    tx.catatan_masalah = '';
+    tx.dilaporkan_oleh = null;
+    tx.dilaporkan_pada = null;
+    tx.tujuan_selanjutnya = null;
+    tx.nama_driver = null;
+    tx.kontak_driver = null;
+    tx.driver_user_id = null;
+    tx.no_manifest = null;
+    tx.diselesaikan_oleh = null;
+    tx.diselesaikan_pada = null;
+
+    tx.tracking_logs.push(log);
+    await tx.save();
+    res.json(tx);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// — KONFIRMASI PEMBAYARAN COD / TEMPO —
+router.put('/:id/konfirmasi-pembayaran', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
+  try {
+    const tx = await Transaction.findById(req.params.id);
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    if (!['cod', 'tempo'].includes(tx.jenis_pembayaran)) {
+      return res.status(400).json({ message: 'Hanya transaksi COD atau Tempo yang bisa dikonfirmasi pembayarannya' });
+    }
+    if (tx.status_pembayaran === 'paid') {
+      return res.status(400).json({ message: 'Pembayaran sudah dikonfirmasi sebelumnya' });
+    }
+
+    // Validasi RBAC berdasarkan jenis pembayaran
+    if (tx.jenis_pembayaran === 'cod') {
+      if (req.user.role !== 'admin_cabang') {
+        return res.status(403).json({ message: 'Hanya admin cabang yang dapat mengkonfirmasi pembayaran COD' });
+      }
+      const isLastMile = tx.cod_cabang_id && tx.cod_cabang_id.toString() === req.user.cabang_id?.toString();
+      const isCabangAsal = tx.jenis_masalah === 'gagal_kirim' &&
+          tx.created_by?.cabang_id && tx.created_by.cabang_id.toString() === req.user.cabang_id?.toString();
+      if (!isLastMile && !isCabangAsal) {
+        return res.status(403).json({
+          message: (tx.status_saat_ini === 'gagal_kirim' || tx.jenis_masalah === 'gagal_kirim')
+              ? 'Hanya admin cabang last mile atau cabang asal yang dapat mengkonfirmasi pembayaran COD'
+              : 'Hanya admin cabang last mile yang dapat mengkonfirmasi pembayaran COD',
+        });
+      }
+    } else if (tx.jenis_pembayaran === 'tempo') {
+      // Tempo: admin cabang asal atau super admin
+      if (req.user.role === 'admin_cabang') {
+        if (!tx.created_by?.cabang_id || tx.created_by.cabang_id.toString() !== req.user.cabang_id?.toString()) {
+          return res.status(403).json({ message: 'Hanya admin cabang asal yang dapat mengkonfirmasi pembayaran Tempo' });
+        }
+      }
+      // super_admin bisa semua
+    }
+
+    tx.status_pembayaran = 'paid';
+    tx.pembayaran_dikonfirmasi_oleh = {
+      user_id: req.user._id,
+      name: req.user.name,
+      role: req.user.role,
+      cabang_id: req.user.cabang_id || null,
+    };
+    tx.pembayaran_dikonfirmasi_pada = new Date();
+    await tx.save();
+
     res.json(tx);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -697,6 +918,48 @@ router.delete('/:id', auth, rbac('admin_cabang', 'super_admin'), async (req, res
 
     await Transaction.findByIdAndDelete(req.params.id);
     res.json({ message: 'Transaksi berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// — VERIFIKASI LOKASI (GEOFENCE) —
+router.post('/:id/verify-location', auth, rbac('driver', 'admin_cabang', 'super_admin'), async (req, res) => {
+  try {
+    const { lat, lng, radius_meters } = req.body;
+    if (lat == null || lng == null) {
+      return res.status(400).json({ message: 'lat dan lng wajib diisi' });
+    }
+
+    const tx = await Transaction.findById(req.params.id).lean();
+    if (!tx) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+
+    const coords = tx.lokasi_penerima?.coordinates;
+    if (!coords || coords.length < 2) {
+      return res.status(400).json({ message: 'Lokasi penerima tidak tersedia untuk verifikasi' });
+    }
+
+    const targetLng = coords[0];
+    const targetLat = coords[1];
+    const R = 6371000;
+
+    const dLat = (lat - targetLat) * Math.PI / 180;
+    const dLng = (lng - targetLng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(targetLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceMeters = R * c;
+
+    const defaultRadius = req.user.role === 'driver' ? 150 : 80;
+    const maxRadius = radius_meters || defaultRadius;
+    const isWithin = distanceMeters <= maxRadius;
+
+    res.json({
+      is_within: isWithin,
+      distance_meters: Math.round(distanceMeters),
+      max_radius: maxRadius,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

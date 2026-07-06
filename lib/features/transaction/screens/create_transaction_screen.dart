@@ -45,6 +45,8 @@ class _CreateTransactionScreenState
   int _autocompleteResetKey = 0;
   bool _isFormattingAddr = false;
   bool _isFormattingPhone = false;
+  String _jenisPembayaran = 'cash';
+  double _tempoHari = 14;
 
   List<Map<String, dynamic>> _recentPenerima = [];
   List<Map<String, dynamic>> _recentPengirim = [];
@@ -526,6 +528,7 @@ class _CreateTransactionScreenState
                                   icon: const Icon(
                                     Icons.history_rounded,
                                     size: 20,
+                                    color: Colors.indigo,
                                   ),
                                   tooltip: 'Riwayat Penerima',
                                   onPressed: () {
@@ -767,6 +770,7 @@ class _CreateTransactionScreenState
                                   icon: const Icon(
                                     Icons.history_rounded,
                                     size: 20,
+                                    color: Colors.indigo,
                                   ),
                                   tooltip: 'Riwayat Pengirim',
                                   onPressed: () {
@@ -1004,6 +1008,151 @@ class _CreateTransactionScreenState
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    // Jenis Pembayaran Card
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionTitle(
+                              'JENIS PEMBAYARAN',
+                              Icons.payments_rounded,
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                _paymentChip('Cash', 'cash'),
+                                const SizedBox(width: 8),
+                                _paymentChip('COD', 'cod'),
+                                const SizedBox(width: 8),
+                                _paymentChip('Tempo', 'tempo'),
+                              ],
+                            ),
+                            if (_jenisPembayaran == 'cod') ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8E1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFE082),
+                                  ),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded,
+                                        size: 16, color: Color(0xFFF57F17)),
+                                    SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Pembayaran akan dikonfirmasi oleh cabang last mile yang mengirimkan ke penerima.',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF795548),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (_jenisPembayaran == 'tempo') ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F5E9),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFFA5D6A7),
+                                  ),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded,
+                                        size: 16, color: Color(0xFF2E7D32)),
+                                    SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Pembayaran akan dikonfirmasi oleh cabang asal atau super admin.',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF33691E),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_rounded,
+                                      size: 16, color: Color(0xFF2E7D32)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Jatuh tempo: ${_tempoLabel(_tempoHari.toInt())}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [7, 14, 30, 60].map((d) {
+                                  final selected = _tempoHari.toInt() == d;
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: GestureDetector(
+                                        onTap: () =>
+                                            setState(() => _tempoHari = d.toDouble()),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: selected
+                                                ? const Color(0xFF2E7D32)
+                                                : const Color(0xFFF5F5F5),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: selected
+                                                  ? const Color(0xFF2E7D32)
+                                                  : const Color(0xFFE0E0E0),
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              _tempoLabel(d),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: selected
+                                                    ? Colors.white
+                                                    : const Color(0xFF616161),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
 
                     SizedBox(
@@ -1038,6 +1187,12 @@ class _CreateTransactionScreenState
     );
   }
 
+  String _tempoLabel(int days) {
+    if (days == 30) return '1 Bulan';
+    if (days == 60) return '2 Bulan';
+    return '$days Hari';
+  }
+
   Widget _sectionTitle(String title, IconData icon) {
     return Row(
       children: [
@@ -1060,6 +1215,36 @@ class _CreateTransactionScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _paymentChip(String label, String value) {
+    final selected = _jenisPembayaran == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _jenisPembayaran = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.primary : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? AppTheme.primary : const Color(0xFFE2E8F0),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: selected ? Colors.white : const Color(0xFF334155),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1126,6 +1311,7 @@ class _CreateTransactionScreenState
                                   ?.toString() ??
                               _createdTransaction!.createdBy['gudang_name']
                                   ?.toString(),
+                          isCOD: _createdTransaction!.jenisPembayaran == 'cod',
                         ),
                         icon: const Icon(Icons.print_rounded, size: 18),
                         label: const Text('Cetak Resi'),
@@ -1182,11 +1368,24 @@ class _CreateTransactionScreenState
       _penerimaLng = null;
       _ongkirResult = null;
       _autocompleteResetKey++;
+      _jenisPembayaran = 'cash';
+      _tempoHari = 14;
     });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if ((_jenisPembayaran == 'cod' || _jenisPembayaran == 'tempo') &&
+        (_biayaC.text.isEmpty || (double.tryParse(_biayaC.text) ?? 0) <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Biaya kirim wajib diisi untuk pembayaran COD/Tempo'),
+          backgroundColor: AppTheme.warning,
+        ),
+      );
+      return;
+    }
 
     setState(() => _submitting = true);
     try {
@@ -1215,6 +1414,8 @@ class _CreateTransactionScreenState
                 'coordinates': [_penerimaLng, _penerimaLat],
               }
             : null,
+        jenisPembayaran: _jenisPembayaran,
+        tempoHari: _jenisPembayaran == 'tempo' ? _tempoHari.toInt() : null,
       );
       SoundPlayer.instance.playSuccess();
       setState(() => _createdTransaction = tx);

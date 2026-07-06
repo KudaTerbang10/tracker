@@ -14,6 +14,8 @@ class TransactionRepository {
     required Map<String, dynamic> paket,
     Map<String, dynamic>? lokasiPenerima,
     String? catatan,
+    String? jenisPembayaran,
+    int? tempoHari,
   }) async {
     final res = await _api.post(ApiConstants.transactions, data: {
       'pengirim': pengirim,
@@ -21,6 +23,8 @@ class TransactionRepository {
       'paket': paket,
       'lokasi_penerima': lokasiPenerima,
       'catatan': catatan,
+      if (jenisPembayaran != null) 'jenis_pembayaran': jenisPembayaran,
+      if (tempoHari != null) 'tempo_hari': tempoHari,
     });
     return Transaction.fromJson(res.data as Map<String, dynamic>);
   }
@@ -100,6 +104,65 @@ class TransactionRepository {
       'page': data['page'],
       'totalPages': data['totalPages'],
     };
+  }
+
+  Future<List<Transaction>> getUnpaidCOD() async {
+    final res = await _api.get(ApiConstants.transactions, query: {
+      'jenis_pembayaran': 'cod',
+      'status_pembayaran': 'unpaid',
+      'limit': '1000',
+    });
+    final data = res.data as Map<String, dynamic>;
+    return (data['data'] as List<dynamic>)
+        .map((e) => Transaction.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<List<Transaction>> getUnpaidTempo() async {
+    final res = await _api.get(ApiConstants.transactions, query: {
+      'jenis_pembayaran': 'tempo',
+      'status_pembayaran': 'unpaid',
+      'limit': '1000',
+    });
+    final data = res.data as Map<String, dynamic>;
+    return (data['data'] as List<dynamic>)
+        .map((e) => Transaction.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+  }
+
+  Future<Transaction> confirmPayment(String id) async {
+    final res = await _api.put('${ApiConstants.transactions}/$id/konfirmasi-pembayaran');
+    return Transaction.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> verifyLocation({
+    required String id,
+    required double lat,
+    required double lng,
+  }) async {
+    final res = await _api.post('${ApiConstants.transactions}/$id/verify-location', data: {
+      'lat': lat,
+      'lng': lng,
+    });
+    return res.data as Map<String, dynamic>;
+  }
+
+  Future<List<Transaction>> getPaymentByMonth({required String jenisPembayaran, required int month, required int year, String? statusPembayaran, String? driverUserId}) async {
+    final startDate = DateTime(year, month, 1);
+    final endDate = DateTime(year, month + 1, 0);
+    final query = <String, dynamic>{
+      'jenis_pembayaran': jenisPembayaran,
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+      'limit': '2000',
+    };
+    if (statusPembayaran != null && statusPembayaran.isNotEmpty) query['status_pembayaran'] = statusPembayaran;
+    if (driverUserId != null && driverUserId.isNotEmpty) query['driver_user_id'] = driverUserId;
+    final res = await _api.get(ApiConstants.transactions, query: query);
+    final data = res.data as Map<String, dynamic>;
+    return (data['data'] as List<dynamic>)
+        .map((e) => Transaction.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getPerCabangReport({required int month, required int year}) async {

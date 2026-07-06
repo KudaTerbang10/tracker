@@ -607,7 +607,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '$selesai/${txs.length} resi',
+                  '$selesai/${txs.length} Resi',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -642,7 +642,6 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
           // Resi list
           ...txs.map((tx) => _buildResiInManifest(tx)),
           const SizedBox(height: 8),
-          // Lihat detail button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -706,7 +705,27 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (m.isAntarCabang)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => context.push('/dashboard/manifest/${m.id}'),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.open_in_new_rounded,
+                        size: 14,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                if (m.isAntarCabang) ...[
+                  const SizedBox(width: 4),
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -726,6 +745,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                       ),
                     ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 4),
@@ -751,7 +771,7 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
             Row(
               children: [
                 _badge(
-                  '$selesai/${txs.length} resi',
+                  '$selesai/${txs.length} Resi',
                   const Color(0xFF3B82F6),
                 ),
                 const SizedBox(width: 4),
@@ -760,23 +780,6 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                   Colors.green,
                 ),
               ],
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => context.push('/dashboard/manifest/${m.id}'),
-                icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                label: const Text('Detail Manifest', style: TextStyle(fontSize: 11)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 32),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
             ),
           ],
         ),
@@ -1268,19 +1271,52 @@ class _DriverTabScreenState extends ConsumerState<DriverTabScreen>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Nomor Resi Pengiriman',
+                                  'Nomor Resi',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF64748B),
                                   ),
                                 ),
-                                StatusBadge(
-                                  status: tx.statusSaatIni,
-                                  fontSize: 10,
-                                  labelOverride: tx.statusSaatIni == 'diterima_cabang'
-                                      ? 'Diterima di ${tx.diterimaDiCabang.isNotEmpty ? tx.diterimaDiCabang : 'Cabang'}'
-                                      : null,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (tx.jenisPembayaran == 'cod' || tx.jenisPembayaran == 'tempo') ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: tx.jenisPembayaran == 'cod'
+                                              ? const Color(0xFFFFF8E1)
+                                              : const Color(0xFFE8F5E9),
+                                          borderRadius: BorderRadius.circular(30),
+                                          border: Border.all(
+                                            color: tx.jenisPembayaran == 'cod'
+                                                ? const Color(0xFFFFE082)
+                                                : const Color(0xFFA5D6A7),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          tx.jenisPembayaran == 'cod' ? 'COD' : 'Tempo',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: tx.jenisPembayaran == 'cod'
+                                                ? const Color(0xFFF57F17)
+                                                : const Color(0xFF2E7D32),
+                                            height: 1.1,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    StatusBadge(
+                                      status: tx.statusSaatIni,
+                                      fontSize: 10,
+                                      labelOverride: tx.statusSaatIni == 'diterima_cabang'
+                                          ? 'Diterima di ${tx.diterimaDiCabang.isNotEmpty ? tx.diterimaDiCabang : 'Cabang'}'
+                                          : null,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1913,7 +1949,7 @@ class _RiwayatManifestCardState extends ConsumerState<_RiwayatManifestCard> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${widget.manifest.tujuanNama} · ${widget.manifest.totalResi} resi · ${widget.manifest.workUnit} work',
+              '${widget.manifest.tujuanNama} · ${widget.manifest.totalResi} Resi · ${widget.manifest.workUnit} Work',
               style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
             ),
           ],
@@ -1961,7 +1997,6 @@ class _RiwayatManifestCardState extends ConsumerState<_RiwayatManifestCard> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );

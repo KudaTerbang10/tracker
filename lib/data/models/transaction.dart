@@ -24,6 +24,12 @@ class Transaction {
   final DateTime? dilaporkanPada;
   final Map<String, dynamic>? diselesaikanOleh;
   final DateTime? diselesaikanPada;
+  final String jenisPembayaran;
+  final String statusPembayaran;
+  final int tempoHari;
+  final Map<String, dynamic>? pembayaranDikonfirmasiOleh;
+  final DateTime? pembayaranDikonfirmasiPada;
+  final String? codCabangId;
   final List<TrackingLog> trackingLogs;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -52,6 +58,12 @@ class Transaction {
     this.dilaporkanPada,
     this.diselesaikanOleh,
     this.diselesaikanPada,
+    this.jenisPembayaran = 'cash',
+    this.statusPembayaran = 'paid',
+    this.tempoHari = 14,
+    this.pembayaranDikonfirmasiOleh,
+    this.pembayaranDikonfirmasiPada,
+    this.codCabangId,
     required this.trackingLogs,
     required this.createdAt,
     required this.updatedAt,
@@ -81,6 +93,12 @@ class Transaction {
     dilaporkanPada: json['dilaporkan_pada'] != null ? DateTime.parse(json['dilaporkan_pada'] as String) : null,
     diselesaikanOleh: json['diselesaikan_oleh'] as Map<String, dynamic>?,
     diselesaikanPada: json['diselesaikan_pada'] != null ? DateTime.parse(json['diselesaikan_pada'] as String) : null,
+    jenisPembayaran: json['jenis_pembayaran'] as String? ?? 'cash',
+    statusPembayaran: json['status_pembayaran'] as String? ?? 'paid',
+    tempoHari: json['tempo_hari'] as int? ?? 14,
+    pembayaranDikonfirmasiOleh: json['pembayaran_dikonfirmasi_oleh'] as Map<String, dynamic>?,
+    pembayaranDikonfirmasiPada: json['pembayaran_dikonfirmasi_pada'] != null ? DateTime.parse(json['pembayaran_dikonfirmasi_pada'] as String) : null,
+    codCabangId: json['cod_cabang_id'] as String?,
     trackingLogs: (json['tracking_logs'] as List<dynamic>?)
         ?.map((e) => TrackingLog.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList() ?? [],

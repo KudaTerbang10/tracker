@@ -105,6 +105,18 @@ const transactionSchema = new mongoose.Schema({
 
   no_manifest: { type: String, default: null },
 
+  jenis_pembayaran: { type: String, enum: ['cash', 'cod', 'tempo'], default: 'cash' },
+  status_pembayaran: { type: String, enum: ['unpaid', 'paid'], default: 'paid' },
+  tempo_hari: { type: Number, default: 14 },
+  pembayaran_dikonfirmasi_oleh: {
+    user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: '' },
+    role: { type: String, default: '' },
+    cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
+  },
+  pembayaran_dikonfirmasi_pada: { type: Date, default: null },
+  cod_cabang_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Cabang', default: null },
+
   tracking_logs: [trackingLogSchema],
 }, { timestamps: true });
 
@@ -140,5 +152,10 @@ transactionSchema.index({ createdAt: -1, kode_gerai: 1 });
 
 // 🚀 Optimasi aggregate analytics drivers (lama) — filter date range + elemMatch tracking_logs
 transactionSchema.index({ createdAt: -1, 'tracking_logs.status': 1, 'tracking_logs.driver_ditugaskan.user_id': 1 });
+
+// 🚀 Optimasi pembayaran
+transactionSchema.index({ jenis_pembayaran: 1, status_pembayaran: 1 });
+transactionSchema.index({ cod_cabang_id: 1, status_pembayaran: 1 });
+transactionSchema.index({ 'created_by.cabang_id': 1, jenis_pembayaran: 1, status_pembayaran: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

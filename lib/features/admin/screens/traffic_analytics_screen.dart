@@ -264,7 +264,7 @@ class _TrafficBarChart extends StatelessWidget {
                             SizedBox(
                               width: 48,
                               child: Text(
-                                '$resi resi',
+                                '$resi Resi',
                                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                                 textAlign: TextAlign.end,
                               ),
@@ -408,7 +408,7 @@ class _RoutesBarChart extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '$resi resi',
+                              '$resi Resi',
                               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                             ),
                           ],
@@ -522,7 +522,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
         children: [
           Builder(
             builder: (context) {
-              final perRow = MediaQuery.of(context).size.width > 380 ? 6 : 3;
+              const perRow = 3;
               final rows = <List<int>>[];
               for (var i = 0; i < 12; i += perRow) {
                 rows.add(List.generate(
@@ -540,24 +540,25 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                       children: rowIndices.map((i) {
                         final m = i + 1;
                         final selected = _month == m;
-                        return GestureDetector(
-                          onTap: () => setState(() => _month = m),
-                          child: Container(
-                            width: 68,
-                            margin: const EdgeInsets.all(3),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: selected ? AppTheme.primary : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: Text(
-                              _months[i],
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: selected ? Colors.white : const Color(0xFF475569),
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _month = m),
+                            child: Container(
+                              margin: const EdgeInsets.all(3),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selected ? AppTheme.primary : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                _months[i],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected ? Colors.white : const Color(0xFF475569),
+                                ),
                               ),
                             ),
                           ),

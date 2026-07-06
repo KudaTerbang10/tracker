@@ -434,6 +434,29 @@ class ManifestDetailScreen extends ConsumerWidget {
                             ),
                             const SizedBox(width: 4),
                             ResiCopyButton(resi: tx.noResi),
+                            if (tx.jenisMasalah == 'gagal_kirim') ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2), width: 1),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.replay, size: 12, color: Colors.orange),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Barang Retur',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFB45309)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -530,7 +553,7 @@ class ManifestDetailScreen extends ConsumerWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Nomor Resi Pengiriman',
+                                  'Nomor Resi',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,

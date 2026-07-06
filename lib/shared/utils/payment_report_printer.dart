@@ -4,7 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 
-class ProblematicReportPrinter {
+class PaymentReportPrinter {
   static pw.Font? _cachedHiraFont;
 
   static Future<pw.Font> _getHiraFont() async {
@@ -19,16 +19,17 @@ class ProblematicReportPrinter {
     required int year,
     required List<Map<String, dynamic>> data,
     required String jenis,
+    String? cabangName,
   }) async {
     final hiraFont = await _getHiraFont();
-    final isHilang = jenis == 'hilang';
-    final title = isHilang ? 'LAPORAN BARANG HILANG' : 'LAPORAN GAGAL KIRIM';
-    final accentColor = isHilang ? PdfColors.red700 : PdfColors.amber700;
+    final isCOD = jenis == 'cod';
+    final title = isCOD ? 'LAPORAN COD' : 'LAPORAN TEMPO';
     final months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
     ];
     final monthName = months[month - 1];
+    final headerColor = isCOD ? PdfColors.amber800 : PdfColors.green800;
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async {
@@ -40,9 +41,9 @@ class ProblematicReportPrinter {
             build: (pw.Context context) {
               return pw.Column(
                 children: [
-                  _buildHeader(hiraFont, title, monthName, year, accentColor),
+                  _buildHeader(hiraFont, title, monthName, year, headerColor, cabangName),
                   pw.SizedBox(height: 16),
-                  _buildTable(data, isHilang: isHilang),
+                  _buildTable(data, isCOD: isCOD),
                   pw.SizedBox(height: 12),
                   _buildFooter(),
                 ],
@@ -51,10 +52,10 @@ class ProblematicReportPrinter {
           ),
         );
 
-        if (data.length > 20) {
-          for (var page = 1; page * 20 < data.length; page++) {
-            final start = page * 20;
-            final end = start + 20 > data.length ? data.length : start + 20;
+        if (data.length > 25) {
+          for (var page = 1; page * 25 < data.length; page++) {
+            final start = page * 25;
+            final end = start + 25 > data.length ? data.length : start + 25;
             final pageData = data.sublist(start, end);
 
             doc.addPage(
@@ -64,9 +65,9 @@ class ProblematicReportPrinter {
                 build: (pw.Context context) {
                   return pw.Column(
                     children: [
-                      _buildHeader(hiraFont, title, monthName, year, accentColor),
+                      _buildHeader(hiraFont, title, monthName, year, headerColor, cabangName),
                       pw.SizedBox(height: 16),
-                      _buildTable(pageData, startIndex: start, isHilang: isHilang),
+                      _buildTable(pageData, startIndex: start, isCOD: isCOD),
                       pw.SizedBox(height: 12),
                       _buildFooter(),
                     ],
@@ -82,7 +83,7 @@ class ProblematicReportPrinter {
     );
   }
 
-  static pw.Widget _buildHeader(pw.Font hiraFont, String title, String monthName, int year, PdfColor dividerColor) {
+  static pw.Widget _buildHeader(pw.Font hiraFont, String title, String monthName, int year, PdfColor accentColor, String? cabangName) {
     return pw.Column(
       children: [
         pw.Row(
@@ -111,7 +112,7 @@ class ProblematicReportPrinter {
                   ),
                   pw.SizedBox(height: 2),
                   pw.Text(
-                    title,
+                    title + (cabangName != null && cabangName.isNotEmpty ? ' - $cabangName' : ''),
                     style: pw.TextStyle(
                       fontSize: 14,
                       fontWeight: pw.FontWeight.bold,
@@ -128,31 +129,29 @@ class ProblematicReportPrinter {
           ],
         ),
         pw.SizedBox(height: 8),
-        pw.Divider(thickness: 1.5, color: dividerColor),
+        pw.Divider(thickness: 1.5, color: accentColor),
       ],
     );
   }
 
-  static pw.Widget _buildTable(List<Map<String, dynamic>> data, {int startIndex = 0, bool isHilang = true}) {
-    if (isHilang) {
-      return _buildHilangTable(data, startIndex: startIndex);
-    }
-    return _buildGagalKirimTable(data, startIndex: startIndex);
-  }
+  static pw.Widget _buildTable(List<Map<String, dynamic>> data, {int startIndex = 0, required bool isCOD}) {
+    final headerColor = isCOD ? PdfColors.amber800 : PdfColors.green800;
+    final summaryColor = isCOD ? PdfColors.amber100 : PdfColors.green100;
+    final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-  static pw.Widget _buildGagalKirimTable(List<Map<String, dynamic>> data, {int startIndex = 0}) {
-    final totalSelesai = data.where((r) => r['status'] == 'kasus_selesai').length;
+    final totalLunas = data.where((r) => r['status_pembayaran'] == 'paid').length;
+    final totalNominal = data.fold<int>(0, (sum, r) => sum + ((r['biaya_kirim'] as num?)?.toInt() ?? 0));
 
     final rows = <pw.TableRow>[
       pw.TableRow(
-        decoration: pw.BoxDecoration(color: PdfColors.amber800),
+        decoration: pw.BoxDecoration(color: headerColor),
         children: [
-          _headerCell('No', 0.4),
+          _headerCell('No', 0.3),
           _headerCell('No. Resi', 1.8),
-          _headerCell('Cabang', 1.5),
-          _headerCell('Tgl Laporan', 1.0),
+          _headerCell('Pengirim', 1.6),
+          _headerCell('Penerima', 1.6),
+          _headerCell('Nominal', 1.2),
           _headerCell('Status', 0.8),
-          _headerCell('Deskripsi', 2.8),
         ],
       ),
     ];
@@ -160,41 +159,40 @@ class ProblematicReportPrinter {
     for (var i = 0; i < data.length; i++) {
       final row = data[i];
       final isEven = i % 2 == 0;
-      final status = row['status'] as String? ?? '';
-      final dateStr = row['dilaporkan_pada'] != null
-          ? DateFormat('dd MMM yyyy', 'id_ID')
-              .format(DateTime.parse(row['dilaporkan_pada'] as String).toLocal())
-          : '-';
-      final isReturSelesai = status == 'diterima' && row['jenis_masalah'] == 'gagal_kirim';
-      final statusLabel = status == 'kasus_selesai' || isReturSelesai ? 'Returned' : 'Proses';
-      final catatan = row['catatan'] as String? ?? '-';
+      final isPaid = row['status_pembayaran'] == 'paid';
+      final nominal = row['biaya_kirim'] as num? ?? 0;
 
       rows.add(
         pw.TableRow(
           decoration: pw.BoxDecoration(color: isEven ? PdfColors.grey50 : PdfColors.white),
           children: [
-            _dataCell('${startIndex + i + 1}', 0.4, align: pw.TextAlign.center),
+            _dataCell('${startIndex + i + 1}', 0.3, align: pw.TextAlign.center),
             _dataCell(row['no_resi'] as String? ?? '-', 1.8),
-            _dataCell(row['cabang'] as String? ?? '-', 1.5),
-            _dataCell(dateStr, 1.0, align: pw.TextAlign.center),
-            _dataCell(statusLabel, 0.8, align: pw.TextAlign.center),
-            _dataCell(catatan, 2.8),
+            _dataCell(row['pengirim'] as String? ?? '-', 1.6),
+            _dataCell(row['penerima'] as String? ?? '-', 1.6),
+            _dataCell(currencyFmt.format(nominal), 1.2, align: pw.TextAlign.right),
+            _dataCell(
+              isPaid ? 'Lunas' : 'Belum Lunas',
+              0.8,
+              align: pw.TextAlign.center,
+              fontWeight: pw.FontWeight.bold,
+              color: isPaid ? PdfColors.green700 : PdfColors.red700,
+            ),
           ],
         ),
       );
     }
 
-    final summaryColor = PdfColors.amber100;
     rows.add(
       pw.TableRow(
         decoration: pw.BoxDecoration(color: summaryColor),
         children: [
-          _dataCell('', 0.4),
+          _dataCell('', 0.3),
           _dataCell('TOTAL', 1.8, fontWeight: pw.FontWeight.bold),
-          _dataCell('${data.length} Resi', 1.5, fontWeight: pw.FontWeight.bold),
-          _dataCell('', 1.0),
-          _dataCell('$totalSelesai Selesai', 0.8, align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold),
-          _dataCell('', 2.8),
+          _dataCell('', 1.6),
+          _dataCell('${data.length} Resi', 1.6, fontWeight: pw.FontWeight.bold),
+          _dataCell(currencyFmt.format(totalNominal), 1.2, align: pw.TextAlign.right, fontWeight: pw.FontWeight.bold),
+          _dataCell('$totalLunas Lunas', 0.8, align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold),
         ],
       ),
     );
@@ -202,84 +200,12 @@ class ProblematicReportPrinter {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
       columnWidths: {
-        0: pw.FlexColumnWidth(0.4),
+        0: pw.FlexColumnWidth(0.3),
         1: pw.FlexColumnWidth(1.8),
-        2: pw.FlexColumnWidth(1.5),
-        3: pw.FlexColumnWidth(1.0),
-        4: pw.FlexColumnWidth(0.8),
-        5: pw.FlexColumnWidth(2.8),
-      },
-      children: rows,
-    );
-  }
-
-  static pw.Widget _buildHilangTable(List<Map<String, dynamic>> data, {int startIndex = 0}) {
-    final totalSelesai = data.where((r) => r['status'] == 'kasus_selesai').length;
-
-    final rows = <pw.TableRow>[
-      pw.TableRow(
-        decoration: pw.BoxDecoration(color: PdfColors.red700),
-        children: [
-          _headerCell('No', 0.4),
-          _headerCell('No. Resi', 1.8),
-          _headerCell('Cabang', 1.5),
-          _headerCell('Tgl Laporan', 1.0),
-          _headerCell('Status', 0.8),
-          _headerCell('Deskripsi', 2.8),
-        ],
-      ),
-    ];
-
-    for (var i = 0; i < data.length; i++) {
-      final row = data[i];
-      final isEven = i % 2 == 0;
-      final status = row['status'] as String? ?? '';
-      final dateStr = row['dilaporkan_pada'] != null
-          ? DateFormat('dd MMM yyyy', 'id_ID')
-              .format(DateTime.parse(row['dilaporkan_pada'] as String).toLocal())
-          : '-';
-      final statusLabel = status == 'kasus_selesai' ? 'Selesai' : 'Proses';
-      final catatan = row['catatan'] as String? ?? '-';
-
-      rows.add(
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: isEven ? PdfColors.grey50 : PdfColors.white),
-          children: [
-            _dataCell('${startIndex + i + 1}', 0.4, align: pw.TextAlign.center),
-            _dataCell(row['no_resi'] as String? ?? '-', 1.8),
-            _dataCell(row['cabang'] as String? ?? '-', 1.5),
-            _dataCell(dateStr, 1.0, align: pw.TextAlign.center),
-            _dataCell(statusLabel, 0.8, align: pw.TextAlign.center),
-            _dataCell(catatan, 2.8),
-          ],
-        ),
-      );
-    }
-
-    final summaryColor = PdfColors.red100;
-    rows.add(
-      pw.TableRow(
-        decoration: pw.BoxDecoration(color: summaryColor),
-        children: [
-          _dataCell('', 0.4),
-          _dataCell('TOTAL', 1.8, fontWeight: pw.FontWeight.bold),
-          _dataCell('${data.length} Resi', 1.5, fontWeight: pw.FontWeight.bold),
-          _dataCell('', 1.0),
-          _dataCell('$totalSelesai Selesai', 0.8, align: pw.TextAlign.center, fontWeight: pw.FontWeight.bold),
-          _dataCell('', 2.8),
-        ],
-      ),
-    );
-
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-      columnWidths: {
-        0: pw.FlexColumnWidth(0.4),
-        1: pw.FlexColumnWidth(1.8),
-        2: pw.FlexColumnWidth(1.5),
-        3: pw.FlexColumnWidth(1.0),
-        4: pw.FlexColumnWidth(0.8),
-        5: pw.FlexColumnWidth(2.8),
+        2: pw.FlexColumnWidth(1.6),
+        3: pw.FlexColumnWidth(1.6),
+        4: pw.FlexColumnWidth(1.2),
+        5: pw.FlexColumnWidth(0.8),
       },
       children: rows,
     );
@@ -316,10 +242,10 @@ class ProblematicReportPrinter {
     );
   }
 
-  static pw.Widget _dataCell(String text, double flex, {pw.TextAlign align = pw.TextAlign.left, pw.FontWeight? fontWeight}) {
+  static pw.Widget _dataCell(String text, double flex, {pw.TextAlign align = pw.TextAlign.left, pw.FontWeight? fontWeight, PdfColor? color}) {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 3),
-      child: pw.Text(text, style: pw.TextStyle(fontSize: 7.5, fontWeight: fontWeight), textAlign: align),
+      child: pw.Text(text, style: pw.TextStyle(fontSize: 7.5, fontWeight: fontWeight, color: color), textAlign: align),
     );
   }
 }

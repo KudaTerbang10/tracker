@@ -28,7 +28,10 @@ class _DashboardMenuItem {
   });
 }
 
-List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context) {
+List<_DashboardMenuItem> _getMenuItemsForRole(
+  String role,
+  BuildContext context,
+) {
   switch (role) {
     case 'super_admin':
       return [
@@ -73,6 +76,13 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           onTap: () => context.go('/dashboard/barang-bermasalah'),
           iconColor: const Color(0xFFEF4444),
           pastelColor: const Color(0xFFFEE2E2),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.payments_rounded,
+          label: 'Pembayaran Tempo',
+          onTap: () => context.go('/dashboard/pembayaran'),
+          iconColor: const Color(0xFF2E7D32),
+          pastelColor: const Color(0xFFE8F5E9),
         ),
       ];
     case 'admin_cabang':
@@ -120,6 +130,13 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
           pastelColor: const Color(0xFFFEE2E2),
         ),
         _DashboardMenuItem(
+          icon: Icons.payments_rounded,
+          label: 'Manajemen Pembayaran',
+          onTap: () => context.go('/dashboard/pembayaran'),
+          iconColor: const Color(0xFFF57F17),
+          pastelColor: const Color(0xFFFFF8E1),
+        ),
+        _DashboardMenuItem(
           icon: Icons.contacts_rounded,
           label: 'Daftar Kontak Cabang',
           onTap: () => context.go('/dashboard/cabang-kontak'),
@@ -128,7 +145,7 @@ List<_DashboardMenuItem> _getMenuItemsForRole(String role, BuildContext context)
         ),
         _DashboardMenuItem(
           icon: Icons.check_circle_rounded,
-          label: 'Scan Barang Diterima',
+          label: 'Scan Barang Diterima (Walk-In)',
           onTap: () => context.go('/dashboard/scan-diterima'),
           iconColor: const Color(0xFF059669),
           pastelColor: const Color(0xFFD1FAE5),
@@ -184,11 +201,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 8, right: 10),
-              child: Image.asset('assets/pics/hiralogo.webp', width: 32, height: 32),
+              child: Image.asset(
+                'assets/pics/hiralogo.webp',
+                width: 32,
+                height: 32,
+              ),
             ),
             Text(
               user?.lokasi?['nama'] as String? ?? 'Dashboard',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
             ),
           ],
         ),
@@ -303,7 +328,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          
+
           if (menuItems.isNotEmpty)
             LayoutBuilder(
               builder: (context, constraints) {
@@ -339,7 +364,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 );
               },
             ),
-            
+
           const SizedBox(height: 24),
 
           Card(
@@ -357,7 +382,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     data: (ok) => Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: (ok ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                        color: (ok ? Colors.green : Colors.red).withValues(
+                          alpha: 0.1,
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -476,7 +503,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Text(
                     user?.roleLabel ?? '',

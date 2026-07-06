@@ -16,6 +16,7 @@ router.get('/traffic', auth, rbac('super_admin'), async (req, res) => {
       if (start) match.createdAt.$gte = new Date(start);
       if (end) match.createdAt.$lte = new Date(end);
     }
+    match.jenis_masalah = { $nin: ['hilang'] };
 
     const traffic = await Transaction.aggregate([
       { $match: match },
@@ -41,6 +42,7 @@ router.get('/customers-top', auth, rbac('super_admin'), async (req, res) => {
         $lte: new Date(year, month, 0, 23, 59, 59, 999),
       };
     }
+    match.jenis_masalah = { $nin: ['hilang'] };
 
     const topCustomers = await Transaction.aggregate([
       ...(Object.keys(match).length > 0 ? [{ $match: match }] : []),
@@ -81,7 +83,7 @@ router.get('/per-cabang', auth, rbac('super_admin'), async (req, res) => {
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
     const data = await Transaction.aggregate([
-      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { $match: { createdAt: { $gte: startDate, $lte: endDate }, jenis_masalah: { $nin: ['hilang'] } } },
       { $group: { _id: '$kode_gerai', total_resi: { $sum: 1 }, total_biaya: { $sum: '$paket.biaya_kirim' } } },
       { $lookup: { from: 'cabangs', localField: '_id', foreignField: 'kode', as: 'cabang' } },
       { $addFields: { cabang_name: { $ifNull: [{ $arrayElemAt: ['$cabang.name', 0] }, '$_id'] } } },
@@ -106,7 +108,7 @@ router.get('/routes-top', auth, rbac('super_admin'), async (req, res) => {
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
     const data = await Transaction.aggregate([
-      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { $match: { createdAt: { $gte: startDate, $lte: endDate }, jenis_masalah: { $nin: ['hilang'] } } },
       {
         $group: {
           _id: { asal: '$kode_gerai', tujuan: '$penerima.kota' },

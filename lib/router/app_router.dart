@@ -18,6 +18,7 @@ import '../features/admin/screens/tariff_bulk_screen.dart';
 import '../features/admin/screens/traffic_analytics_screen.dart';
 import '../features/admin/screens/cabang_contact_screen.dart';
 import '../features/admin/screens/problematic_transactions_screen.dart';
+import '../features/payment/screens/payment_management_screen.dart';
 import '../features/driver/screens/driver_tab_screen.dart';
 import '../features/manifest/screens/manifest_list_screen.dart';
 import '../features/manifest/screens/manifest_detail_screen.dart';
@@ -68,6 +69,7 @@ class _AuthListenable extends ChangeNotifier {
         GoRoute(path: 'manifest/:id', builder: (_, state) => ManifestDetailScreen(manifestId: state.pathParameters['id']!)),
         GoRoute(path: 'cabang-kontak', builder: (_, __) => const CabangContactScreen()),
         GoRoute(path: 'barang-bermasalah', builder: (_, __) => const ProblematicTransactionsScreen()),
+        GoRoute(path: 'pembayaran', builder: (_, __) => const PaymentManagementScreen()),
       ]),
     ],
   );

@@ -1,12 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class LabelPrinter {
+  static pw.Font? _cachedHiraFont;
+
   static Future<pw.Font> _loadHiraFont() async {
-    final data = await rootBundle.load('assets/pics/hiralogo.ttf');
-    return pw.Font.ttf(data);
+    if (_cachedHiraFont != null) return _cachedHiraFont!;
+    try {
+      final data = await rootBundle.load('assets/pics/hiralogo.ttf');
+      _cachedHiraFont = pw.Font.ttf(data);
+      return _cachedHiraFont!;
+    } catch (e) {
+      debugPrint('LabelPrinter: Gagal load font hiralogo.ttf: $e');
+      return pw.Font.helvetica();
+    }
   }
 
   static Future<void> printBarcodeLabel({
@@ -17,184 +27,220 @@ class LabelPrinter {
     DateTime? createdAt,
     String? asal,
     String? dicetakOleh,
+    bool isCOD = false,
   }) async {
+    try {
       final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
       final hiraFont = await _loadHiraFont();
 
       await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async {
-        final doc = pw.Document();
+        onLayout: (PdfPageFormat format) async {
+          final doc = pw.Document();
 
-        for (var i = 1; i <= jumlahKoli; i++) {
-          doc.addPage(
-            pw.Page(
-              pageFormat: PdfPageFormat(78 * PdfPageFormat.mm, 100 * PdfPageFormat.mm),
-              margin: const pw.EdgeInsets.only(left: 5, right: 2, top: 3, bottom: 3),
-              build: (pw.Context context) {
-                return pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                  children: [
-                    pw.Center(
-                      child: pw.Text(
-                        'Hira Express',
-                        style: pw.TextStyle(
-                          fontSize: 13,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.black,
-                        ),
-                      ),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Divider(height: 1),
-                    pw.SizedBox(height: 3),
-                    pw.Center(
-                      child: pw.BarcodeWidget(
-                        barcode: pw.Barcode.code128(),
-                        data: data,
-                        width: 68 * PdfPageFormat.mm,
-                        height: 20 * PdfPageFormat.mm,
-                      ),
-                    ),
-                    if (asal != null && asal.isNotEmpty) ...[
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            child: pw.Text(
-                              dicetakOleh != null && asal != dicetakOleh
-                                  ? 'Resi ini dicetak ulang (Cabang $dicetakOleh)'
-                                  : 'Cabang $asal',
-                          style: pw.TextStyle(
-                            fontSize: 7,
-                            color: dicetakOleh != null && asal != dicetakOleh
-                                ? PdfColors.red700
-                                : PdfColors.black,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                          textAlign: pw.TextAlign.center,
-                        ),
-                      ),
-                    ],
-                    pw.SizedBox(height: 2),
-                    pw.Divider(height: 1),
-                    pw.SizedBox(height: 3),
-                    pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Expanded(
-                          flex: 3,
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                            children: [
-                              if (penerima != null)
-                                _infoCard('Penerima', penerima),
-                              if (penerima != null && pengirim != null) ...[
-                                pw.Divider(height: 1, thickness: 0.3),
-                                pw.SizedBox(height: 2),
-                              ],
-                              if (pengirim != null)
-                                _infoCard('Pengirim', pengirim),
-                            ],
-                          ),
-                        ),
-                        pw.SizedBox(width: 2),
-                        pw.Expanded(
-                          flex: 2,
-                          child: pw.Column(
-                            mainAxisAlignment: pw.MainAxisAlignment.center,
-                            children: [
-                              pw.SizedBox(height: 4),
-                              pw.BarcodeWidget(
-                                barcode: pw.Barcode.qrCode(),
-                                data: data,
-                                width: 22 * PdfPageFormat.mm,
-                                height: 22 * PdfPageFormat.mm,
-                              ),
-                              pw.SizedBox(height: 6),
-                              pw.Center(
-                                child: pw.Text(
-                                  String.fromCharCode(0xe000),
-                                  style: pw.TextStyle(font: hiraFont, fontSize: 25),
+          for (var i = 1; i <= jumlahKoli; i++) {
+            doc.addPage(
+              pw.Page(
+                pageFormat: PdfPageFormat(78 * PdfPageFormat.mm, 100 * PdfPageFormat.mm),
+                margin: const pw.EdgeInsets.only(left: 5, right: 2, top: 3, bottom: 3),
+                build: (pw.Context context) {
+                  return pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                    children: [
+                      pw.Center(
+                        child: isCOD
+                            ? pw.Row(
+                                mainAxisAlignment: pw.MainAxisAlignment.center,
+                                children: [
+                                  pw.Container(
+                                    color: PdfColors.black,
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    child: pw.Text(
+                                      'COD',
+                                      style: const pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(width: 4),
+                                  pw.Text(
+                                    'Hira Express',
+                                    style: const pw.TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.black,
+                                    ),
+                                  ),
+                                  pw.SizedBox(width: 4),
+                                  pw.Container(
+                                    color: PdfColors.black,
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    child: pw.Text(
+                                      'COD',
+                                      style: const pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : pw.Text(
+                                'Hira Express',
+                                style: const pw.TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.black,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Row(
-                      children: [
-                        pw.Expanded(
-                          child: pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: pw.BoxDecoration(
-                              border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                            ),
-                            child: pw.Text(
-                              _capitalize(penerima?['kecamatan'] as String? ?? ''),
-                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-                              textAlign: pw.TextAlign.center,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ),
-                        pw.SizedBox(width: 3),
-                        pw.Expanded(
-                          child: pw.Container(
-                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            decoration: pw.BoxDecoration(
-                              border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                            ),
-                            child: pw.Text(
-                              penerima?['kota'] as String? ?? '',
-                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-                              textAlign: pw.TextAlign.center,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Divider(height: 1),
-                    pw.SizedBox(height: 2),
-                    if (paket != null) _paketLine(paket, createdAt),
-                    if (jumlahKoli > 1) ...[
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Divider(height: 1),
                       pw.SizedBox(height: 3),
-                      pw.Container(
-                        color: PdfColors.black,
-                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                        child: pw.Center(
-                          child: pw.Text(
-                            'Koli $i/$jumlahKoli',
-                            style: pw.TextStyle(
-                              fontSize: 22,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.white,
-                            ),
-                          ),
+                      pw.Center(
+                        child: pw.BarcodeWidget(
+                          barcode: pw.Barcode.code128(),
+                          data: data,
+                          width: 68 * PdfPageFormat.mm,
+                          height: 20 * PdfPageFormat.mm,
                         ),
                       ),
+                      if (asal != null && asal.isNotEmpty) ...[
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: pw.Text(
+                            dicetakOleh != null && asal != dicetakOleh
+                                ? 'Resi ini dicetak ulang (Cabang $dicetakOleh)'
+                                : 'Cabang $asal',
+                            style: pw.TextStyle(
+                              fontSize: 7,
+                              color: dicetakOleh != null && asal != dicetakOleh
+                                  ? PdfColors.red700
+                                  : PdfColors.black,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                      ],
+                      pw.SizedBox(height: 2),
+                      pw.Divider(height: 1),
+                      pw.SizedBox(height: 3),
+                      pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Expanded(
+                            flex: 3,
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                              children: [
+                                if (penerima != null) _infoCard('Penerima', penerima),
+                                if (penerima != null && pengirim != null) ...[
+                                  pw.Divider(height: 1, thickness: 0.3),
+                                  pw.SizedBox(height: 2),
+                                ],
+                                if (pengirim != null) _infoCard('Pengirim', pengirim),
+                              ],
+                            ),
+                          ),
+                          pw.SizedBox(width: 2),
+                          pw.Expanded(
+                            flex: 2,
+                            child: pw.Column(
+                              mainAxisAlignment: pw.MainAxisAlignment.center,
+                              children: [
+                                pw.SizedBox(height: 4),
+                                pw.BarcodeWidget(
+                                  barcode: pw.Barcode.qrCode(),
+                                  data: data,
+                                  width: 22 * PdfPageFormat.mm,
+                                  height: 22 * PdfPageFormat.mm,
+                                ),
+                                pw.SizedBox(height: 6),
+                                pw.Center(
+                                  child: pw.Text(
+                                    String.fromCharCode(0xe000),
+                                    style: pw.TextStyle(font: hiraFont, fontSize: 25),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Row(
+                        children: [
+                          pw.Expanded(
+                            child: pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: pw.BoxDecoration(
+                                border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                              ),
+                              child: pw.Text(
+                                _capitalize(penerima?['kecamatan'] as String? ?? ''),
+                                style: const pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                                textAlign: pw.TextAlign.center,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
+                          pw.SizedBox(width: 3),
+                          pw.Expanded(
+                            child: pw.Container(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                              decoration: pw.BoxDecoration(
+                                border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                              ),
+                              child: pw.Text(
+                                penerima?['kota'] as String? ?? '',
+                                style: const pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                                textAlign: pw.TextAlign.center,
+                                maxLines: 1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Divider(height: 1),
+                      pw.SizedBox(height: 2),
+                      if (paket != null) _paketLine(paket, createdAt),
+                      if (jumlahKoli > 1) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Container(
+                          color: PdfColors.black,
+                          padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                          child: pw.Center(
+                            child: pw.Text(
+                              'Koli $i/$jumlahKoli',
+                              style: const pw.TextStyle(
+                                fontSize: 22,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                );
-              },
-            ),
-          );
-        }
+                  );
+                },
+              ),
+            );
+          }
 
-        return doc.save();
-      },
-    );
+          return doc.save();
+        },
+      );
+    } catch (e) {
+      debugPrint('LabelPrinter: Gagal cetak resi: $e');
+      rethrow;
+    }
   }
 
-  /// Cetak label retur dengan data resi asli, alamat penerima/pengirim swapped.
-  /// - [data] nomor resi asli
-  /// - [penerima] diisi data PENGIRIM asli (karena retur dikembalikan ke pengirim)
-  /// - [pengirim] diisi data cabang yang melakukan retur
-  /// - [paket] data paket sama
-  /// - [createdAt] tanggal buat
-  /// - [dicetakOleh] nama cabang yang mencetak
-  /// - [originalResi] nomor resi asli untuk referensi
   static Future<void> printReturLabel({
     required String data,
     required Map<String, dynamic> penerima,
@@ -203,140 +249,201 @@ class LabelPrinter {
     DateTime? createdAt,
     String? dicetakOleh,
     String? asalCabang,
+    bool isCOD = false,
   }) async {
-    final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
-    final hiraFont = await _loadHiraFont();
+    try {
+      final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
+      final hiraFont = await _loadHiraFont();
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async {
-        final doc = pw.Document();
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async {
+          final doc = pw.Document();
 
-        for (var i = 1; i <= jumlahKoli; i++) {
-          doc.addPage(
-            pw.Page(
-              pageFormat: PdfPageFormat(78 * PdfPageFormat.mm, 100 * PdfPageFormat.mm),
-              margin: const pw.EdgeInsets.only(left: 5, right: 2, top: 3, bottom: 3),
-              build: (pw.Context context) {
-                return pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                  children: [
-                    // Label RETUR
-                    pw.Container(
-                      color: PdfColors.orange700,
-                      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                      child: pw.Center(
-                        child: pw.Text(
-                          'RESI RETUR',
-                          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-                        ),
-                      ),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Divider(height: 1),
-                    pw.SizedBox(height: 3),
-                    // Barcode
-                    pw.Center(
-                      child: pw.BarcodeWidget(
-                        barcode: pw.Barcode.code128(),
-                        data: data,
-                        width: 68 * PdfPageFormat.mm,
-                        height: 20 * PdfPageFormat.mm,
-                      ),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Divider(height: 1),
-                    pw.SizedBox(height: 3),
-                    // Penerima (pengirim asli) + Pengirim (cabang retur)
-                    pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Expanded(
-                          flex: 3,
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                            children: [
-                              _infoCard('Penerima (Retur)', penerima),
-                              pw.Divider(height: 1, thickness: 0.3),
-                              pw.SizedBox(height: 2),
-                              _infoCard(
-                                'Pengirim',
-                                {
-                                  'name': 'Cabang ${pengirim['name'] ?? ''}',
-                                  'phone': pengirim['phone'] ?? '',
-                                  'address': pengirim['address'] ?? '',
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        pw.SizedBox(width: 2),
-                        pw.Expanded(
-                          flex: 2,
-                          child: pw.Column(
-                            mainAxisAlignment: pw.MainAxisAlignment.center,
-                            children: [
-                              pw.SizedBox(height: 4),
-                              pw.BarcodeWidget(
-                                barcode: pw.Barcode.qrCode(),
-                                data: data,
-                                width: 22 * PdfPageFormat.mm,
-                                height: 22 * PdfPageFormat.mm,
-                              ),
-                              pw.SizedBox(height: 6),
-                              pw.Center(
-                                child: pw.Text(
-                                  String.fromCharCode(0xe000),
-                                  style: pw.TextStyle(font: hiraFont, fontSize: 25),
+          for (var i = 1; i <= jumlahKoli; i++) {
+            doc.addPage(
+              pw.Page(
+                pageFormat: PdfPageFormat(78 * PdfPageFormat.mm, 100 * PdfPageFormat.mm),
+                margin: const pw.EdgeInsets.only(left: 5, right: 2, top: 3, bottom: 3),
+                build: (pw.Context context) {
+                  return pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                    children: [
+                      pw.Center(
+                        child: isCOD
+                            ? pw.Row(
+                                mainAxisAlignment: pw.MainAxisAlignment.center,
+                                children: [
+                                  pw.Container(
+                                    color: PdfColors.black,
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    child: pw.Text(
+                                      'COD',
+                                      style: const pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  pw.SizedBox(width: 4),
+                                  pw.Text(
+                                    'Hira Express',
+                                    style: const pw.TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.black,
+                                    ),
+                                  ),
+                                  pw.SizedBox(width: 4),
+                                  pw.Container(
+                                    color: PdfColors.black,
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    child: pw.Text(
+                                      'COD',
+                                      style: const pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : pw.Text(
+                                'Hira Express',
+                                style: const pw.TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.black,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 2),
-                    // 1 kotak: nama cabang asal origin
-                    if (asalCabang != null && asalCabang.isNotEmpty)
-                      pw.Container(
-                        width: double.infinity,
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: pw.BoxDecoration(
-                          border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                        ),
-                        child: pw.Text(
-                          asalCabang,
-                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-                          textAlign: pw.TextAlign.center,
-                          maxLines: 1,
-                        ),
                       ),
-                    pw.SizedBox(height: 2),
-                    pw.Divider(height: 1),
-                    pw.SizedBox(height: 2),
-                    if (paket != null) _paketLine(paket, createdAt),
-                    if (jumlahKoli > 1) ...[
-                      pw.SizedBox(height: 3),
+                      pw.SizedBox(height: 2),
                       pw.Container(
-                        color: PdfColors.black,
+                        color: PdfColors.orange700,
                         padding: const pw.EdgeInsets.symmetric(vertical: 2),
                         child: pw.Center(
                           child: pw.Text(
-                            'Koli $i/$jumlahKoli',
-                            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                            'RESI RETUR',
+                            style: const pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
                           ),
                         ),
                       ),
+                      pw.SizedBox(height: 2),
+                      pw.Divider(height: 1),
+                      pw.SizedBox(height: 3),
+                      pw.Center(
+                        child: pw.BarcodeWidget(
+                          barcode: pw.Barcode.code128(),
+                          data: data,
+                          width: 68 * PdfPageFormat.mm,
+                          height: 20 * PdfPageFormat.mm,
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Divider(height: 1),
+                      pw.SizedBox(height: 3),
+                      pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Expanded(
+                            flex: 3,
+                            child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                              children: [
+                                _infoCard('Penerima (Retur)', penerima),
+                                pw.Divider(height: 1, thickness: 0.3),
+                                pw.SizedBox(height: 2),
+                                _infoCard(
+                                  'Pengirim',
+                                  {
+                                    'name': 'Cabang ${pengirim['name'] ?? ''}',
+                                    'phone': pengirim['phone'] ?? '',
+                                    'address': pengirim['address'] ?? '',
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          pw.SizedBox(width: 2),
+                          pw.Expanded(
+                            flex: 2,
+                            child: pw.Column(
+                              mainAxisAlignment: pw.MainAxisAlignment.center,
+                              children: [
+                                pw.SizedBox(height: 4),
+                                pw.BarcodeWidget(
+                                  barcode: pw.Barcode.qrCode(),
+                                  data: data,
+                                  width: 22 * PdfPageFormat.mm,
+                                  height: 22 * PdfPageFormat.mm,
+                                ),
+                                pw.SizedBox(height: 6),
+                                pw.Center(
+                                  child: pw.Text(
+                                    String.fromCharCode(0xe000),
+                                    style: pw.TextStyle(font: hiraFont, fontSize: 25),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      pw.SizedBox(height: 2),
+                      if (asalCabang != null && asalCabang.isNotEmpty)
+                        pw.Container(
+                          width: double.infinity,
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                          ),
+                          child: pw.Text(
+                            asalCabang,
+                            style: const pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                            textAlign: pw.TextAlign.center,
+                            maxLines: 1,
+                          ),
+                        ),
+                      pw.SizedBox(height: 2),
+                      pw.Divider(height: 1),
+                      pw.SizedBox(height: 2),
+                      if (paket != null) _paketLine(paket, createdAt),
+                      if (jumlahKoli > 1) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Container(
+                          color: PdfColors.black,
+                          padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                          child: pw.Center(
+                            child: pw.Text(
+                              'Koli $i/$jumlahKoli',
+                              style: const pw.TextStyle(
+                                fontSize: 22,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                );
-              },
-            ),
-          );
-        }
+                  );
+                },
+              ),
+            );
+          }
 
-        return doc.save();
-      },
-    );
+          return doc.save();
+        },
+      );
+    } catch (e) {
+      debugPrint('LabelPrinter: Gagal cetak retur: $e');
+      rethrow;
+    }
   }
 
   static String _capitalize(String s) {
@@ -380,16 +487,16 @@ class LabelPrinter {
       children: [
         pw.Text(
           '$label: $name',
-          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          style: const pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
           maxLines: 2,
         ),
         if (phone.isNotEmpty) ...[
           pw.SizedBox(height: 1),
-          pw.Text('[ $phone ]', style: pw.TextStyle(fontSize: 8)),
+          pw.Text('[ $phone ]', style: const pw.TextStyle(fontSize: 8)),
         ],
         if (address.isNotEmpty) ...[
           pw.SizedBox(height: 1),
-          pw.Text(address, style: pw.TextStyle(fontSize: 8), maxLines: 2),
+          pw.Text(address, style: const pw.TextStyle(fontSize: 8), maxLines: 2),
         ],
       ],
     );
@@ -405,7 +512,7 @@ class LabelPrinter {
           pw.Center(
             child: pw.Text(
               _formatDibuat(createdAt),
-              style: pw.TextStyle(fontSize: 8),
+              style: const pw.TextStyle(fontSize: 8),
             ),
           ),
           pw.SizedBox(height: 3),
@@ -429,11 +536,11 @@ class LabelPrinter {
   static pw.Widget _sep() {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 2),
-      child: pw.Text('|', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey400)),
+      child: pw.Text('|', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey400)),
     );
   }
 
   static pw.Widget _paketItem(String text) {
-    return pw.Text(text, style: pw.TextStyle(fontSize: 8));
+    return pw.Text(text, style: const pw.TextStyle(fontSize: 8));
   }
 }

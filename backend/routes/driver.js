@@ -7,8 +7,12 @@ const router = express.Router();
 
 router.get('/', auth, async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, cabang_id } = req.query;
     const filter = { role: 'driver', is_active: true };
+
+    if (cabang_id) {
+      filter.cabang_id = cabang_id;
+    }
 
     if (q) {
       // Anchored prefix agar bisa pakai index { role: 1, is_active: 1, name: 1 }

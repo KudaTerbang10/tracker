@@ -255,14 +255,47 @@ class _TrackingBottomSheet extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Nomor Resi Pengiriman',
+                            'Nomor Resi',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF64748B),
                             ),
                           ),
-                          StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (tx.jenisPembayaran == 'cod' || tx.jenisPembayaran == 'tempo') ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: tx.jenisPembayaran == 'cod'
+                                        ? const Color(0xFFFFF8E1)
+                                        : const Color(0xFFE8F5E9),
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(
+                                      color: tx.jenisPembayaran == 'cod'
+                                          ? const Color(0xFFFFE082)
+                                          : const Color(0xFFA5D6A7),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tx.jenisPembayaran == 'cod' ? 'COD' : 'Tempo',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: tx.jenisPembayaran == 'cod'
+                                          ? const Color(0xFFF57F17)
+                                          : const Color(0xFF2E7D32),
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -316,7 +349,7 @@ class _TrackingBottomSheet extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              TrackingMap(tx: tx),
+              if (tx.statusSaatIni != 'hilang' && tx.statusSaatIni != 'kasus_selesai') TrackingMap(tx: tx),
               const SizedBox(height: 12),
               Card(
                 color: Colors.white,
@@ -366,104 +399,35 @@ class _TrackingBottomSheet extends ConsumerWidget {
               ),
               if (tx.namaDriver != null && tx.tujuanSelanjutnya?['tipe'] != 'cabang') ...[
                 const SizedBox(height: 12),
-                Card(
-                  color: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.directions_car_filled_rounded,
-                            color: Color(0xFFF59E0B),
-                            size: 20,
-                          ),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _InfoCard(
+                          title: 'Driver Kurir',
+                          name: tx.namaDriver!,
+                          phone: tx.kontakDriver ?? '',
+                          address: '',
+                          icon: Icons.directions_car_filled_rounded,
+                          accentColor: Colors.amber.shade700,
                         ),
-                        const SizedBox(width: 12),
+                      ),
+                      if (tx.namaPenerimaAkhir != null &&
+                          tx.namaPenerimaAkhir!.isNotEmpty) ...[
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Driver Kurir',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                tx.namaDriver!,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: Color(0xFF0F172A),
-                                ),
-                              ),
-                              if (tx.kontakDriver != null &&
-                                  tx.kontakDriver!.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Text(
-                                      tx.kontakDriver!,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF475569),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Clipboard.setData(
-                                          ClipboardData(text: tx.kontakDriver!),
-                                        );
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Nomor telepon driver disalin',
-                                            ),
-                                            duration: Duration(seconds: 1),
-                                          ),
-                                        );
-                                      },
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () {
-                                            Clipboard.setData(ClipboardData(text: tx.kontakDriver!));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Nomor telepon driver disalin'), duration: Duration(seconds: 1)),
-                                            );
-                                          },
-                                          borderRadius: BorderRadius.circular(20),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF6366F1).withValues(alpha: 0.08),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.content_copy_rounded, size: 14, color: Color(0xFF6366F1)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
+                          child: _InfoCard(
+                            title: 'Diterima oleh',
+                            name: tx.namaPenerimaAkhir!,
+                            phone: '',
+                            address: '',
+                            icon: Icons.check_circle_rounded,
+                            accentColor: Colors.green.shade600,
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
               ],

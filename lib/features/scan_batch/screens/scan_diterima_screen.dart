@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/datasources/remote/api_service.dart';
@@ -78,13 +80,21 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _scan,
                     icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-                    label: const Text('SCAN RESI', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    label: const Text(
+                      'SCAN RESI',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: Colors.white,
                       shadowColor: Colors.transparent,
                       minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 )
@@ -104,9 +114,15 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.error.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.error.withValues(alpha: 0.15)),
+                          border: Border.all(
+                            color: AppTheme.error.withValues(alpha: 0.15),
+                          ),
                         ),
-                        child: Icon(Icons.close_rounded, color: AppTheme.error, size: 22),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: AppTheme.error,
+                          size: 22,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -119,7 +135,9 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                              color: const Color(
+                                0xFF10B981,
+                              ).withValues(alpha: 0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -132,15 +150,26 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                             foregroundColor: Colors.white,
                             shadowColor: Colors.transparent,
                             minimumSize: const Size(0, 48),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           child: _submitting
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
                                 )
-                              : const Text('KONFIRMASI DITERIMA', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                              : const Text(
+                                  'KONFIRMASI DITERIMA',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
                         ),
                       ),
                     ),
@@ -214,7 +243,9 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
+              border: Border.all(
+                color: const Color(0xFF10B981).withValues(alpha: 0.2),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF10B981).withValues(alpha: 0.08),
@@ -236,18 +267,33 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                           color: const Color(0xFF10B981).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.qr_code_rounded, color: Color(0xFF10B981), size: 20),
+                        child: const Icon(
+                          Icons.qr_code_rounded,
+                          color: Color(0xFF10B981),
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(
                         'Detail Resi',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
+                      const Spacer(),
+                      _badge(tx.beratLabel, const Color(0xFF0EA5E9)),
+                      const SizedBox(width: 8),
+                      _badge(tx.koliLabel, const Color(0xFFF97316)),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(8),
@@ -272,17 +318,60 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
                   const SizedBox(height: 12),
                   const Divider(height: 1, color: Color(0xFFE2E8F0)),
                   const SizedBox(height: 12),
-                  _infoRow(Icons.person_outline_rounded, 'Penerima', tx.penerimaName),
+                  _infoRow(
+                    Icons.person_outline_rounded,
+                    'Penerima',
+                    tx.penerimaName,
+                  ),
                   const SizedBox(height: 8),
                   _infoRow(Icons.send_rounded, 'Pengirim', tx.pengirimName),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _badge(tx.beratLabel, const Color(0xFF0EA5E9)),
-                      const SizedBox(width: 8),
-                      _badge(tx.koliLabel, const Color(0xFFF97316)),
-                    ],
-                  ),
+                  if (tx.jenisPembayaran == 'cod') ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'COD',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.orange,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Nominal: ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(tx.biayaKirim)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -311,9 +400,7 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
               if (titled != v) {
                 _namaC.value = TextEditingValue(
                   text: titled,
-                  selection: TextSelection.collapsed(
-                    offset: titled.length,
-                  ),
+                  selection: TextSelection.collapsed(offset: titled.length),
                 );
               }
               _capitalizing = false;
@@ -348,12 +435,19 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
         const SizedBox(width: 8),
         SizedBox(
           width: 70,
-          child: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0F172A),
+            ),
           ),
         ),
       ],
@@ -369,13 +463,20 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
       ),
     );
   }
 
   Future<void> _scan() async {
-    final code = await BarcodeScannerDialog.show(context, label: 'Scan barcode resi yang diterima');
+    final code = await BarcodeScannerDialog.show(
+      context,
+      label: 'Scan barcode resi yang diterima',
+    );
     if (code == null || code.isEmpty) return;
 
     try {
@@ -390,7 +491,9 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Anda tidak memiliki akses untuk transaksi ini'),
+              content: const Text(
+                'Anda tidak memiliki akses untuk transaksi ini',
+              ),
               backgroundColor: AppTheme.error,
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 3),
@@ -404,9 +507,9 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       setState(() => _tx = tx);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Resi $code tidak ditemukan')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Resi $code tidak ditemukan')));
       }
     }
   }
@@ -422,6 +525,61 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
       return;
     }
 
+    // Cek pembayaran COD belum lunas (hanya admin cabang / walk-in)
+    final user = ref.read(authProvider).user;
+    final isAdminCabang = user?.isAdminCabang ?? false;
+    if (isAdminCabang &&
+        _tx!.jenisPembayaran == 'cod' &&
+        _tx!.statusPembayaran == 'unpaid') {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          icon: const Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange,
+            size: 40,
+          ),
+          title: const Text('Pembayaran COD'),
+          content: const Text(
+            'Pembayaran COD transaksi ini belum dibayar, pastikan pembayaran sudah lunas!',
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
+                    child: const Text('Konfirmasi'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 4,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Batal'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
+
+    // Verifikasi lokasi sebelum konfirmasi
+    if (_tx!.lokasiPenerima != null) {
+      final proceed = await _checkLocationBeforeConfirm();
+      if (!proceed) return;
+    }
+
     setState(() => _submitting = true);
     try {
       final repo = ref.read(transactionRepositoryProvider);
@@ -429,7 +587,9 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
         noResiList: [_tx!.noResi],
         statusBaru: 'diterima',
         namaPenerima: _namaC.text.trim(),
-        catatan: _catatanC.text.trim().isNotEmpty ? _catatanC.text.trim() : null,
+        catatan: _catatanC.text.trim().isNotEmpty
+            ? _catatanC.text.trim()
+            : null,
       );
 
       if (mounted) {
@@ -485,11 +645,156 @@ class _ScanDiterimaScreenState extends ConsumerState<ScanDiterimaScreen> {
     }
   }
 
+  Future<bool> _checkLocationBeforeConfirm() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Izin lokasi ditolak. Aktifkan GPS untuk konfirmasi.',
+                ),
+                backgroundColor: AppTheme.error,
+              ),
+            );
+          }
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Izin lokasi permanen ditolak. Buka Pengaturan untuk mengaktifkannya.',
+              ),
+              backgroundColor: AppTheme.error,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          await Geolocator.openAppSettings();
+        }
+        return false;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final repo = ref.read(transactionRepositoryProvider);
+      final verifyResult = await repo.verifyLocation(
+        id: _tx!.id,
+        lat: pos.latitude,
+        lng: pos.longitude,
+      );
+
+      final isWithin = verifyResult['is_within'] as bool? ?? false;
+      final distance = verifyResult['distance_meters'] as int? ?? 0;
+
+      if (!isWithin && mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: Icon(
+              Icons.location_off_rounded,
+              color: AppTheme.error,
+              size: 40,
+            ),
+            title: const Text('Di Luar Jangkauan'),
+            content: Text(
+              'Anda berada ${distance}m dari lokasi penerima.\n\n'
+              'Apakah tetap ingin konfirmasi penerimaan?',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.error,
+                      ),
+                      child: const Text('Konfirmasi'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 4,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        return proceed ?? false;
+      }
+
+      return true;
+    } catch (e) {
+      if (mounted) {
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 40,
+            ),
+            title: const Text('Verifikasi Lokasi Gagal'),
+            content: Text(
+              'Tidak dapat memverifikasi lokasi.\n${e.toString()}\n\n'
+              'Tetap konfirmasi penerimaan?',
+            ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Tetap Konfirmasi'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 4,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        return proceed ?? false;
+      }
+      return false;
+    }
+  }
+
   String _toTitleCase(String text) {
     if (text.isEmpty) return text;
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1);
-    }).join(' ');
+    return text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1);
+        })
+        .join(' ');
   }
 }

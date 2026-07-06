@@ -35,12 +35,32 @@ class _ProblematicTransactionsScreenState
   List<Transaction>? _cachedBermasalah;
 
   @override
+  void initState() {
+    super.initState();
+    _preload();
+  }
+
+  Future<void> _preload() async {
+    final data = await _loadBermasalah();
+    if (mounted) {
+      setState(() => _cachedBermasalah = data);
+    }
+  }
+
+  @override
   void dispose() {
     _resiManualC.dispose();
     super.dispose();
   }
 
   bool get _isSuperAdmin => ref.read(authProvider).user?.isSuperAdmin ?? false;
+
+  bool _isAdminCabangPelapor(Transaction tx) {
+    final user = ref.read(authProvider).user;
+    if (user == null || !user.isAdminCabang) return false;
+    final pelaporCabang = tx.dilaporkanOleh?['cabang_id'] as String?;
+    return pelaporCabang == user.cabangId;
+  }
 
   Future<List<Transaction>> _loadBermasalah() async {
     final repo = ref.read(transactionRepositoryProvider);
@@ -53,6 +73,50 @@ class _ProblematicTransactionsScreenState
       endDate: endDate,
     );
     return result['data'] as List<Transaction>;
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool selected,
+    required ValueChanged<bool> onSelected,
+    int? count,
+    Color? selectedColor,
+    Color? checkmarkColor,
+  }) {
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count != null) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: selected
+                    ? (selectedColor ?? AppTheme.primary.withValues(alpha: 0.15))
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: selected
+                      ? (checkmarkColor ?? AppTheme.primary)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      selected: selected,
+      onSelected: onSelected,
+      selectedColor: selectedColor,
+      checkmarkColor: checkmarkColor,
+    );
   }
 
   Future<void> _tandaiSelesai(Transaction tx) async {
@@ -102,6 +166,28 @@ class _ProblematicTransactionsScreenState
     }
   }
 
+  Future<void> _cetakAsli(Transaction tx) async {
+    try {
+      final user = ref.read(authProvider).user;
+      await LabelPrinter.printBarcodeLabel(
+        data: tx.noResi,
+        pengirim: tx.pengirim,
+        penerima: tx.penerima,
+        paket: tx.paket,
+        createdAt: tx.createdAt,
+        asal: tx.createdBy['cabang_name']?.toString() ?? '',
+        dicetakOleh: user?.lokasi?['name']?.toString(),
+        isCOD: tx.jenisPembayaran == 'cod',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal cetak resi: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _cetakRetur(Transaction tx) async {
     try {
       final user = ref.read(authProvider).user;
@@ -121,6 +207,7 @@ class _ProblematicTransactionsScreenState
         createdAt: tx.createdAt,
         dicetakOleh: user?.lokasi?['name']?.toString(),
         asalCabang: asalCabang,
+        isCOD: tx.jenisPembayaran == 'cod',
       );
     } catch (e) {
       if (mounted) {
@@ -164,6 +251,110 @@ class _ProblematicTransactionsScreenState
     try {
       final api = ApiService();
       await api.post('${ApiConstants.transactions}/${tx.id}/batalkan-hilang');
+      SoundPlayer.instance.playSuccess();
+      setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${tx.noResi} dikembalikan ke proses'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+      }
+    }
+  }
+
+  Future<void> _batalkanGagalKirim(Transaction tx) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Anulir Gagal Kirim?'),
+        content: Text(
+          'Status ${tx.noResi} akan dikembalikan ke "Diterima Cabang" '
+          'dan muncul kembali di daftar transaksi cabang pelapor.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              minimumSize: const Size(0, 36),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Ya, Anulir', style: TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final api = ApiService();
+      await api.post('${ApiConstants.transactions}/${tx.id}/batalkan-gagal-kirim');
+      SoundPlayer.instance.playSuccess();
+      setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${tx.noResi} dikembalikan ke proses'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+      }
+    }
+  }
+
+  Future<void> _batalkanKasusSelesai(Transaction tx) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Batalkan Kasus Selesai?'),
+        content: Text(
+          'Status ${tx.noResi} akan dikembalikan ke "Diterima Cabang" '
+          'dan muncul kembali di daftar transaksi cabang pelapor.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              minimumSize: const Size(0, 36),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Ya, Anulir', style: TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      final api = ApiService();
+      await api.post('${ApiConstants.transactions}/${tx.id}/batalkan-kasus-selesai');
       SoundPlayer.instance.playSuccess();
       setState(() {});
       if (mounted) {
@@ -234,16 +425,49 @@ class _ProblematicTransactionsScreenState
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Nomor Resi Pengiriman',
+                                  'Nomor Resi',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF64748B),
                                   ),
                                 ),
-                                StatusBadge(
-                                  status: tx.statusSaatIni,
-                                  fontSize: 10,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (tx.jenisPembayaran == 'cod' || tx.jenisPembayaran == 'tempo') ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: tx.jenisPembayaran == 'cod'
+                                              ? const Color(0xFFFFF8E1)
+                                              : const Color(0xFFE8F5E9),
+                                          borderRadius: BorderRadius.circular(30),
+                                          border: Border.all(
+                                            color: tx.jenisPembayaran == 'cod'
+                                                ? const Color(0xFFFFE082)
+                                                : const Color(0xFFA5D6A7),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          tx.jenisPembayaran == 'cod' ? 'COD' : 'Tempo',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: tx.jenisPembayaran == 'cod'
+                                                ? const Color(0xFFF57F17)
+                                                : const Color(0xFF2E7D32),
+                                            height: 1.1,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    StatusBadge(
+                                      status: tx.statusSaatIni,
+                                      fontSize: 10,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -416,7 +640,7 @@ class _ProblematicTransactionsScreenState
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  'Catatan: ${tx.catatanMasalah}',
+                                  '${tx.jenisMasalah == 'hilang' ? 'Catatan Kehilangan' : 'Catatan Gagal Kirim'}: ${tx.catatanMasalah}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: tx.jenisMasalah == 'hilang'
@@ -667,7 +891,6 @@ class _ProblematicTransactionsScreenState
         final pelapor = tx.dilaporkanOleh as Map<String, dynamic>?;
         return {
           'no_resi': tx.noResi,
-          'jenis_masalah': tx.jenisMasalah ?? '',
           'pengirim': tx.pengirimName,
           'penerima': tx.penerimaName,
           'pelapor': pelapor?['name'] as String? ?? '-',
@@ -675,6 +898,7 @@ class _ProblematicTransactionsScreenState
           'dilaporkan_pada': tx.dilaporkanPada?.toIso8601String(),
           'status': tx.statusSaatIni,
           'catatan': tx.catatanMasalah ?? '-',
+          'jenis_masalah': tx.jenisMasalah,
         };
       }).toList();
 
@@ -824,41 +1048,55 @@ class _ProblematicTransactionsScreenState
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               children: [
-                FilterChip(
-                  label: const Text('Semua'),
+                _buildFilterChip(
+                  label: 'Semua',
                   selected: _filter.isEmpty,
                   onSelected: (_) => setState(() => _filter = ''),
+                  count: _cachedBermasalah?.length,
                 ),
                 const SizedBox(width: 6),
-                FilterChip(
-                  label: const Text('Gagal Kirim'),
+                _buildFilterChip(
+                  label: 'Gagal Kirim',
                   selected: _filter == 'gagal_kirim',
                   onSelected: (_) => setState(
                     () =>
                         _filter = _filter == 'gagal_kirim' ? '' : 'gagal_kirim',
                   ),
+                  count: _cachedBermasalah
+                      ?.where((tx) =>
+                          (tx.statusSaatIni == 'gagal_kirim' || tx.jenisMasalah == 'gagal_kirim') &&
+                          tx.statusSaatIni != 'kasus_selesai' &&
+                          tx.statusSaatIni != 'diterima')
+                      .length,
                   selectedColor: Colors.orange.withValues(alpha: 0.2),
                   checkmarkColor: Colors.orange,
                 ),
                 const SizedBox(width: 6),
-                FilterChip(
-                  label: const Text('Barang Hilang'),
+                _buildFilterChip(
+                  label: 'Barang Hilang',
                   selected: _filter == 'hilang',
                   onSelected: (_) => setState(
                     () => _filter = _filter == 'hilang' ? '' : 'hilang',
                   ),
+                  count: _cachedBermasalah
+                      ?.where((tx) => tx.statusSaatIni == 'hilang')
+                      .length,
                   selectedColor: Colors.red.withValues(alpha: 0.2),
                   checkmarkColor: Colors.red,
                 ),
                 const SizedBox(width: 6),
-                FilterChip(
-                  label: const Text('Selesai'),
+                _buildFilterChip(
+                  label: 'Selesai',
                   selected: _filter == 'kasus_selesai',
                   onSelected: (_) => setState(
                     () => _filter = _filter == 'kasus_selesai'
                         ? ''
                         : 'kasus_selesai',
                   ),
+                  count: _cachedBermasalah
+                      ?.where((tx) => tx.statusSaatIni == 'kasus_selesai' ||
+                          (tx.statusSaatIni == 'diterima' && tx.jenisMasalah == 'gagal_kirim'))
+                      .length,
                   selectedColor: Colors.green.withValues(alpha: 0.2),
                   checkmarkColor: Colors.green,
                 ),
@@ -884,6 +1122,11 @@ class _ProblematicTransactionsScreenState
                             (tx) =>
                                 tx.statusSaatIni == _filter ||
                                 (_filter == 'gagal_kirim' &&
+                                    tx.jenisMasalah == 'gagal_kirim' &&
+                                    tx.statusSaatIni != 'kasus_selesai' &&
+                                    tx.statusSaatIni != 'diterima') ||
+                                (_filter == 'kasus_selesai' &&
+                                    tx.statusSaatIni == 'diterima' &&
                                     tx.jenisMasalah == 'gagal_kirim'),
                           )
                           .toList();
@@ -951,8 +1194,7 @@ class _ProblematicTransactionsScreenState
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      StatusBadge(status: tx.statusSaatIni),
-                      if (tx.jenisMasalah == 'gagal_kirim') ...[
+                      if (tx.jenisMasalah == 'gagal_kirim' && !resolved) ...[
                         const SizedBox(width: 4),
                         PopupMenuButton<String>(
                           tooltip: 'Cetak',
@@ -964,18 +1206,7 @@ class _ProblematicTransactionsScreenState
                           ),
                           onSelected: (value) {
                             if (value == 'asli') {
-                              final user = ref.read(authProvider).user;
-                              LabelPrinter.printBarcodeLabel(
-                                data: tx.noResi,
-                                pengirim: tx.pengirim,
-                                penerima: tx.penerima,
-                                paket: tx.paket,
-                                createdAt: tx.createdAt,
-                                asal:
-                                    tx.createdBy['cabang_name']?.toString() ??
-                                    '',
-                                dicetakOleh: user?.lokasi?['name']?.toString(),
-                              );
+                              _cetakAsli(tx);
                             } else {
                               _cetakRetur(tx);
                             }
@@ -1051,7 +1282,32 @@ class _ProblematicTransactionsScreenState
                           ),
                         ),
                       ],
-                      if (_isSuperAdmin && tx.jenisMasalah == 'hilang') ...[
+                      if ((_isSuperAdmin || _isAdminCabangPelapor(tx)) && tx.jenisMasalah == 'gagal_kirim' && !resolved) ...[
+                        const SizedBox(width: 4),
+                        Tooltip(
+                          message: 'Anulir Gagal Kirim',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _batalkanGagalKirim(tx),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.flip_to_back_rounded,
+                                  size: 18,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      if ((_isSuperAdmin || _isAdminCabangPelapor(tx)) && tx.jenisMasalah == 'hilang') ...[
                         const SizedBox(width: 4),
                         Tooltip(
                           message: 'Barang Ditemukan',
@@ -1076,6 +1332,33 @@ class _ProblematicTransactionsScreenState
                           ),
                         ),
                       ],
+                      if (_isSuperAdmin && tx.statusSaatIni == 'kasus_selesai') ...[
+                        const SizedBox(width: 4),
+                        Tooltip(
+                          message: 'Batalkan Kasus Selesai',
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () => _batalkanKasusSelesai(tx),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.withValues(alpha: 0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.undo_rounded,
+                                  size: 18,
+                                  color: Colors.purple,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      StatusBadge(status: tx.statusSaatIni),
                     ],
                   ),
                 ],
@@ -1141,7 +1424,7 @@ class _ProblematicTransactionsScreenState
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Catatan: ${tx.catatanMasalah}',
+                    '${tx.jenisMasalah == 'hilang' ? 'Catatan Kehilangan' : 'Catatan Gagal Kirim'}: ${tx.catatanMasalah}',
                     style: TextStyle(
                       fontSize: 12,
                       color: resolved
@@ -1197,12 +1480,16 @@ class _ProblematicTransactionsScreenState
                       color: Colors.green,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      'Diselesaikan oleh ${tx.diselesaikanOleh!['name']} pada ${tx.diselesaikanPada != null ? dateFmt.format(tx.diselesaikanPada!.toLocal()) : '-'}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.green,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        'Diselesaikan oleh ${tx.diselesaikanOleh!['name']} pada ${tx.diselesaikanPada != null ? dateFmt.format(tx.diselesaikanPada!.toLocal()) : '-'}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -1461,7 +1748,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
         children: [
           Builder(
             builder: (context) {
-              final perRow = MediaQuery.of(context).size.width > 380 ? 6 : 3;
+              const perRow = 3;
               final rows = <List<int>>[];
               for (var i = 0; i < 12; i += perRow) {
                 rows.add(List.generate(
@@ -1479,24 +1766,25 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                       children: rowIndices.map((i) {
                         final m = i + 1;
                         final selected = _month == m;
-                        return GestureDetector(
-                          onTap: () => setState(() => _month = m),
-                          child: Container(
-                            width: 68,
-                            margin: const EdgeInsets.all(3),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            decoration: BoxDecoration(
-                              color: selected ? AppTheme.primary : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: Text(
-                              _months[i],
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: selected ? Colors.white : const Color(0xFF475569),
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _month = m),
+                            child: Container(
+                              margin: const EdgeInsets.all(3),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selected ? AppTheme.primary : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                _months[i],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected ? Colors.white : const Color(0xFF475569),
+                                ),
                               ),
                             ),
                           ),

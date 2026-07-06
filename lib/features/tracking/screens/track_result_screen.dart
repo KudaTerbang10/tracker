@@ -156,14 +156,47 @@ class _TrackDetail extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Nomor Resi Pengiriman',
+                        'Nomor Resi',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF64748B),
                         ),
                       ),
-                      StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (tx.jenisPembayaran == 'cod' || tx.jenisPembayaran == 'tempo') ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: tx.jenisPembayaran == 'cod'
+                                    ? const Color(0xFFFFF8E1)
+                                    : const Color(0xFFE8F5E9),
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                  color: tx.jenisPembayaran == 'cod'
+                                      ? const Color(0xFFFFE082)
+                                      : const Color(0xFFA5D6A7),
+                                ),
+                              ),
+                              child: Text(
+                                tx.jenisPembayaran == 'cod' ? 'COD' : 'Tempo',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: tx.jenisPembayaran == 'cod'
+                                      ? const Color(0xFFF57F17)
+                                      : const Color(0xFF2E7D32),
+                                  height: 1.1,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          StatusBadge(status: tx.statusSaatIni, fontSize: 10),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -261,7 +294,7 @@ class _TrackDetail extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          TrackingMap(tx: tx),
+          if (tx.statusSaatIni != 'hilang' && tx.statusSaatIni != 'kasus_selesai') TrackingMap(tx: tx),
           if (tx.namaDriver != null && tx.tujuanSelanjutnya?['tipe'] != 'cabang') ...[
             const SizedBox(height: 12),
             Card(
@@ -352,50 +385,13 @@ class _TrackDetail extends StatelessWidget {
           if (tx.namaPenerimaAkhir != null &&
               tx.namaPenerimaAkhir!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Card(
-              color: Colors.white,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.check_circle_rounded,
-                        color: Color(0xFF10B981),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Diterima oleh',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          tx.namaPenerimaAkhir!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            _InfoCard(
+              title: 'Diterima oleh',
+              name: tx.namaPenerimaAkhir!,
+              phone: '',
+              address: '',
+              icon: Icons.check_circle_rounded,
+              accentColor: const Color(0xFF10B981),
             ),
           ],
           const SizedBox(height: 24),
@@ -432,6 +428,8 @@ class _TrackingMapState extends State<TrackingMap> {
   String _destName = '';
   bool _isDestCabang = false;
   bool _ready = false;
+  LatLng? _currentCabang;
+  String _currentCabangName = '';
 
   @override
   void initState() {
@@ -513,6 +511,23 @@ class _TrackingMapState extends State<TrackingMap> {
       if (_destName.isEmpty) _destName = tx.penerimaName;
     }
 
+    // Untuk gagal_kirim: cari posisi cabang terakhir tempat barang berada
+    if (tx.statusSaatIni == 'gagal_kirim') {
+      for (final log in tx.trackingLogs.reversed) {
+        if (log.lokasiName.isNotEmpty &&
+            (log.status == 'diterima_cabang' ||
+                log.status == 'keluar_cabang' ||
+                log.status == 'proses_kirim')) {
+          final c = CabangLokasiService.findByName(log.lokasiName);
+          if (c != null && c.latitude != null && c.longitude != null) {
+            _currentCabang = LatLng(c.latitude!, c.longitude!);
+            _currentCabangName = log.lokasiName;
+          }
+          break;
+        }
+      }
+    }
+
     setState(() => _ready = true);
   }
 
@@ -526,14 +541,78 @@ class _TrackingMapState extends State<TrackingMap> {
         ),
       );
     }
-    if (_origin == null) return const SizedBox.shrink();
+    if (_origin == null && _currentCabang == null) return const SizedBox.shrink();
 
     final isDiterima = widget.tx.statusSaatIni == 'diterima';
     final isDiterimaCabang = widget.tx.statusSaatIni == 'diterima_cabang';
-    final points = <LatLng>[if (!isDiterima) _origin!];
+    final isGagalKirim = widget.tx.statusSaatIni == 'gagal_kirim';
+    final points = <LatLng>[];
     final markers = <Marker>[];
 
-    if (!isDiterima) {
+    if (isGagalKirim && _currentCabang != null) {
+      points.add(_currentCabang!);
+      markers.add(
+        Marker(
+          point: _currentCabang!,
+          width: 160,
+          height: 90,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 160,
+                child: Text(
+                  'Cabang $_currentCabangName',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF97316),
+                    shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF97316),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.warehouse_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF97316),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'GAGAL KIRIM',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (_origin != null) {
+      points.add(_origin!);
       // Origin marker
       final cabangColor = isDiterimaCabang ? const Color(0xFFF97316) : const Color(0xFF2563EB);
       markers.add(
@@ -577,7 +656,7 @@ class _TrackingMapState extends State<TrackingMap> {
       );
     }
 
-    if (_dest != null && !isDiterimaCabang) {
+    if (_dest != null && !isDiterimaCabang && !isGagalKirim) {
       points.add(_dest!);
 
       // Status diterima: hanya marker hijau checklist
@@ -746,26 +825,29 @@ class _TrackingMapState extends State<TrackingMap> {
     }
 
     // Bounds
-    double? minLat, maxLat, minLng, maxLng;
-    for (final p in points) {
-      minLat = minLat == null
-          ? p.latitude
-          : (p.latitude < minLat ? p.latitude : minLat);
-      maxLat = maxLat == null
-          ? p.latitude
-          : (p.latitude > maxLat ? p.latitude : maxLat);
-      minLng = minLng == null
-          ? p.longitude
-          : (p.longitude < minLng ? p.longitude : minLng);
-      maxLng = maxLng == null
-          ? p.longitude
-          : (p.longitude > maxLng ? p.longitude : maxLng);
+    LatLngBounds? bounds;
+    if (points.isNotEmpty) {
+      double? minLat, maxLat, minLng, maxLng;
+      for (final p in points) {
+        minLat = minLat == null
+            ? p.latitude
+            : (p.latitude < minLat ? p.latitude : minLat);
+        maxLat = maxLat == null
+            ? p.latitude
+            : (p.latitude > maxLat ? p.latitude : maxLat);
+        minLng = minLng == null
+            ? p.longitude
+            : (p.longitude < minLng ? p.longitude : minLng);
+        maxLng = maxLng == null
+            ? p.longitude
+            : (p.longitude > maxLng ? p.longitude : maxLng);
+      }
+      final pad = 0.005;
+      bounds = LatLngBounds(
+        LatLng(minLat! - pad, minLng! - pad),
+        LatLng(maxLat! + pad, maxLng! + pad),
+      );
     }
-    final pad = 0.005;
-    final bounds = LatLngBounds(
-      LatLng(minLat! - pad, minLng! - pad),
-      LatLng(maxLat! + pad, maxLng! + pad),
-    );
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -784,11 +866,13 @@ class _TrackingMapState extends State<TrackingMap> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  isDiterimaCabang
-                      ? 'Paket di Cabang'
-                      : _isDestCabang
-                          ? 'Rute ke Cabang Tujuan'
-                          : 'Rute ke Penerima',
+                  isGagalKirim
+                      ? 'Posisi Pengiriman Gagal'
+                      : isDiterimaCabang
+                          ? 'Paket di Cabang'
+                          : _isDestCabang
+                              ? 'Rute ke Cabang Tujuan'
+                              : 'Rute ke Penerima',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -821,7 +905,7 @@ class _TrackingMapState extends State<TrackingMap> {
             height: 220,
             child: FlutterMap(
               options: MapOptions(
-                initialCameraFit: isDiterima || isDiterimaCabang
+                initialCameraFit: isDiterima || isDiterimaCabang || isGagalKirim || bounds == null
                     ? null
                     : CameraFit.bounds(
                         bounds: bounds,
@@ -831,8 +915,10 @@ class _TrackingMapState extends State<TrackingMap> {
                     ? _dest!
                     : isDiterimaCabang && _origin != null
                         ? _origin!
-                        : const LatLng(0, 0),
-                initialZoom: isDiterima || isDiterimaCabang ? 18 : 10,
+                        : isGagalKirim && _currentCabang != null
+                            ? _currentCabang!
+                            : const LatLng(0, 0),
+                initialZoom: isDiterima || isDiterimaCabang || isGagalKirim ? 18 : 10,
                 maxZoom: 18,
                 minZoom: 4,
                 interactionOptions: const InteractionOptions(
@@ -844,7 +930,7 @@ class _TrackingMapState extends State<TrackingMap> {
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.tracker',
                 ),
-                if (points.length > 1)
+                if (points.length > 1 && !isDiterima)
                   PolylineLayer(
                     polylines: [
                       Polyline<Object>(

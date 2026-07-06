@@ -789,6 +789,27 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                     ),
                   ],
                   const Spacer(),
+                  if (tx.jenisMasalah == 'gagal_kirim' &&
+                      (tx.statusSaatIni == 'diterima_cabang' ||
+                          tx.statusSaatIni == 'keluar_cabang'))
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: InkWell(
+                        onTap: () => _serahTerimaRetur(tx),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Icon(
+                            Icons.how_to_reg_rounded,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                    ),
                   ResiCopyButton(resi: tx.noResi),
                   if (!isDriver) ...[
                     const SizedBox(width: 8),
@@ -905,31 +926,15 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                 ],
               ),
               const SizedBox(height: 2),
-              // Third row: badges left, date right
+              Text(
+                dateFmt.format(toJakarta(tx.createdAt)),
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+              const SizedBox(height: 2),
+              // Third row: badges
               Row(
                 children: [
                   StatusBadge(status: tx.statusSaatIni),
-                  if (tx.jenisMasalah == 'gagal_kirim' &&
-                      (tx.statusSaatIni == 'diterima_cabang' ||
-                          tx.statusSaatIni == 'keluar_cabang'))
-                    Padding(
-                      padding: const EdgeInsets.only(left: 6),
-                      child: InkWell(
-                        onTap: () => _serahTerimaRetur(tx),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(
-                            Icons.how_to_reg_rounded,
-                            size: 16,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ),
-                    ),
                   if (tx.jenisMasalah == 'gagal_kirim') ...[
                     const SizedBox(width: 6),
                     Container(
@@ -968,11 +973,6 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                       ),
                     ),
                   ],
-                  const Spacer(),
-                  Text(
-                    dateFmt.format(toJakarta(tx.createdAt)),
-                    style: const TextStyle(color: Colors.grey, fontSize: 11),
-                  ),
                 ],
               ),
             ],
@@ -1088,6 +1088,50 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
   }
 
   Future<void> _serahTerimaRetur(Transaction tx) async {
+    if (tx.jenisPembayaran == 'cod' && tx.statusPembayaran == 'unpaid') {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          icon: const Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange,
+            size: 40,
+          ),
+          title: const Text('Pembayaran COD'),
+          content: const Text(
+            'Pembayaran COD transaksi ini belum dibayar, pastikan pembayaran sudah lunas!',
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  flex: 6,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
+                    child: const Text('Konfirmasi'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 4,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Batal'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

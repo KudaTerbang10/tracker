@@ -323,7 +323,7 @@ class _PaymentManagementScreenState
           list: filteredCod,
           onRefresh: _loadCOD,
           onConfirm: _confirmPayment,
-          hint: 'No. Resi atau Nama Penerima',
+          hint: 'No. Resi | Nama Penerima',
           emptyText: 'Tidak ada transaksi COD yang belum lunas',
           isCOD: true,
           driverFilterId: _codDriverId,
@@ -406,10 +406,7 @@ class _PaymentManagementScreenState
                         );
                         if (result != null && mounted) {
                           if (isCOD) {
-                            _setCodMonthYear(
-                              result['month']!,
-                              result['year']!,
-                            );
+                            _setCodMonthYear(result['month']!, result['year']!);
                           } else {
                             _setTempoMonthYear(
                               result['month']!,
@@ -418,10 +415,7 @@ class _PaymentManagementScreenState
                           }
                         }
                       },
-                      icon: const Icon(
-                        Icons.calendar_month_rounded,
-                        size: 18,
-                      ),
+                      icon: const Icon(Icons.calendar_month_rounded, size: 18),
                       label: Text(
                         _dateFmt.format(DateTime(year, month)),
                         style: const TextStyle(fontSize: 13),
@@ -479,17 +473,11 @@ class _PaymentManagementScreenState
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: hint,
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: Row(
+                    prefixIcon: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (search.isNotEmpty)
-                          GestureDetector(
-                            onTap: () => onSearchChanged(''),
-                            child: const Icon(Icons.clear, size: 20),
-                          ),
                         Container(
-                          margin: const EdgeInsets.only(right: 4),
+                          margin: const EdgeInsets.only(left: 4),
                           decoration: BoxDecoration(
                             color: AppTheme.primary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
@@ -513,6 +501,15 @@ class _PaymentManagementScreenState
                         ),
                       ],
                     ),
+                    suffixIcon: search.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () => onSearchChanged(''),
+                            child: const Padding(
+                              padding: EdgeInsets.only(right: 8),
+                              child: Icon(Icons.clear, size: 20),
+                            ),
+                          )
+                        : null,
                     suffixIconConstraints: const BoxConstraints(),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -715,20 +712,30 @@ class _PaymentManagementScreenState
                           children: [
                             if (tx.jenisMasalah == 'gagal_kirim') ...[
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.orange.withValues(alpha: 0.10),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
                                   'Retur',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFB45309),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 6),
                             ],
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: tx.statusPembayaran == 'paid'
                                     ? const Color(0xFFE8F5E9)
@@ -736,11 +743,15 @@ class _PaymentManagementScreenState
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                tx.statusPembayaran == 'paid' ? 'Lunas' : 'Belum Lunas',
+                                tx.statusPembayaran == 'paid'
+                                    ? 'Lunas'
+                                    : 'Belum Lunas',
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
-                                  color: tx.statusPembayaran == 'paid' ? const Color(0xFF2E7D32) : Colors.red,
+                                  color: tx.statusPembayaran == 'paid'
+                                      ? const Color(0xFF2E7D32)
+                                      : Colors.red,
                                 ),
                               ),
                             ),
@@ -748,7 +759,10 @@ class _PaymentManagementScreenState
                         )
                       else
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: tx.statusPembayaran == 'paid'
                                 ? const Color(0xFFE8F5E9)
@@ -756,11 +770,15 @@ class _PaymentManagementScreenState
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            tx.statusPembayaran == 'paid' ? 'Lunas' : 'Belum Lunas',
+                            tx.statusPembayaran == 'paid'
+                                ? 'Lunas'
+                                : 'Belum Lunas',
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
-                              color: tx.statusPembayaran == 'paid' ? const Color(0xFF2E7D32) : Colors.red,
+                              color: tx.statusPembayaran == 'paid'
+                                  ? const Color(0xFF2E7D32)
+                                  : Colors.red,
                             ),
                           ),
                         ),
@@ -783,14 +801,21 @@ class _PaymentManagementScreenState
                       ),
                       if (isCOD)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF8E1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
                             'COD',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFF57F17)),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFF57F17),
+                            ),
                           ),
                         )
                       else

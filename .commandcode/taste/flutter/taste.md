@@ -57,6 +57,9 @@
 
 - For print button icons in app bars: Use indigo color (e.g., `Colors.indigo` or `const Color(0xFF3F51B5)`) for the print action button. Confidence: 0.65
 
+# payment-management
+- For payment management card layout (3 rows): Row 1 — No. Resi (left), StatusBadge (far right). Row 2 — Nama Penerima (left), Retur badge (right, inline with penerima). Row 3 — Nominal COD (left, replacing alamat which is removed), COD/Tempo badge + Lunas/Belum badge (right). Alamat is hidden entirely from these cards. Confidence: 0.80
+
 # flutter-web
 - Avoid `LayoutBuilder` inside `AlertDialog` — it causes assertion failures on Flutter (both `_debugDuringDeviceUpdate` on web and "does not support returning intrinsic dimensions" via `performLayout()`). Use `Builder` + `MediaQuery.of(context).size.width` as the stable alternative. Confidence: 0.80
 

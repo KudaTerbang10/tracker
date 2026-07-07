@@ -8,7 +8,10 @@ import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/utils/payment_report_printer.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
+import '../../../shared/widgets/transaction_detail_sheet.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 class PaymentManagementScreen extends ConsumerStatefulWidget {
   const PaymentManagementScreen({super.key});
@@ -668,7 +671,18 @@ class _PaymentManagementScreenState
       margin: const EdgeInsets.only(bottom: 8),
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
+      child: InkWell(
+        onTap: () {
+          final user = ref.read(authProvider).user;
+          TransactionDetailSheet.show(
+            context,
+            tx: tx,
+            isAdminCabang: user?.isAdminCabang ?? false,
+            currentCabangId: user?.cabangId,
+          );
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,82 +720,7 @@ class _PaymentManagementScreenState
                           ),
                         ),
                       ),
-                      if (isCOD)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (tx.jenisMasalah == 'gagal_kirim') ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Retur',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFFB45309),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                            ],
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tx.statusPembayaran == 'paid'
-                                    ? const Color(0xFFE8F5E9)
-                                    : Colors.red.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                tx.statusPembayaran == 'paid'
-                                    ? 'Lunas'
-                                    : 'Belum Lunas',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: tx.statusPembayaran == 'paid'
-                                      ? const Color(0xFF2E7D32)
-                                      : Colors.red,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tx.statusPembayaran == 'paid'
-                                ? const Color(0xFFE8F5E9)
-                                : Colors.red.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            tx.statusPembayaran == 'paid'
-                                ? 'Lunas'
-                                : 'Belum Lunas',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: tx.statusPembayaran == 'paid'
-                                  ? const Color(0xFF2E7D32)
-                                  : Colors.red,
-                            ),
-                          ),
-                        ),
+                      StatusBadge(status: tx.statusSaatIni, fontSize: 10),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -799,27 +738,18 @@ class _PaymentManagementScreenState
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isCOD)
+                      if (isCOD && tx.jenisMasalah == 'gagal_kirim')
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E1),
-                            borderRadius: BorderRadius.circular(6),
+                            color: Colors.orange.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
-                            'COD',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFF57F17),
-                            ),
+                            'Retur',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
                           ),
-                        )
-                      else
-                        _tempoBadge(tx),
+                        ),
                     ],
                   ),
                   if (isCOD && tx.namaDriver != null) ...[
@@ -835,20 +765,58 @@ class _PaymentManagementScreenState
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          isCOD
-                              ? tx.penerimaAddress
-                              : '${tx.penerima['kota'] ?? ''}, ${tx.penerima['kecamatan'] ?? ''}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF94A3B8),
+                      if (isCOD) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          child: const Text(
+                            'COD',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFF57F17)),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: tx.statusPembayaran == 'paid'
+                                ? const Color(0xFFE8F5E9)
+                                : Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            tx.statusPembayaran == 'paid' ? 'Lunas' : 'Belum Lunas',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: tx.statusPembayaran == 'paid' ? const Color(0xFF2E7D32) : Colors.red,
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        _tempoBadge(tx),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: tx.statusPembayaran == 'paid'
+                                ? const Color(0xFFE8F5E9)
+                                : Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            tx.statusPembayaran == 'paid' ? 'Lunas' : 'Belum Lunas',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: tx.statusPembayaran == 'paid' ? const Color(0xFF2E7D32) : Colors.red,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
                       Text(
                         NumberFormat.currency(
                           locale: 'id_ID',
@@ -909,6 +877,7 @@ class _PaymentManagementScreenState
             ),
           ],
         ),
+      ),
       ),
     );
   }

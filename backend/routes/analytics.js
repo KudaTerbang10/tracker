@@ -2,6 +2,7 @@ const express = require('express');
 const Transaction = require('../models/Transaction');
 const Manifest = require('../models/Manifest');
 const User = require('../models/User');
+const Cabang = require('../models/Cabang');
 const auth = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 
@@ -90,6 +91,129 @@ router.get('/per-cabang', auth, rbac('super_admin'), async (req, res) => {
       { $project: { _id: 0, kode_gerai: '$_id', cabang_name: 1, total_resi: 1, total_biaya: 1 } },
       { $sort: { total_resi: -1 } },
     ]);
+
+    res.json({ data, month, year });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/wajib-setor', auth, rbac('super_admin'), async (req, res) => {
+  try {
+    const month = parseInt(req.query.month);
+    const year = parseInt(req.query.year);
+    if (!month || !year || month < 1 || month > 12)
+      return res.status(400).json({ message: 'month (1-12) and year required' });
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    // Cash dihitung berdasarkan createdAt (cash langsung paid saat dibuat,
+    // tidak punya pembayaran_dikonfirmasi_pada).
+    // COD & Tempo dihitung berdasarkan pembayaran_dikonfirmasi_pada
+    // (bulan uang benar-benar lunas/tertagih), agar selaras dengan waktu
+    // uang masuk ke cabang untuk disetor.
+
+    // Grup A: Cash (basis createdAt) -> cabang asal
+    const [cashAgg, asalAgg, lastMileAgg] = await Promise.all([
+      Transaction.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate, $lte: endDate },
+            jenis_masalah: { $ne: 'hilang' },
+            'created_by.cabang_id': { $exists: true, $ne: null },
+            jenis_pembayaran: 'cash',
+          },
+        },
+        {
+          $group: {
+            _id: '$created_by.cabang_id',
+            cash: { $sum: '$paket.biaya_kirim' },
+          },
+        },
+      ]),
+      // Grup B: Tempo + COD retur (basis pembayaran_dikonfirmasi_pada) -> cabang asal
+      Transaction.aggregate([
+        {
+          $match: {
+            pembayaran_dikonfirmasi_pada: { $gte: startDate, $lte: endDate },
+            jenis_masalah: { $ne: 'hilang' },
+            'created_by.cabang_id': { $exists: true, $ne: null },
+            jenis_pembayaran: { $in: ['cod', 'tempo'] },
+            status_pembayaran: 'paid',
+          },
+        },
+        {
+          $group: {
+            _id: '$created_by.cabang_id',
+            tempo: { $sum: { $cond: [{ $eq: ['$jenis_pembayaran', 'tempo'] }, '$paket.biaya_kirim', 0] } },
+            cod_retur: {
+              $sum: {
+                $cond: [
+                  { $and: [{ $eq: ['$jenis_pembayaran', 'cod'] }, { $eq: ['$jenis_masalah', 'gagal_kirim'] }] },
+                  '$paket.biaya_kirim',
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
+      // Grup C: COD sukses (basis pembayaran_dikonfirmasi_pada) -> cabang last mile
+      Transaction.aggregate([
+        {
+          $match: {
+            pembayaran_dikonfirmasi_pada: { $gte: startDate, $lte: endDate },
+            jenis_pembayaran: 'cod',
+            status_pembayaran: 'paid',
+            jenis_masalah: { $nin: ['hilang', 'gagal_kirim'] },
+            cod_cabang_id: { $exists: true, $ne: null },
+          },
+        },
+        {
+          $group: {
+            _id: '$cod_cabang_id',
+            cod_lastmile: { $sum: '$paket.biaya_kirim' },
+          },
+        },
+      ]),
+    ]);
+
+    // Gabungkan per cabang
+    const map = new Map();
+    const push = (id, patch) => {
+      const key = id?.toString();
+      if (!key) return;
+      const cur = map.get(key) || { cash: 0, tempo: 0, cod_retur: 0, cod_lastmile: 0 };
+      Object.assign(cur, patch);
+      map.set(key, cur);
+    };
+    for (const r of cashAgg) push(r._id, { cash: r.cash });
+    for (const r of asalAgg) push(r._id, { tempo: r.tempo, cod_retur: r.cod_retur });
+    for (const r of lastMileAgg) push(r._id, { cod_lastmile: r.cod_lastmile });
+
+    const cabangIds = [...map.keys()];
+    const cabangs = await Cabang.find({ _id: { $in: cabangIds } }, 'kode name').lean();
+    const cabangInfo = new Map(cabangs.map((c) => [c._id.toString(), c]));
+
+    const data = [...map.entries()]
+      .map(([id, v]) => {
+        const info = cabangInfo.get(id) || {};
+        const cod_total = v.cod_lastmile + v.cod_retur;
+        const total = v.cash + cod_total + v.tempo;
+        return {
+          cabang_id: id,
+          kode_cabang: info.kode || '',
+          nama_cabang: info.name || 'Cabang',
+          cash: v.cash,
+          cod_lastmile: v.cod_lastmile,
+          cod_retur: v.cod_retur,
+          cod_total,
+          tempo: v.tempo,
+          total,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
 
     res.json({ data, month, year });
   } catch (error) {

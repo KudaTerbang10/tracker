@@ -79,7 +79,7 @@ List<_DashboardMenuItem> _getMenuItemsForRole(
         ),
         _DashboardMenuItem(
           icon: Icons.payments_rounded,
-          label: 'Pembayaran Tempo',
+          label: 'Manajemen Pembayaran',
           onTap: () => context.go('/dashboard/pembayaran'),
           iconColor: const Color(0xFF2E7D32),
           pastelColor: const Color(0xFFE8F5E9),

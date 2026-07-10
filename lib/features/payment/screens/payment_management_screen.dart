@@ -10,6 +10,7 @@ import '../../../shared/utils/sound_player.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/transaction_detail_sheet.dart';
 import '../../../shared/widgets/status_badge.dart';
+import 'rekonsiliasi_setoran_tab.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/utils/datetime_utils.dart';
 
@@ -33,6 +34,8 @@ class _PaymentManagementScreenState
   int _codYear = DateTime.now().year;
   int _tempoMonth = DateTime.now().month;
   int _tempoYear = DateTime.now().year;
+  int _rekonsiliasiMonth = DateTime.now().month;
+  int _rekonsiliasiYear = DateTime.now().year;
   int _tabIndex = 0;
   final _dateFmt = DateFormat('MMMM yyyy', 'id_ID');
 
@@ -237,6 +240,8 @@ class _PaymentManagementScreenState
     final user = ref.watch(authProvider).user;
     final role = user?.role ?? '';
     final hasCOD = role == 'admin_cabang';
+    final isSuperAdmin = role == 'super_admin';
+    final showRekonsiliasi = isSuperAdmin;
 
     List<Transaction> filteredCod =
         _codList.where((t) {
@@ -285,6 +290,13 @@ class _PaymentManagementScreenState
 
     final tabs = <Widget>[];
     final tabViews = <Widget>[];
+
+    if (showRekonsiliasi) {
+      tabs.add(const Tab(text: 'Rekonsiliasi Setoran'));
+      tabViews.add(
+        RekonsiliasiSetoranTab(month: _rekonsiliasiMonth, year: _rekonsiliasiYear),
+      );
+    }
 
     if (hasCOD) {
       tabs.add(
@@ -391,9 +403,14 @@ class _PaymentManagementScreenState
           actions: [
             Builder(
               builder: (ctx) {
-                final isCOD = _tabIndex == 0 && hasCOD;
-                final month = isCOD ? _codMonth : _tempoMonth;
-                final year = isCOD ? _codYear : _tempoYear;
+                final isCOD = _tabIndex == (showRekonsiliasi ? 1 : 0) && hasCOD;
+                final isRekonsiliasi = showRekonsiliasi && _tabIndex == 0;
+                final month = isRekonsiliasi
+                    ? _rekonsiliasiMonth
+                    : (isCOD ? _codMonth : _tempoMonth);
+                final year = isRekonsiliasi
+                    ? _rekonsiliasiYear
+                    : (isCOD ? _codYear : _tempoYear);
                 final list = isCOD ? filteredCod : filteredTempo;
                 return Row(
                   mainAxisSize: MainAxisSize.min,
@@ -408,7 +425,12 @@ class _PaymentManagementScreenState
                           ),
                         );
                         if (result != null && mounted) {
-                          if (isCOD) {
+                          if (isRekonsiliasi) {
+                            setState(() {
+                              _rekonsiliasiMonth = result['month']!;
+                              _rekonsiliasiYear = result['year']!;
+                            });
+                          } else if (isCOD) {
                             _setCodMonthYear(result['month']!, result['year']!);
                           } else {
                             _setTempoMonthYear(
@@ -425,7 +447,7 @@ class _PaymentManagementScreenState
                       ),
                     ),
                     IconButton(
-                      onPressed: list.isEmpty
+                      onPressed: (isRekonsiliasi || list.isEmpty)
                           ? null
                           : () => _printReport(
                               list,
@@ -650,7 +672,7 @@ class _PaymentManagementScreenState
           ),
           const SizedBox(width: 4),
           Text(
-            lewat ? 'Tempo ${-sisaHari}h lalu' : '  Tempo $sisaHari hari lagi',
+            lewat ? '${-sisaHari}h lalu' : '$sisaHari hari lagi',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,

@@ -59,6 +59,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
   int _superAdminTotalPages = 1;
   bool _superAdminLoadingMore = false;
   final _superAdminScrollC = ScrollController();
+  int _superAdminMonth = DateTime.now().month;
+  int _superAdminYear = DateTime.now().year;
 
   static const _statusFilters = [
     '',
@@ -212,6 +214,8 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
             page: _superAdminPage,
             status: _selectedStatus.isEmpty ? null : _selectedStatus,
             search: _searchQuery.isEmpty ? null : _searchQuery,
+            startDate: DateTime(_superAdminYear, _superAdminMonth, 1),
+            endDate: DateTime(_superAdminYear, _superAdminMonth + 1, 0, 23, 59, 59, 999),
             limit: 20,
           );
       final list = result['data'] as List<Transaction>;
@@ -221,6 +225,25 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
     } finally {
       _superAdminLoadingMore = false;
       if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _pickSuperAdminMonthYear() async {
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (ctx) => _MonthYearPickerDialog(
+        initialMonth: _superAdminMonth,
+        initialYear: _superAdminYear,
+        label: 'Pilih Bulan & Tahun',
+        buttonLabel: 'Lihat',
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _superAdminMonth = result['month']!;
+        _superAdminYear = result['year']!;
+        _resetSuperAdmin();
+      });
     }
   }
 
@@ -290,7 +313,16 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
           onPressed: () => context.pop(),
         ),
         actions: [
-          if (!isAdminCabang)
+          if (!isAdminCabang) ...[
+            TextButton.icon(
+              onPressed: _pickSuperAdminMonthYear,
+              icon: const Icon(Icons.calendar_month_outlined, size: 18),
+              label: Text(
+                DateFormat('MMMM yyyy', 'id_ID')
+                    .format(DateTime(_superAdminYear, _superAdminMonth)),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.print_rounded, color: Colors.indigo),
               tooltip: 'Cetak Laporan',
@@ -330,6 +362,7 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                 ),
               ],
             ),
+          ],
         ],
         bottom: isAdminCabang
             ? TabBar(
@@ -1346,11 +1379,13 @@ class _MonthYearPickerDialog extends StatefulWidget {
   final int initialMonth;
   final int initialYear;
   final String label;
+  final String buttonLabel;
 
   const _MonthYearPickerDialog({
     required this.initialMonth,
     required this.initialYear,
-    this.label = 'Cetak Laporan',
+    this.label = 'Pilih Bulan & Tahun',
+    this.buttonLabel = 'Cetak',
   });
 
   @override
@@ -1362,18 +1397,8 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
   late int _year;
 
   static const _months = [
-    'Januari',
-    'Februari',
-    'Maret',
-    'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
-    'September',
-    'Oktober',
-    'November',
-    'Desember',
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
   ];
 
   @override
@@ -1391,48 +1416,118 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
     return AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
-      title: Text(widget.label),
+      title: Text(
+        widget.label,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropdownButtonFormField<int>(
-            initialValue: _month,
-            decoration: const InputDecoration(
-              labelText: 'Bulan',
-              border: OutlineInputBorder(),
-            ),
-            items: List.generate(12, (i) {
-              return DropdownMenuItem(value: i + 1, child: Text(_months[i]));
-            }),
-            onChanged: (v) {
-              if (v != null) setState(() => _month = v);
+          Builder(
+            builder: (context) {
+              const perRow = 3;
+              final rows = <List<int>>[];
+              for (var i = 0; i < 12; i += perRow) {
+                rows.add(List.generate(
+                  (i + perRow > 12 ? 12 - i : perRow),
+                  (j) => i + j,
+                ));
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: rows.map((rowIndices) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: rowIndices.map((i) {
+                        final m = i + 1;
+                        final selected = _month == m;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _month = m),
+                            child: Container(
+                              margin: const EdgeInsets.all(3),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selected ? AppTheme.primary : Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                _months[i],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: selected ? Colors.white : const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                }).toList(),
+              );
             },
           ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<int>(
-            initialValue: _year,
-            decoration: const InputDecoration(
-              labelText: 'Tahun',
-              border: OutlineInputBorder(),
-            ),
-            items: years.map((y) {
-              return DropdownMenuItem(value: y, child: Text(y.toString()));
-            }).toList(),
-            onChanged: (v) {
-              if (v != null) setState(() => _year = v);
-            },
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: years.contains(_year - 1)
+                    ? () => setState(() => _year--)
+                    : null,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$_year',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: years.contains(_year + 1)
+                    ? () => setState(() => _year++)
+                    : null,
+              ),
+            ],
           ),
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Batal'),
-        ),
-        FilledButton(
-          onPressed: () =>
-              Navigator.of(context).pop({'month': _month, 'year': _year}),
-          child: const Text('Cetak'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Batal'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop({'month': _month, 'year': _year}),
+                child: Text(widget.buttonLabel),
+              ),
+            ),
+          ],
         ),
       ],
     );

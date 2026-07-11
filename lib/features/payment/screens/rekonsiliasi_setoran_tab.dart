@@ -332,7 +332,7 @@ class _Legend extends StatelessWidget {
         const SizedBox(width: 14),
         _LegendItem(color: _colorCod, label: 'COD (Last Mile + Retur)'),
         const SizedBox(width: 14),
-        _LegendItem(color: _colorTempo, label: 'Tempo'),
+        _LegendItem(color: _colorTempo, label: 'Tempo (Lunas)'),
       ],
     );
   }

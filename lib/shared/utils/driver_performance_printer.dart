@@ -4,14 +4,22 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class DriverPerformancePrinter {
+  static pw.Font? _cachedHiraFont;
+
+  static Future<pw.Font> _getHiraFont() async {
+    if (_cachedHiraFont != null) return _cachedHiraFont!;
+    final data = await rootBundle.load('assets/pics/hiralogo.ttf');
+    _cachedHiraFont = pw.Font.ttf(data);
+    return _cachedHiraFont!;
+  }
+
   static Future<void> printReport({
     required int month,
     required int year,
     required List<Map<String, dynamic>> data,
     required String type,
   }) async {
-    final logoData = await rootBundle.load('assets/pics/hiralogo.webp');
-    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+    final hiraFont = await _getHiraFont();
 
     final doc = pw.Document();
     final months = [
@@ -30,9 +38,9 @@ class DriverPerformancePrinter {
         build: (pw.Context context) {
           return pw.Column(
             children: [
-              _buildHeader(logoImage, title, monthName, year),
+              _buildHeader(hiraFont, title, monthName, year),
               pw.SizedBox(height: 16),
-              _buildTable(data),
+              _buildTable(data, type),
               pw.SizedBox(height: 12),
               _buildFooter(),
             ],
@@ -46,13 +54,20 @@ class DriverPerformancePrinter {
     );
   }
 
-  static pw.Widget _buildHeader(pw.ImageProvider logo, String title, String monthName, int year) {
+  static pw.Widget _buildHeader(pw.Font hiraFont, String title, String monthName, int year) {
     return pw.Column(
       children: [
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Image(logo, height: 50),
+            pw.Text(
+              String.fromCharCode(0xe000),
+              style: pw.TextStyle(
+                font: hiraFont,
+                fontSize: 40,
+                color: PdfColors.red700,
+              ),
+            ),
             pw.SizedBox(width: 12),
             pw.Expanded(
               child: pw.Column(
@@ -90,10 +105,12 @@ class DriverPerformancePrinter {
     );
   }
 
-  static pw.Widget _buildTable(List<Map<String, dynamic>> data) {
+  static pw.Widget _buildTable(List<Map<String, dynamic>> data, String type) {
     final totalManifest = data.fold<int>(0, (s, r) => s + ((r['total_manifest'] as num?)?.toInt() ?? 0));
     final totalWorkUnit = data.fold<int>(0, (s, r) => s + ((r['total_work_unit'] as num?)?.toInt() ?? 0));
     final totalResi = data.fold<int>(0, (s, r) => s + ((r['total_resi'] as num?)?.toInt() ?? 0));
+
+    final isAntarCabang = type == 'antar_cabang';
 
     final rows = <pw.TableRow>[
       pw.TableRow(
@@ -102,8 +119,8 @@ class DriverPerformancePrinter {
           _headerCell('No', 0.35),
           _headerCell('Nama Driver', 1.5),
           _headerCell('Total Manifest', 0.9, align: pw.TextAlign.right),
-          _headerCell('Total Work Unit', 0.9, align: pw.TextAlign.right),
-          _headerCell('Total Resi', 0.9, align: pw.TextAlign.right),
+          _headerCell('Total Work Unit', 0.9, align: pw.TextAlign.right, backgroundColor: isAntarCabang ? PdfColors.green700 : null),
+          _headerCell('Total Resi', 0.9, align: pw.TextAlign.right, backgroundColor: !isAntarCabang ? PdfColors.green700 : null),
         ],
       ),
     ];
@@ -175,8 +192,9 @@ class DriverPerformancePrinter {
     );
   }
 
-  static pw.Widget _headerCell(String text, double flex, {pw.TextAlign align = pw.TextAlign.center}) {
+  static pw.Widget _headerCell(String text, double flex, {pw.TextAlign align = pw.TextAlign.center, PdfColor? backgroundColor}) {
     return pw.Container(
+      color: backgroundColor,
       padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: pw.Text(text, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white), textAlign: align),
     );

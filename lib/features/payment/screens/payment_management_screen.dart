@@ -158,6 +158,57 @@ class _PaymentManagementScreenState
     );
   }
 
+  Future<void> _printRekonsiliasiReport({
+    required int month,
+    required int year,
+  }) async {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final repo = ref.read(transactionRepositoryProvider);
+      final list = await repo.getWajibSetor(month: month, year: year);
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (list.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak ada data wajib setor untuk periode ini'),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      await PaymentReportPrinter.printRekonsiliasiReport(
+        month: month,
+        year: year,
+        data: list,
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengambil data setoran: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _confirmPayment(Transaction tx) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -281,10 +332,11 @@ class _PaymentManagementScreenState
           }
           return true;
         }).toList()..sort((a, b) {
-          if (a.statusPembayaran == 'unpaid' && b.statusPembayaran != 'unpaid')
-            return -1;
-          if (a.statusPembayaran != 'unpaid' && b.statusPembayaran == 'unpaid')
-            return 1;
+          // Belum lunas selalu di atas, yang sudah lunas di bawah
+          final aPaid = a.statusPembayaran == 'paid';
+          final bPaid = b.statusPembayaran == 'paid';
+          if (!aPaid && bPaid) return -1;
+          if (aPaid && !bPaid) return 1;
           return 0;
         });
 
@@ -447,16 +499,21 @@ class _PaymentManagementScreenState
                       ),
                     ),
                     IconButton(
-                      onPressed: (isRekonsiliasi || list.isEmpty)
-                          ? null
-                          : () => _printReport(
-                              list,
-                              isCOD,
-                              month: month,
-                              year: year,
-                            ),
+                      onPressed: isRekonsiliasi
+                          ? () => _printRekonsiliasiReport(
+                                month: month,
+                                year: year,
+                              )
+                          : (list.isEmpty
+                              ? null
+                              : () => _printReport(
+                                    list,
+                                    isCOD,
+                                    month: month,
+                                    year: year,
+                                  )),
                       icon: const Icon(Icons.print_rounded, size: 20),
-                      color: list.isEmpty ? null : AppTheme.primary,
+                      color: (isRekonsiliasi || list.isNotEmpty) ? AppTheme.primary : null,
                       tooltip: 'Cetak Laporan',
                     ),
                   ],
@@ -864,36 +921,38 @@ class _PaymentManagementScreenState
                     ),
                   ],
                   const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 36,
-                    child: ElevatedButton.icon(
-                      onPressed: tx.statusPembayaran == 'paid'
-                          ? null
-                          : () => onConfirm(tx),
-                      icon: Icon(
-                        tx.statusPembayaran == 'paid'
-                            ? Icons.check_circle
-                            : Icons.check_circle_outline,
-                        size: 16,
-                      ),
-                      label: Text(
-                        tx.statusPembayaran == 'paid'
-                            ? 'Sudah Lunas'
-                            : 'Konfirmasi Lunas',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: tx.statusPembayaran == 'paid'
-                            ? const Color(0xFF94A3B8)
-                            : Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  // Tombol Konfirmasi Lunas: pada tab Tempo hanya untuk admin_cabang
+                  if (isCOD || ref.read(authProvider).user?.role == 'admin_cabang')
+                    SizedBox(
+                      width: double.infinity,
+                      height: 36,
+                      child: ElevatedButton.icon(
+                        onPressed: tx.statusPembayaran == 'paid'
+                            ? null
+                            : () => onConfirm(tx),
+                        icon: Icon(
+                          tx.statusPembayaran == 'paid'
+                              ? Icons.check_circle
+                              : Icons.check_circle_outline,
+                          size: 16,
+                        ),
+                        label: Text(
+                          tx.statusPembayaran == 'paid'
+                              ? 'Sudah Lunas'
+                              : 'Konfirmasi Lunas',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: tx.statusPembayaran == 'paid'
+                              ? const Color(0xFF94A3B8)
+                              : Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

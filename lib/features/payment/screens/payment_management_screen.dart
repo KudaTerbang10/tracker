@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/transaction.dart';
 import '../../../data/repositories/transaction_repository.dart';
+import '../../../shared/utils/label_printer.dart';
+import '../../../shared/utils/invoice_printer.dart';
 import '../../../shared/utils/payment_report_printer.dart';
 import '../../../shared/utils/sound_player.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
@@ -166,9 +168,7 @@ class _PaymentManagementScreenState
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -204,6 +204,76 @@ class _PaymentManagementScreenState
             content: Text('Gagal mengambil data setoran: $e'),
             backgroundColor: AppTheme.error,
           ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cetakAsli(Transaction tx) async {
+    try {
+      final user = ref.read(authProvider).user;
+      final asal =
+          tx.createdBy['cabang_name']?.toString() ??
+          tx.createdBy['konter_name']?.toString() ??
+          tx.createdBy['gudang_name']?.toString();
+      await LabelPrinter.printBarcodeLabel(
+        data: tx.noResi,
+        pengirim: tx.pengirim,
+        penerima: tx.penerima,
+        paket: tx.paket,
+        createdAt: tx.createdAt,
+        asal: asal,
+        dicetakOleh: user?.lokasi?['name']?.toString(),
+        isCOD: tx.jenisPembayaran == 'cod',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal cetak resi: $e')));
+      }
+    }
+  }
+
+  Future<void> _cetakRetur(Transaction tx) async {
+    try {
+      final user = ref.read(authProvider).user;
+      final cabangRetur = {
+        'name': user?.lokasi?['name']?.toString() ?? 'Cabang',
+        'phone': user?.lokasi?['phone']?.toString() ?? '',
+        'address': '',
+      };
+      final asalCabang = tx.createdBy['cabang_name']?.toString() ?? '';
+      await LabelPrinter.printReturLabel(
+        data: tx.noResi,
+        penerima: tx.pengirim,
+        pengirim: cabangRetur,
+        paket: tx.paket,
+        createdAt: tx.createdAt,
+        dicetakOleh: user?.lokasi?['name']?.toString(),
+        asalCabang: asalCabang,
+        isCOD: tx.jenisPembayaran == 'cod',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal cetak retur: $e')));
+      }
+    }
+  }
+
+  Future<void> _cetakTagihan(Transaction tx) async {
+    try {
+      final user = ref.read(authProvider).user;
+      await InvoicePrinter.printInvoice(
+        tx,
+        dicetakOleh: user?.name,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal cetak tagihan: $e')),
         );
       }
     }
@@ -346,7 +416,10 @@ class _PaymentManagementScreenState
     if (showRekonsiliasi) {
       tabs.add(const Tab(text: 'Rekonsiliasi Setoran'));
       tabViews.add(
-        RekonsiliasiSetoranTab(month: _rekonsiliasiMonth, year: _rekonsiliasiYear),
+        RekonsiliasiSetoranTab(
+          month: _rekonsiliasiMonth,
+          year: _rekonsiliasiYear,
+        ),
       );
     }
 
@@ -501,19 +574,21 @@ class _PaymentManagementScreenState
                     IconButton(
                       onPressed: isRekonsiliasi
                           ? () => _printRekonsiliasiReport(
-                                month: month,
-                                year: year,
-                              )
+                              month: month,
+                              year: year,
+                            )
                           : (list.isEmpty
-                              ? null
-                              : () => _printReport(
+                                ? null
+                                : () => _printReport(
                                     list,
                                     isCOD,
                                     month: month,
                                     year: year,
                                   )),
                       icon: const Icon(Icons.print_rounded, size: 20),
-                      color: (isRekonsiliasi || list.isNotEmpty) ? AppTheme.primary : null,
+                      color: (isRekonsiliasi || list.isNotEmpty)
+                          ? AppTheme.primary
+                          : null,
                       tooltip: 'Cetak Laporan',
                     ),
                   ],
@@ -707,6 +782,37 @@ class _PaymentManagementScreenState
   }
 
   Widget _tempoBadge(Transaction tx) {
+    if (tx.statusPembayaran == 'paid') {
+      final tanggal = tx.pembayaranDikonfirmasiPada;
+      final fmt = DateFormat('d MMM yyyy', 'id_ID');
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.check_circle_rounded,
+              size: 12,
+              color: Color(0xFF2E7D32),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              tanggal != null ? '${fmt.format(tanggal)}' : 'Lunas',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2E7D32),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final jatuhTempo = tx.createdAt.add(Duration(days: tx.tempoHari));
     final now = DateTime.now();
     final sisaHari = jatuhTempo.difference(now).inDays;
@@ -746,6 +852,8 @@ class _PaymentManagementScreenState
     bool isCOD,
     void Function(Transaction) onConfirm,
   ) {
+    final isAdminCabang =
+        ref.read(authProvider).user?.role == 'admin_cabang';
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: Colors.white,
@@ -758,150 +866,180 @@ class _PaymentManagementScreenState
             tx: tx,
             isAdminCabang: user?.isAdminCabang ?? false,
             currentCabangId: user?.cabangId,
+            onCetakAsli: () => _cetakAsli(tx),
+            onCetakRetur: () => _cetakRetur(tx),
           );
         },
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isCOD
-                    ? const Color(0xFFFFF8E1)
-                    : const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(8),
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isCOD
+                      ? const Color(0xFFFFF8E1)
+                      : const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.payments_rounded,
+                  color: isCOD
+                      ? const Color(0xFFF57F17)
+                      : const Color(0xFF2E7D32),
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                Icons.payments_rounded,
-                color: isCOD
-                    ? const Color(0xFFF57F17)
-                    : const Color(0xFF2E7D32),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          tx.noResi,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                      ),
-                      StatusBadge(status: tx.statusSaatIni, fontSize: 10),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          isCOD
-                              ? 'Penerima: ${tx.penerimaName}'
-                              : '${tx.pengirimName} → ${tx.penerimaName}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF475569),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (isCOD && tx.jenisMasalah == 'gagal_kirim')
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'Retur',
-                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
-                          ),
-                        ),
-                    ],
-                  ),
-                  if (isCOD && tx.namaDriver != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Driver: ${tx.namaDriver}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      if (isCOD) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'COD',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFF57F17)),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: tx.statusPembayaran == 'paid'
-                                ? const Color(0xFFE8F5E9)
-                                : Colors.red.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
                           child: Text(
-                            tx.statusPembayaran == 'paid' ? 'Lunas' : 'Belum Lunas',
-                            style: TextStyle(
-                              fontSize: 9,
+                            tx.noResi,
+                            style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: tx.statusPembayaran == 'paid' ? const Color(0xFF2E7D32) : Colors.red,
+                              fontSize: 13,
+                              color: Color(0xFF0F172A),
                             ),
                           ),
                         ),
-                      ] else ...[
-                        _tempoBadge(tx),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: tx.statusPembayaran == 'paid'
-                                ? const Color(0xFFE8F5E9)
-                                : Colors.red.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            tx.statusPembayaran == 'paid' ? 'Lunas' : 'Belum Lunas',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: tx.statusPembayaran == 'paid' ? const Color(0xFF2E7D32) : Colors.red,
-                            ),
-                          ),
-                        ),
+                        StatusBadge(status: tx.statusSaatIni, fontSize: 10),
                       ],
-                      const Spacer(),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            isCOD
+                                ? 'Penerima: ${tx.penerimaName}'
+                                : '${tx.pengirimName} → ${tx.penerimaName}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF475569),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCOD && tx.jenisMasalah == 'gagal_kirim')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Retur',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFB45309),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (isCOD && tx.namaDriver != null) ...[
+                      const SizedBox(height: 2),
                       Text(
-                        NumberFormat.currency(
-                          locale: 'id_ID',
-                          symbol: 'Rp ',
-                          decimalDigits: 0,
-                        ).format(tx.biayaKirim),
+                        'Driver: ${tx.namaDriver}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        if (isCOD) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF8E1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'COD',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFF57F17),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tx.statusPembayaran == 'paid'
+                                  ? const Color(0xFFE8F5E9)
+                                  : Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              tx.statusPembayaran == 'paid'
+                                  ? 'Lunas'
+                                  : 'Belum Lunas',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: tx.statusPembayaran == 'paid'
+                                    ? const Color(0xFF2E7D32)
+                                    : Colors.red,
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          _tempoBadge(tx),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tx.statusPembayaran == 'paid'
+                                  ? const Color(0xFFE8F5E9)
+                                  : Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              tx.statusPembayaran == 'paid'
+                                  ? 'Lunas'
+                                  : 'Belum Lunas',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: tx.statusPembayaran == 'paid'
+                                    ? const Color(0xFF2E7D32)
+                                    : Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Text(
+                          NumberFormat.currency(
+                            locale: 'id_ID',
+                            symbol: 'Rp ',
+                            decimalDigits: 0,
+                          ).format(tx.biayaKirim),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -911,54 +1049,120 @@ class _PaymentManagementScreenState
                     ],
                   ),
                   if (!isCOD && tx.createdBy['cabang_name'] != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Cabang asal: ${tx.createdBy['cabang_name']}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF94A3B8),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Cabang asal: ${tx.createdBy['cabang_name']}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94A3B8),
+                        ),
                       ),
+                    ],
+                    const SizedBox(height: 8),
+                    // Tombol Cetak Tagihan (kiri) + Konfirmasi Lunas (kanan)
+                    Row(
+                      children: [
+                        if (!isCOD) ...[
+                          if (isAdminCabang)
+                            Expanded(
+                              flex: 2,
+                              child: SizedBox(
+                                height: 36,
+                                child: OutlinedButton(
+                                  onPressed: () => _cetakTagihan(tx),
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFE8F5E9),
+                                    side: const BorderSide(
+                                      color: Color(0xFFA5D6A7),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  child: const Icon(
+                                    Icons.receipt_long_rounded,
+                                    size: 18,
+                                    color: Color(0xFF2E7D32),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Expanded(
+                              child: SizedBox(
+                                height: 36,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _cetakTagihan(tx),
+                                  icon: const Icon(
+                                    Icons.receipt_long_rounded,
+                                    size: 16,
+                                    color: Color(0xFF2E7D32),
+                                  ),
+                                  label: const Text(
+                                    'Cetak Tagihan',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFE8F5E9),
+                                    side: const BorderSide(
+                                      color: Color(0xFFA5D6A7),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (isCOD || isAdminCabang)
+                            const SizedBox(width: 8),
+                        ],
+                        if (isCOD || isAdminCabang)
+                          Expanded(
+                            flex: (!isCOD && isAdminCabang) ? 8 : 1,
+                            child: SizedBox(
+                              height: 36,
+                              child: ElevatedButton.icon(
+                                onPressed: tx.statusPembayaran == 'paid'
+                                    ? null
+                                    : () => onConfirm(tx),
+                                icon: Icon(
+                                  tx.statusPembayaran == 'paid'
+                                      ? Icons.check_circle
+                                      : Icons.check_circle_outline,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  tx.statusPembayaran == 'paid'
+                                      ? 'Sudah Lunas'
+                                      : 'Konfirmasi Lunas',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: tx.statusPembayaran == 'paid'
+                                      ? const Color(0xFF94A3B8)
+                                      : Colors.green,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  // Tombol Konfirmasi Lunas: pada tab Tempo hanya untuk admin_cabang
-                  if (isCOD || ref.read(authProvider).user?.role == 'admin_cabang')
-                    SizedBox(
-                      width: double.infinity,
-                      height: 36,
-                      child: ElevatedButton.icon(
-                        onPressed: tx.statusPembayaran == 'paid'
-                            ? null
-                            : () => onConfirm(tx),
-                        icon: Icon(
-                          tx.statusPembayaran == 'paid'
-                              ? Icons.check_circle
-                              : Icons.check_circle_outline,
-                          size: 16,
-                        ),
-                        label: Text(
-                          tx.statusPembayaran == 'paid'
-                              ? 'Sudah Lunas'
-                              : 'Konfirmasi Lunas',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: tx.statusPembayaran == 'paid'
-                              ? const Color(0xFF94A3B8)
-                              : Colors.green,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

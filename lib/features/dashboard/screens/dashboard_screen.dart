@@ -137,6 +137,13 @@ List<_DashboardMenuItem> _getMenuItemsForRole(
           pastelColor: const Color(0xFFFFF8E1),
         ),
         _DashboardMenuItem(
+          icon: Icons.bar_chart_rounded,
+          label: 'Omset Cabang',
+          onTap: () => context.go('/dashboard/omset-cabang'),
+          iconColor: const Color(0xFF0EA5E9),
+          pastelColor: const Color(0xFFE0F2FE),
+        ),
+        _DashboardMenuItem(
           icon: Icons.contacts_rounded,
           label: 'Daftar Kontak Cabang',
           onTap: () => context.go('/dashboard/cabang-kontak'),

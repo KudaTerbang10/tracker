@@ -98,7 +98,7 @@ router.get('/per-cabang', auth, rbac('super_admin'), async (req, res) => {
   }
 });
 
-router.get('/wajib-setor', auth, rbac('super_admin'), async (req, res) => {
+router.get('/wajib-setor', auth, rbac('super_admin', 'admin_cabang'), async (req, res) => {
   try {
     const month = parseInt(req.query.month);
     const year = parseInt(req.query.year);
@@ -215,7 +215,13 @@ router.get('/wajib-setor', auth, rbac('super_admin'), async (req, res) => {
       })
       .sort((a, b) => b.total - a.total);
 
-    res.json({ data, month, year });
+    // Admin cabang hanya boleh melihat omset cabangnya sendiri
+    const filteredData =
+      req.user.role === 'admin_cabang' && req.user.cabang_id
+        ? data.filter((d) => d.cabang_id === req.user.cabang_id.toString())
+        : data;
+
+    res.json({ data: filteredData, month, year });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

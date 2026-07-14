@@ -332,8 +332,16 @@ class _PaymentManagementScreenState
 
     try {
       final repo = ref.read(transactionRepositoryProvider);
-      await repo.confirmPayment(tx.id);
+      final updated = await repo.confirmPayment(tx.id);
       if (mounted) {
+        // Update item lokal tanpa reload penuh (limit:2000 x2).
+        void updateIn(List<Transaction> list) {
+          final i = list.indexWhere((t) => t.id == tx.id);
+          if (i != -1) list[i] = updated;
+        }
+        updateIn(_codList);
+        updateIn(_tempoList);
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Pembayaran ${tx.noResi} berhasil dikonfirmasi'),
@@ -341,8 +349,6 @@ class _PaymentManagementScreenState
           ),
         );
         SoundPlayer.instance.playSuccess();
-        _loadCOD();
-        _loadTempo();
       }
     } catch (e) {
       if (mounted) {

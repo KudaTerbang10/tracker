@@ -33,18 +33,17 @@ class _ProblematicTransactionsScreenState
   int _selectedYear = DateTime.now().year;
   final _dateFmt = DateFormat('MMMM yyyy', 'id_ID');
   List<Transaction>? _cachedBermasalah;
+  late Future<List<Transaction>> _bermasalahFuture;
 
   @override
   void initState() {
     super.initState();
-    _preload();
+    _bermasalahFuture = _loadBermasalah();
   }
 
-  Future<void> _preload() async {
-    final data = await _loadBermasalah();
-    if (mounted) {
-      setState(() => _cachedBermasalah = data);
-    }
+  void _refreshBermasalah() {
+    _bermasalahFuture = _loadBermasalah();
+    setState(() {});
   }
 
   @override
@@ -151,7 +150,7 @@ class _ProblematicTransactionsScreenState
 
     try {
       await ref.read(transactionRepositoryProvider).tandaiSelesai(tx.id);
-      setState(() {});
+      _refreshBermasalah();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${tx.noResi} telah ditandai selesai')),
@@ -356,7 +355,7 @@ class _ProblematicTransactionsScreenState
       final api = ApiService();
       await api.post('${ApiConstants.transactions}/${tx.id}/batalkan-kasus-selesai');
       SoundPlayer.instance.playSuccess();
-      setState(() {});
+      _refreshBermasalah();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -949,6 +948,7 @@ class _ProblematicTransactionsScreenState
                   _selectedMonth = result['month']!;
                   _selectedYear = result['year']!;
                 });
+                _refreshBermasalah();
               }
             },
             icon: const Icon(Icons.calendar_month_rounded, size: 18),
@@ -1106,7 +1106,7 @@ class _ProblematicTransactionsScreenState
           // List
           Expanded(
             child: FutureBuilder<List<Transaction>>(
-              future: _loadBermasalah(),
+              future: _bermasalahFuture,
               builder: (_, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

@@ -14,7 +14,6 @@ import '../../../shared/widgets/transaction_detail_sheet.dart';
 import '../../../shared/widgets/status_badge.dart';
 import 'rekonsiliasi_setoran_tab.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../core/utils/datetime_utils.dart';
 
 class PaymentManagementScreen extends ConsumerStatefulWidget {
   const PaymentManagementScreen({super.key});
@@ -48,17 +47,26 @@ class _PaymentManagementScreenState
     _loadTempo();
   }
 
-  List<Map<String, String>> get _codDrivers {
-    final seen = <String>{};
-    final result = <Map<String, String>>[];
+  List<Map<String, dynamic>> get _codDrivers {
+    final seen = <String, Map<String, dynamic>>{};
     for (final t in _codList) {
-      if (t.driverUserId != null &&
-          t.namaDriver != null &&
-          seen.add(t.driverUserId!)) {
-        result.add({'id': t.driverUserId!, 'name': t.namaDriver!});
+      if (t.driverUserId == null || t.namaDriver == null) continue;
+      final d = seen.putIfAbsent(
+        t.driverUserId!,
+        () => {
+          'id': t.driverUserId!,
+          'name': t.namaDriver!,
+          'unpaidTotal': 0.0,
+          'unpaidCount': 0,
+        },
+      );
+      if (t.statusPembayaran == 'unpaid') {
+        d['unpaidTotal'] = (d['unpaidTotal'] as double) + t.biayaKirim;
+        d['unpaidCount'] = (d['unpaidCount'] as int) + 1;
       }
     }
-    result.sort((a, b) => a['name']!.compareTo(b['name']!));
+    final result = seen.values.toList();
+    result.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
     return result;
   }
 
@@ -334,7 +342,6 @@ class _PaymentManagementScreenState
       final repo = ref.read(transactionRepositoryProvider);
       final updated = await repo.confirmPayment(tx.id);
       if (mounted) {
-        // Update item lokal tanpa reload penuh (limit:2000 x2).
         void updateIn(List<Transaction> list) {
           final i = list.indexWhere((t) => t.id == tx.id);
           if (i != -1) list[i] = updated;
@@ -362,6 +369,103 @@ class _PaymentManagementScreenState
     }
   }
 
+  Future<void> _confirmBulkDriver(String driverId) async {
+    final targets = _codList
+        .where(
+          (t) =>
+              t.driverUserId == driverId &&
+              t.statusPembayaran == 'unpaid',
+        )
+        .toList();
+    if (targets.isEmpty) return;
+
+    final total = targets.fold(0.0, (s, t) => s + t.biayaKirim);
+    final driverName = targets.first.namaDriver ?? 'Driver';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Konfirmasi Lunas Massal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Konfirmasi lunas untuk driver $driverName?'),
+            const SizedBox(height: 8),
+            Text(
+              '${targets.length} transaksi \u00b7 ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(total)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ],
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Batal'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 3,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Konfirmasi'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final repo = ref.read(transactionRepositoryProvider);
+      final ids = targets.map((t) => t.id).toList();
+      final res = await repo.confirmPaymentMassal(ids);
+      final updated = (res['data'] as List<dynamic>?)
+              ?.map(
+                (e) => Transaction.fromJson(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
+              .toList() ??
+          [];
+      if (mounted) {
+        setState(() {
+          for (final u in updated) {
+            final i = _codList.indexWhere((t) => t.id == u.id);
+            if (i != -1) _codList[i] = u;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['message']?.toString() ?? 'Berhasil dikonfirmasi'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        SoundPlayer.instance.playSuccess();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal mengkonfirmasi pembayaran'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
@@ -369,6 +473,9 @@ class _PaymentManagementScreenState
     final hasCOD = role == 'admin_cabang';
     final isSuperAdmin = role == 'super_admin';
     final showRekonsiliasi = isSuperAdmin;
+
+    final tempoUnpaid =
+        _tempoList.where((t) => t.statusPembayaran == 'unpaid').length;
 
     List<Transaction> filteredCod =
         _codList.where((t) {
@@ -408,7 +515,6 @@ class _PaymentManagementScreenState
           }
           return true;
         }).toList()..sort((a, b) {
-          // Belum lunas selalu di atas, yang sudah lunas di bawah
           final aPaid = a.statusPembayaran == 'paid';
           final bPaid = b.statusPembayaran == 'paid';
           if (!aPaid && bPaid) return -1;
@@ -430,13 +536,14 @@ class _PaymentManagementScreenState
     }
 
     if (hasCOD) {
+      final codUnpaid = _codList.where((t) => t.statusPembayaran == 'unpaid').length;
       tabs.add(
         Tab(
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('COD'),
-              if (_codList.isNotEmpty) ...[
+              if (codUnpaid > 0) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -448,7 +555,7 @@ class _PaymentManagementScreenState
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    '${_codList.length}',
+                    '$codUnpaid',
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -485,7 +592,7 @@ class _PaymentManagementScreenState
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('Tempo'),
-            if (_tempoList.isNotEmpty) ...[
+            if (tempoUnpaid > 0) ...[
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -494,7 +601,7 @@ class _PaymentManagementScreenState
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '${_tempoList.length}',
+                  '$tempoUnpaid',
                   style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -624,166 +731,267 @@ class _PaymentManagementScreenState
     required bool isCOD,
     String? driverFilterId,
     ValueChanged<String?>? onDriverFilterChanged,
-    List<Map<String, String>> drivers = const [],
+    List<Map<String, dynamic>> drivers = const [],
   }) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 600;
+    final isDesktop = width >= 1024;
+    final crossAxisCount = isDesktop ? 3 : 1;
+
+    final toolbar = isMobile
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _searchField(search, hint, onSearchChanged),
+              const SizedBox(height: 8),
+              if (drivers.isNotEmpty)
+                _driverDropdown(drivers, driverFilterId, onDriverFilterChanged),
+            ],
+          )
+        : Row(
             children: [
               Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: hint,
-                    prefixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.only(left: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.qr_code_scanner_rounded,
-                              color: AppTheme.primary,
-                              size: 22,
-                            ),
-                            onPressed: () async {
-                              final code = await BarcodeScannerDialog.show(
-                                context,
-                                label: 'Scan resi',
-                              );
-                              if (code != null && code.isNotEmpty) {
-                                onSearchChanged(code);
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    suffixIcon: search.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () => onSearchChanged(''),
-                            child: const Padding(
-                              padding: EdgeInsets.only(right: 8),
-                              child: Icon(Icons.clear, size: 20),
-                            ),
-                          )
-                        : null,
-                    suffixIconConstraints: const BoxConstraints(),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  onChanged: onSearchChanged,
-                ),
+                flex: 1,
+                child: _searchField(search, hint, onSearchChanged),
               ),
               if (drivers.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: driverFilterId,
-                        hint: const Text(
-                          'Semua Driver',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        isExpanded: true,
-                        icon: const Icon(Icons.filter_list_rounded, size: 20),
-                        borderRadius: BorderRadius.circular(10),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            child: Text(
-                              'Semua Driver',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ),
-                          ...drivers.map(
-                            (d) => DropdownMenuItem<String>(
-                              value: d['id'],
-                              child: Text(
-                                d['name']!,
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: onDriverFilterChanged,
-                      ),
-                    ),
+                  flex: 1,
+                  child: _driverDropdown(
+                    drivers,
+                    driverFilterId,
+                    onDriverFilterChanged,
                   ),
                 ),
               ],
             ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Text(
-                loading ? 'Memuat...' : '${list.length} transaksi',
+          );
+
+    Map<String, dynamic>? selectedDriver;
+    if (isCOD && driverFilterId != null) {
+      for (final d in drivers) {
+        if (d['id'] == driverFilterId) {
+          selectedDriver = d;
+          break;
+        }
+      }
+    }
+
+    final unpaidTotal =
+        (selectedDriver?['unpaidTotal'] as double?) ?? 0.0;
+    final unpaidCount = (selectedDriver?['unpaidCount'] as int?) ?? 0;
+    final hasUnpaid = unpaidTotal > 0;
+
+    final banner = (selectedDriver != null)
+        ? Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: hasUnpaid
+                  ? () => _confirmBulkDriver(driverFilterId!)
+                  : null,
+              icon: const Icon(Icons.check_circle_outline, size: 18),
+              label: Text(
+                hasUnpaid
+                    ? 'Konfirmasi Lunas ($unpaidCount) - Rp ${Transaction.formatThousands(unpaidTotal)}'
+                    : 'Semua Lunas',
                 style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: onRefresh,
-                child: const Icon(
-                  Icons.refresh_rounded,
-                  size: 18,
-                  color: Color(0xFF64748B),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    hasUnpaid ? Colors.green : const Color(0xFF94A3B8),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-            ],
-          ),
+            ),
+          )
+        : const SizedBox.shrink();
+
+    final child = loading
+        ? const Center(child: CircularProgressIndicator())
+        : list.isEmpty
+            ? Center(
+                child: Text(
+                  emptyText,
+                  style: const TextStyle(color: Color(0xFF94A3B8)),
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: () async => onRefresh(),
+                child: crossAxisCount == 1
+                    ? ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) =>
+                            _buildTransactionCard(list[i], isCOD, onConfirm),
+                      )
+                    : GridView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 2.6,
+                        ),
+                        itemCount: list.length,
+                        itemBuilder: (_, i) =>
+                            _buildTransactionCard(list[i], isCOD, onConfirm),
+                      ),
+              );
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: toolbar,
         ),
+        banner,
         const SizedBox(height: 8),
-        Expanded(
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : list.isEmpty
-              ? Center(
-                  child: Text(
-                    emptyText,
-                    style: const TextStyle(color: Color(0xFF94A3B8)),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async => onRefresh(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final tx = list[i];
-                      return _buildTransactionCard(tx, isCOD, onConfirm);
-                    },
-                  ),
-                ),
-        ),
+        Expanded(child: child),
       ],
+    );
+  }
+
+  Widget _searchField(
+    String search,
+    String hint,
+    ValueChanged<String> onSearchChanged,
+  ) {
+    return TextField(
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(left: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  color: AppTheme.primary,
+                  size: 22,
+                ),
+                onPressed: () async {
+                  final code = await BarcodeScannerDialog.show(
+                    context,
+                    label: 'Scan resi',
+                  );
+                  if (code != null && code.isNotEmpty) {
+                    onSearchChanged(code);
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        suffixIcon: search.isNotEmpty
+            ? GestureDetector(
+                onTap: () => onSearchChanged(''),
+                child: const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(Icons.clear, size: 20),
+                ),
+              )
+            : null,
+        suffixIconConstraints: const BoxConstraints(),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+      ),
+      onChanged: onSearchChanged,
+    );
+  }
+
+  Widget _driverDropdown(
+    List<Map<String, dynamic>> drivers,
+    String? driverFilterId,
+    ValueChanged<String?>? onDriverFilterChanged,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: driverFilterId,
+          hint: const Text(
+            'Semua Driver',
+            style: TextStyle(fontSize: 13),
+          ),
+          isExpanded: true,
+          icon: const Icon(Icons.filter_list_rounded, size: 20),
+          borderRadius: BorderRadius.circular(10),
+          items: [
+            const DropdownMenuItem<String>(
+              value: null,
+              child: Text(
+                'Semua Driver',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF94A3B8),
+                ),
+              ),
+            ),
+            ...drivers.map(
+              (d) => DropdownMenuItem<String>(
+                value: d['id'] as String,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      d['name'] as String,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    if ((d['unpaidTotal'] as double) > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8E1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Rp ${Transaction.formatThousands(d['unpaidTotal'] as double)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFF57F17),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+          onChanged: onDriverFilterChanged,
+        ),
+      ),
     );
   }
 
@@ -925,7 +1133,7 @@ class _PaymentManagementScreenState
                           child: Text(
                             isCOD
                                 ? 'Penerima: ${tx.penerimaName}'
-                                : '${tx.pengirimName} → ${tx.penerimaName}',
+                                : '${tx.pengirimName} \u2192 ${tx.penerimaName}',
                             style: const TextStyle(
                               fontSize: 12,
                               color: Color(0xFF475569),
@@ -1065,7 +1273,6 @@ class _PaymentManagementScreenState
                       ),
                     ],
                     const SizedBox(height: 8),
-                    // Tombol Cetak Tagihan (kiri) + Konfirmasi Lunas (kanan)
                     Row(
                       children: [
                         if (!isCOD) ...[
@@ -1218,7 +1425,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
     final years = List.generate(now.year - 2022 + 1, (i) => 2023 + i);
 
     return AlertDialog(
-      title: const Text('Pilih Bulan & Tahun'),
+      title: const Text('Pilih Bulan \u0026 Tahun'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

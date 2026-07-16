@@ -135,6 +135,13 @@ class TransactionRepository {
     return Transaction.fromJson(res.data as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> confirmPaymentMassal(List<String> ids) async {
+    final res = await _api.put('${ApiConstants.transactions}/konfirmasi-pembayaran-massal', data: {
+      'ids': ids,
+    });
+    return res.data as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> verifyLocation({
     required String id,
     required double lat,

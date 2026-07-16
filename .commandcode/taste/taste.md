@@ -38,6 +38,7 @@ See [domain/taste.md](domain/taste.md)
 
 # workflow
 - When needing to modify a specific feature, consult docs/architecture.md first as a reference to quickly understand the app context (tech stack, folder structure, routing, data flow, conventions) before searching through source files. Confidence: 0.70
+- When the user asks to revert/revert a specific feature or change, only revert that specific section — do NOT use `git checkout` on the entire file as it destroys unrelated work. Instead, manually remove only the targeted code. Confidence: 0.80
 
 # payment
 - For the payment management screen (manajemen pembayaran): The "Cetak Laporan" (print report) button should be context-sensitive to the active tab — printing COD report when on the COD tab, and Tempo report when on the Tempo tab. Confidence: 0.70

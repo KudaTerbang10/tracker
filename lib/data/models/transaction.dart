@@ -124,6 +124,21 @@ class Transaction {
   int get jumlahKoli => (paket['jumlah_koli'] as num?)?.toInt() ?? 0;
   double get biayaKirim => (paket['biaya_kirim'] as num?)?.toDouble() ?? 0;
 
+  /// Nominal COD (sama dengan biaya kirim), kosong jika bukan COD.
+  double get codNominal =>
+      jenisPembayaran == 'cod' ? biayaKirim : 0;
+  String get codLabel =>
+      jenisPembayaran == 'cod' ? formatThousands(codNominal) : '';
+
+  static String formatThousands(double value) {
+    return value
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
+  }
+
   /// Nama cabang tempat paket diterima (dari tracking log terakhir status diterima_cabang)
   String get diterimaDiCabang {
     if (statusSaatIni != 'diterima_cabang') return '';

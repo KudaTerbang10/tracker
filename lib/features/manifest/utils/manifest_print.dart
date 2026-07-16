@@ -137,11 +137,12 @@ Future<void> printManifestA4(Manifest m) async {
           border: pw.TableBorder.all(color: PdfColors.grey300),
           columnWidths: {
             0: const pw.FixedColumnWidth(28),
-            1: const pw.FixedColumnWidth(130),
-            2: const pw.FixedColumnWidth(105),
-            3: const pw.FixedColumnWidth(105),
+            1: const pw.FixedColumnWidth(120),
+            2: const pw.FixedColumnWidth(95),
+            3: const pw.FixedColumnWidth(95),
             4: const pw.FixedColumnWidth(45),
-            5: const pw.FixedColumnWidth(40),
+            5: const pw.FixedColumnWidth(35),
+            6: const pw.FixedColumnWidth(60),
           },
           children: [
             pw.TableRow(
@@ -153,6 +154,7 @@ Future<void> printManifestA4(Manifest m) async {
                 _pdfCell('Penerima', header: true),
                 _pdfCell('Berat', header: true),
                 _pdfCell('Koli', header: true),
+                _pdfCell('COD', header: true),
               ],
             ),
             ...txs.asMap().entries.map((entry) {
@@ -166,6 +168,7 @@ Future<void> printManifestA4(Manifest m) async {
                   _pdfCell(tx.penerimaName),
                   _pdfCell(tx.beratLabel),
                   _pdfCell(tx.koliLabel),
+                  _pdfCell(tx.codLabel),
                 ],
               );
             }),
@@ -183,6 +186,10 @@ Future<void> printManifestA4(Manifest m) async {
             pw.SizedBox(width: 24),
             _pdfLabel(
               'Total Koli: ${txs.fold(0, (sum, tx) => sum + (tx.paket['jumlah_koli'] as num? ?? 0).toInt())}',
+            ),
+            pw.SizedBox(width: 24),
+            _pdfLabel(
+              'Total COD: ${Transaction.formatThousands(txs.fold(0.0, (sum, tx) => sum + tx.codNominal))}',
             ),
           ],
         ),
@@ -287,6 +294,8 @@ Future<void> printManifest80mm(Manifest m) async {
 
   const pageFmt = PdfPageFormat(78 * PdfPageFormat.mm, 100 * PdfPageFormat.mm);
   const margin = pw.EdgeInsets.all(6);
+
+  final totalCod = txs.fold(0.0, (sum, tx) => sum + tx.codNominal);
 
   pw.Widget header() {
     const s = pw.TextStyle(fontSize: 6);
@@ -422,6 +431,16 @@ Future<void> printManifest80mm(Manifest m) async {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
+              if (tx.jenisPembayaran == 'cod') ...[
+                pw.SizedBox(width: 3),
+                pw.Text(
+                  'COD: ${tx.codLabel}',
+                  style: pw.TextStyle(
+                    fontSize: 6,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
             ],
           ),
           pw.Text(
@@ -449,12 +468,22 @@ Future<void> printManifest80mm(Manifest m) async {
             ),
             pw.SizedBox(width: 6),
             pw.Text(
-              'Berat: ${totalBerat.toStringAsFixed(1)} kg',
+              'Total Berat: ${totalBerat.toStringAsFixed(1)} kg',
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 2),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Text(
+              'Total Koli: $totalKoli',
               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(width: 6),
             pw.Text(
-              'Koli: $totalKoli',
+              'Total COD: ${Transaction.formatThousands(totalCod)}',
               style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
             ),
           ],
@@ -491,7 +520,7 @@ Future<void> printManifest80mm(Manifest m) async {
   } else {
     int idx = 0;
     final first = <pw.Widget>[header()];
-    for (int i = 0; i < 4 && idx < cards.length; i++, idx++) {
+    for (int i = 0; i < 3 && idx < cards.length; i++, idx++) {
       first.add(cards[idx]);
     }
     allPages.add(pw.Column(children: first));

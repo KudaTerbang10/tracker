@@ -907,6 +907,58 @@ router.put('/:id/konfirmasi-pembayaran', auth, rbac('admin_cabang', 'super_admin
   }
 });
 
+// — KONFIRMASI PEMBAYARAN MASSAL (per driver / multiple ids) —
+router.put('/konfirmasi-pembayaran-massal', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Daftar id transaksi kosong' });
+    }
+
+    const txs = await Transaction.find({ _id: { $in: ids } });
+    if (txs.length === 0) {
+      return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    }
+
+    const now = new Date();
+    const updated = [];
+    for (const tx of txs) {
+      if (!['cod', 'tempo'].includes(tx.jenis_pembayaran)) continue;
+      if (tx.status_pembayaran === 'paid') continue;
+
+      // Validasi RBAC sama seperti per-item
+      if (tx.jenis_pembayaran === 'cod') {
+        if (req.user.role !== 'admin_cabang') continue;
+        const isLastMile = tx.cod_cabang_id && tx.cod_cabang_id.toString() === req.user.cabang_id?.toString();
+        const isCabangAsal = tx.jenis_masalah === 'gagal_kirim' &&
+            tx.created_by?.cabang_id && tx.created_by.cabang_id.toString() === req.user.cabang_id?.toString();
+        if (!isLastMile && !isCabangAsal) continue;
+      } else if (tx.jenis_pembayaran === 'tempo') {
+        if (req.user.role === 'admin_cabang') {
+          if (!tx.created_by?.cabang_id || tx.created_by.cabang_id.toString() !== req.user.cabang_id?.toString()) {
+            continue;
+          }
+        }
+      }
+
+      tx.status_pembayaran = 'paid';
+      tx.pembayaran_dikonfirmasi_oleh = {
+        user_id: req.user._id,
+        name: req.user.name,
+        role: req.user.role,
+        cabang_id: req.user.cabang_id || null,
+      };
+      tx.pembayaran_dikonfirmasi_pada = now;
+      await tx.save();
+      updated.push(tx);
+    }
+
+    res.json({ message: `${updated.length} transaksi berhasil dikonfirmasi`, count: updated.length, data: updated });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.delete('/:id', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.id);

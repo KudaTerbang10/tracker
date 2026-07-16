@@ -50,27 +50,6 @@ List<_DashboardMenuItem> _getMenuItemsForRole(
           pastelColor: const Color(0xFFE9D5FF),
         ),
         _DashboardMenuItem(
-          icon: Icons.people_alt_rounded,
-          label: 'Manajemen Akun',
-          onTap: () => context.go('/dashboard/users'),
-          iconColor: const Color(0xFFDB2777),
-          pastelColor: const Color(0xFFFCE7F3),
-        ),
-        _DashboardMenuItem(
-          icon: Icons.business_rounded,
-          label: 'Manajemen Cabang',
-          onTap: () => context.go('/dashboard/cabangs'),
-          iconColor: const Color(0xFF059669),
-          pastelColor: const Color(0xFFD1FAE5),
-        ),
-        _DashboardMenuItem(
-          icon: Icons.payments_rounded,
-          label: 'Manajemen Tarif',
-          onTap: () => context.go('/dashboard/tariffs'),
-          iconColor: const Color(0xFFD97706),
-          pastelColor: const Color(0xFFFEF3C7),
-        ),
-        _DashboardMenuItem(
           icon: Icons.report_problem_rounded,
           label: 'Transaksi Bermasalah',
           onTap: () => context.go('/dashboard/barang-bermasalah'),
@@ -83,6 +62,27 @@ List<_DashboardMenuItem> _getMenuItemsForRole(
           onTap: () => context.go('/dashboard/pembayaran'),
           iconColor: const Color(0xFF2E7D32),
           pastelColor: const Color(0xFFE8F5E9),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.business_rounded,
+          label: 'Manajemen Cabang',
+          onTap: () => context.go('/dashboard/cabangs'),
+          iconColor: const Color(0xFF059669),
+          pastelColor: const Color(0xFFD1FAE5),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.people_alt_rounded,
+          label: 'Manajemen Akun',
+          onTap: () => context.go('/dashboard/users'),
+          iconColor: const Color(0xFFDB2777),
+          pastelColor: const Color(0xFFFCE7F3),
+        ),
+        _DashboardMenuItem(
+          icon: Icons.payments_rounded,
+          label: 'Manajemen Tarif',
+          onTap: () => context.go('/dashboard/tariffs'),
+          iconColor: const Color(0xFFD97706),
+          pastelColor: const Color(0xFFFEF3C7),
         ),
       ];
     case 'admin_cabang':

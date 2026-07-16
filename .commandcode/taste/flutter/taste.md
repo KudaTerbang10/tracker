@@ -59,6 +59,8 @@
 
 # payment-management
 - For payment management card layout (3 rows): Row 1 — No. Resi (left), StatusBadge (far right). Row 2 — Nama Penerima (left), Retur badge (right, inline with penerima). Row 3 — Nominal COD (left, replacing alamat which is removed), COD/Tempo badge + Lunas/Belum badge (right). Alamat is hidden entirely from these cards. Confidence: 0.80
+- For the COD driver filter in payment management: When a driver is selected from the dropdown, show a single "Konfirmasi Lunas" button with the unpaid count and nominal total (e.g., "Konfirmasi Lunas (3) — Rp 150,000") instead of a banner with driver details — the button serves as the bulk confirm action for the selected driver. Confidence: 0.70
+- For payment management card list layout: Use single-column ListView (mobile-style) on both mobile and tablet — GridView should only be used on webview/desktop. Tablet's 2-column grid causes bottom overflow on transaction cards. Confidence: 0.80
 
 # flutter-web
 - Avoid `LayoutBuilder` inside `AlertDialog` — it causes assertion failures on Flutter (both `_debugDuringDeviceUpdate` on web and "does not support returning intrinsic dimensions" via `performLayout()`). Use `Builder` + `MediaQuery.of(context).size.width` as the stable alternative. Confidence: 0.80

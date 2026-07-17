@@ -31,6 +31,7 @@ class _PaymentManagementScreenState
   String _codSearch = '';
   String _tempoSearch = '';
   String? _codDriverId;
+  String? _tempoCabangId;
   int _codMonth = DateTime.now().month;
   int _codYear = DateTime.now().year;
   int _tempoMonth = DateTime.now().month;
@@ -70,6 +71,31 @@ class _PaymentManagementScreenState
     return result;
   }
 
+  List<Map<String, dynamic>> get _tempoCabangs {
+    final seen = <String, Map<String, dynamic>>{};
+    for (final t in _tempoList) {
+      final cabangId = t.createdBy['cabang_id']?.toString();
+      final cabangName = t.createdBy['cabang_name']?.toString();
+      if (cabangId == null || cabangName == null) continue;
+      final c = seen.putIfAbsent(
+        cabangId,
+        () => {
+          'id': cabangId,
+          'name': cabangName,
+          'unpaidCount': 0,
+          'unpaidTotal': 0.0,
+        },
+      );
+      if (t.statusPembayaran == 'unpaid') {
+        c['unpaidCount'] = (c['unpaidCount'] as int) + 1;
+        c['unpaidTotal'] = (c['unpaidTotal'] as double) + t.biayaKirim;
+      }
+    }
+    final result = seen.values.toList();
+    result.sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
+    return result;
+  }
+
   void _setCodMonthYear(int month, int year) {
     setState(() {
       _codMonth = month;
@@ -84,6 +110,7 @@ class _PaymentManagementScreenState
       _tempoMonth = month;
       _tempoYear = year;
       _tempoLoading = true;
+      _tempoCabangId = null;
     });
     _loadTempo();
   }
@@ -181,11 +208,19 @@ class _PaymentManagementScreenState
     }
 
     final user = ref.read(authProvider).user;
+    final isSuperAdmin = user?.role == 'super_admin';
     String? cabangName;
     if (user?.isAdminCabang ?? false) {
       cabangName = list.isNotEmpty
           ? list.first.createdBy['cabang_name']?.toString()
           : null;
+    } else if (isSuperAdmin && !isCOD && _tempoCabangId != null) {
+      for (final c in _tempoCabangs) {
+        if (c['id'] == _tempoCabangId) {
+          cabangName = c['name'] as String;
+          break;
+        }
+      }
     }
 
     await PaymentReportPrinter.printReport(
@@ -542,6 +577,10 @@ class _PaymentManagementScreenState
             );
             if (!matchResi && !matchNama && !matchPengirim) return false;
           }
+          if (_tempoCabangId != null) {
+            final cabangId = t.createdBy['cabang_id']?.toString();
+            if (cabangId != _tempoCabangId) return false;
+          }
           return true;
         }).toList()..sort((a, b) {
           final aPaid = a.statusPembayaran == 'paid';
@@ -654,6 +693,12 @@ class _PaymentManagementScreenState
         hint: 'Cari no resi, nama pengirim, atau penerima...',
         emptyText: 'Tidak ada transaksi Tempo yang belum lunas',
         isCOD: false,
+        driverFilterId: isSuperAdmin ? _tempoCabangId : null,
+        onDriverFilterChanged: isSuperAdmin
+            ? (v) => setState(() => _tempoCabangId = v)
+            : null,
+        drivers: isSuperAdmin ? _tempoCabangs : [],
+        driverHintText: 'Semua Cabang',
       ),
     );
 
@@ -761,6 +806,7 @@ class _PaymentManagementScreenState
     String? driverFilterId,
     ValueChanged<String?>? onDriverFilterChanged,
     List<Map<String, dynamic>> drivers = const [],
+    String driverHintText = 'Semua Driver',
   }) {
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 600;
@@ -774,7 +820,7 @@ class _PaymentManagementScreenState
               _searchField(search, hint, onSearchChanged),
               const SizedBox(height: 8),
               if (drivers.isNotEmpty)
-                _driverDropdown(drivers, driverFilterId, onDriverFilterChanged),
+                _driverDropdown(drivers, driverFilterId, onDriverFilterChanged, hintText: driverHintText),
             ],
           )
         : Row(
@@ -791,6 +837,7 @@ class _PaymentManagementScreenState
                     drivers,
                     driverFilterId,
                     onDriverFilterChanged,
+                    hintText: driverHintText,
                   ),
                 ),
               ],
@@ -952,8 +999,9 @@ class _PaymentManagementScreenState
   Widget _driverDropdown(
     List<Map<String, dynamic>> drivers,
     String? driverFilterId,
-    ValueChanged<String?>? onDriverFilterChanged,
-  ) {
+    ValueChanged<String?>? onDriverFilterChanged, {
+    String hintText = 'Semua Driver',
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -964,19 +1012,19 @@ class _PaymentManagementScreenState
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: driverFilterId,
-          hint: const Text(
-            'Semua Driver',
+          hint: Text(
+            hintText,
             style: TextStyle(fontSize: 13),
           ),
           isExpanded: true,
           icon: const Icon(Icons.filter_list_rounded, size: 20),
           borderRadius: BorderRadius.circular(10),
           items: [
-            const DropdownMenuItem<String>(
+            DropdownMenuItem<String>(
               value: null,
               child: Text(
-                'Semua Driver',
-                style: TextStyle(
+                hintText,
+                style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF94A3B8),
                 ),

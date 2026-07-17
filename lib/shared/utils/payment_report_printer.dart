@@ -23,7 +23,11 @@ class PaymentReportPrinter {
   }) async {
     final hiraFont = await _getHiraFont();
     final isCOD = jenis == 'cod';
-    final title = isCOD ? 'LAPORAN COD' : 'LAPORAN TEMPO';
+    final title = isCOD
+        ? 'LAPORAN COD'
+        : (cabangName != null && cabangName.isNotEmpty
+            ? 'LAPORAN TEMPO'
+            : 'LAPORAN TEMPO SEMUA CABANG');
     final months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',

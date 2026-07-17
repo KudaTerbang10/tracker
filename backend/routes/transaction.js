@@ -487,15 +487,17 @@ router.get('/', auth, async (req, res) => {
 
     if (search) {
       const upper = search.toUpperCase();
-      const searchOr = [
-        { no_resi: { $regex: `^${upper}` } },
-        { barcode_data: { $regex: `^${upper}` } },
-      ];
+      // no_resi dan barcode_data selalu identik di create (barcode_data = no_resi),
+      // jadi cukup cari no_resi saja — memungkinkan MongoDB memakai unique index
+      // no_resi secara langsung (range scan), tanpa $or IndexUnion overhead.
+      const searchFilter = { no_resi: { $regex: `^${upper}` } };
       if (filter.$or) {
-        filter.$and = [{ $or: filter.$or }, { $or: searchOr }];
+        filter.$and = [{ $or: filter.$or }, searchFilter];
         delete filter.$or;
+      } else if (filter.$and) {
+        filter.$and.push(searchFilter);
       } else {
-        filter.$or = searchOr;
+        filter.no_resi = searchFilter.no_resi;
       }
     }
 

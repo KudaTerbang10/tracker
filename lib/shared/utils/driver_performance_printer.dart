@@ -30,7 +30,9 @@ class DriverPerformancePrinter {
     final title = type == 'antar_cabang'
         ? 'LAPORAN DRIVER ANTAR CABANG'
         : 'LAPORAN DRIVER KE PENERIMA';
+    const limit = 25;
 
+    final firstBatch = data.sublist(0, data.length > limit ? limit : data.length);
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -40,7 +42,7 @@ class DriverPerformancePrinter {
             children: [
               _buildHeader(hiraFont, title, monthName, year),
               pw.SizedBox(height: 16),
-              _buildTable(data, type),
+              _buildTable(firstBatch, type),
               pw.SizedBox(height: 12),
               _buildFooter(),
             ],
@@ -48,6 +50,32 @@ class DriverPerformancePrinter {
         },
       ),
     );
+
+    if (data.length > limit) {
+      for (var page = 1; page * limit < data.length; page++) {
+        final start = page * limit;
+        final end = start + limit > data.length ? data.length : start + limit;
+        final pageData = data.sublist(start, end);
+
+        doc.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(24),
+            build: (pw.Context context) {
+              return pw.Column(
+                children: [
+                  _buildHeader(hiraFont, title, monthName, year),
+                  pw.SizedBox(height: 16),
+                  _buildTable(pageData, type, startIndex: start),
+                  pw.SizedBox(height: 12),
+                  _buildFooter(),
+                ],
+              );
+            },
+          ),
+        );
+      }
+    }
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) => doc.save(),
@@ -105,7 +133,7 @@ class DriverPerformancePrinter {
     );
   }
 
-  static pw.Widget _buildTable(List<Map<String, dynamic>> data, String type) {
+  static pw.Widget _buildTable(List<Map<String, dynamic>> data, String type, {int startIndex = 0}) {
     final totalManifest = data.fold<int>(0, (s, r) => s + ((r['total_manifest'] as num?)?.toInt() ?? 0));
     final totalWorkUnit = data.fold<int>(0, (s, r) => s + ((r['total_work_unit'] as num?)?.toInt() ?? 0));
     final totalResi = data.fold<int>(0, (s, r) => s + ((r['total_resi'] as num?)?.toInt() ?? 0));
@@ -132,7 +160,7 @@ class DriverPerformancePrinter {
         pw.TableRow(
           decoration: pw.BoxDecoration(color: isEven ? PdfColors.grey50 : PdfColors.white),
           children: [
-            _dataCell('${i + 1}', 0.35, align: pw.TextAlign.center),
+            _dataCell('${startIndex + i + 1}', 0.35, align: pw.TextAlign.center),
             _dataCell(row['driver_name'] as String? ?? '-', 1.5),
             _dataCell(_thousands(row['total_manifest']), 0.9, align: pw.TextAlign.right),
             _dataCell(_thousands(row['total_work_unit']), 0.9, align: pw.TextAlign.right),

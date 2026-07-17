@@ -34,6 +34,10 @@ class PaymentReportPrinter {
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async {
         final doc = pw.Document();
+        const limit = 25;
+
+        // Page 1: first 25 rows (same pattern as printRekonsiliasiReport)
+        final firstBatch = data.sublist(0, data.length > limit ? limit : data.length);
         doc.addPage(
           pw.Page(
             pageFormat: PdfPageFormat.a4,
@@ -43,7 +47,7 @@ class PaymentReportPrinter {
                 children: [
                   _buildHeader(hiraFont, title, monthName, year, headerColor, cabangName),
                   pw.SizedBox(height: 16),
-                  _buildTable(data, isCOD: isCOD),
+                  _buildTable(firstBatch, startIndex: 0, isCOD: isCOD),
                   pw.SizedBox(height: 12),
                   _buildFooter(),
                 ],
@@ -52,10 +56,11 @@ class PaymentReportPrinter {
           ),
         );
 
-        if (data.length > 25) {
-          for (var page = 1; page * 25 < data.length; page++) {
-            final start = page * 25;
-            final end = start + 25 > data.length ? data.length : start + 25;
+        // Page 2+: remaining rows
+        if (data.length > limit) {
+          for (var page = 1; page * limit < data.length; page++) {
+            final start = page * limit;
+            final end = start + limit > data.length ? data.length : start + limit;
             final pageData = data.sublist(start, end);
 
             doc.addPage(

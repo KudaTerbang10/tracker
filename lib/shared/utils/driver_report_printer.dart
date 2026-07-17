@@ -26,7 +26,9 @@ class DriverReportPrinter {
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
     ];
     final monthName = months[month - 1];
+    const limit = 25;
 
+    final firstBatch = data.sublist(0, data.length > limit ? limit : data.length);
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -36,7 +38,7 @@ class DriverReportPrinter {
             children: [
               _buildHeader(hiraFont, monthName, year),
               pw.SizedBox(height: 16),
-              _buildTable(data),
+              _buildTable(firstBatch),
               pw.SizedBox(height: 12),
               _buildFooter(),
             ],
@@ -44,6 +46,32 @@ class DriverReportPrinter {
         },
       ),
     );
+
+    if (data.length > limit) {
+      for (var page = 1; page * limit < data.length; page++) {
+        final start = page * limit;
+        final end = start + limit > data.length ? data.length : start + limit;
+        final pageData = data.sublist(start, end);
+
+        doc.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(24),
+            build: (pw.Context context) {
+              return pw.Column(
+                children: [
+                  _buildHeader(hiraFont, monthName, year),
+                  pw.SizedBox(height: 16),
+                  _buildTable(pageData, startIndex: start),
+                  pw.SizedBox(height: 12),
+                  _buildFooter(),
+                ],
+              );
+            },
+          ),
+        );
+      }
+    }
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) => doc.save(),
@@ -101,7 +129,7 @@ class DriverReportPrinter {
     );
   }
 
-  static pw.Widget _buildTable(List<Map<String, dynamic>> data) {
+  static pw.Widget _buildTable(List<Map<String, dynamic>> data, {int startIndex = 0}) {
     final totalAll = data.fold<int>(0, (s, r) => s + ((r['total'] as num?)?.toInt() ?? 0));
     final totalCabang = data.fold<int>(0, (s, r) => s + ((r['antar_cabang'] as num?)?.toInt() ?? 0));
     final totalPenerima = data.fold<int>(0, (s, r) => s + ((r['antar_penerima'] as num?)?.toInt() ?? 0));
@@ -126,7 +154,7 @@ class DriverReportPrinter {
         pw.TableRow(
           decoration: pw.BoxDecoration(color: isEven ? PdfColors.grey50 : PdfColors.white),
           children: [
-            _dataCell('${i + 1}', 0.4, align: pw.TextAlign.center),
+            _dataCell('${startIndex + i + 1}', 0.4, align: pw.TextAlign.center),
             _dataCell(row['driver_name'] as String? ?? '-', 1.6),
             _dataCell(_thousands(row['total']), 0.7, align: pw.TextAlign.right),
             _dataCell(_thousands(row['antar_cabang']), 0.9, align: pw.TextAlign.right),

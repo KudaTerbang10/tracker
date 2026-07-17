@@ -26,7 +26,10 @@ class BranchReportPrinter {
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
     ];
     final monthName = months[month - 1];
+    const limit = 25;
 
+    // Page 1: first 25 rows
+    final firstBatch = data.sublist(0, data.length > limit ? limit : data.length);
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -36,7 +39,7 @@ class BranchReportPrinter {
             children: [
               _buildHeader(hiraFont, monthName, year),
               pw.SizedBox(height: 16),
-              _buildTable(data),
+              _buildTable(firstBatch),
               pw.SizedBox(height: 12),
               _buildFooter(),
             ],
@@ -44,6 +47,33 @@ class BranchReportPrinter {
         },
       ),
     );
+
+    // Page 2+: remaining rows
+    if (data.length > limit) {
+      for (var page = 1; page * limit < data.length; page++) {
+        final start = page * limit;
+        final end = start + limit > data.length ? data.length : start + limit;
+        final pageData = data.sublist(start, end);
+
+        doc.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(24),
+            build: (pw.Context context) {
+              return pw.Column(
+                children: [
+                  _buildHeader(hiraFont, monthName, year),
+                  pw.SizedBox(height: 16),
+                  _buildTable(pageData, startIndex: start),
+                  pw.SizedBox(height: 12),
+                  _buildFooter(),
+                ],
+              );
+            },
+          ),
+        );
+      }
+    }
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) => doc.save(),
@@ -101,7 +131,7 @@ class BranchReportPrinter {
     );
   }
 
-  static pw.Widget _buildTable(List<Map<String, dynamic>> data) {
+  static pw.Widget _buildTable(List<Map<String, dynamic>> data, {int startIndex = 0}) {
     final totalResi = data.fold<int>(0, (sum, row) => sum + ((row['total_resi'] as num?)?.toInt() ?? 0));
     final totalBiaya = data.fold<double>(0, (sum, row) => sum + ((row['total_biaya'] as num?)?.toDouble() ?? 0));
 
@@ -127,7 +157,7 @@ class BranchReportPrinter {
             color: isEven ? PdfColors.grey50 : PdfColors.white,
           ),
           children: [
-            _dataCell('${i + 1}', 0.4, align: pw.TextAlign.center),
+            _dataCell('${startIndex + i + 1}', 0.4, align: pw.TextAlign.center),
             _dataCell(row['kode_gerai'] as String? ?? '', 0.8),
             _dataCell(row['cabang_name'] as String? ?? '', 1.8),
             _dataCell(_thousands(row['total_resi']), 1.0, align: pw.TextAlign.right),

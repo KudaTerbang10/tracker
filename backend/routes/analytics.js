@@ -115,6 +115,8 @@ router.get('/wajib-setor', auth, rbac('super_admin', 'admin_cabang'), async (req
     // uang masuk ke cabang untuk disetor.
 
     // Grup A: Cash (basis createdAt) -> cabang asal
+    // hint: paksa pakai createdAt_-1_jenis_pembayaran_1_created_by.cabang_id_1
+    // supaya $match createdAt bisa di-index duluan sebelum filter jenis_pembayaran
     const [cashAgg, asalAgg, lastMileAgg] = await Promise.all([
       Transaction.aggregate([
         {
@@ -131,7 +133,7 @@ router.get('/wajib-setor', auth, rbac('super_admin', 'admin_cabang'), async (req
             cash: { $sum: '$paket.biaya_kirim' },
           },
         },
-      ]),
+      ]).hint({ createdAt: -1, jenis_pembayaran: 1, 'created_by.cabang_id': 1 }),
       // Grup B: Tempo + COD retur (basis pembayaran_dikonfirmasi_pada) -> cabang asal
       Transaction.aggregate([
         {

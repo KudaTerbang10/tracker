@@ -143,12 +143,23 @@ transactionSchema.index({ 'created_by.cabang_id': 1, createdAt: -1 });
 // 🚀 Optimasi aggregate analytics traffic per cabang
 transactionSchema.index({ createdAt: -1, kode_gerai: 1 });
 
-// 🚀 Optimasi aggregate analytics drivers (lama) — filter date range + elemMatch tracking_logs
+// 🚀 Optimasi aggregate analytics drivers — filter date range + elemMatch tracking_logs
+// createdAt sebagai prefix agar $match date-range bisa pakai index sebelum $elemMatch
 transactionSchema.index({ createdAt: -1, 'tracking_logs.status': 1, 'tracking_logs.driver_ditugaskan.user_id': 1 });
 
 // 🚀 Optimasi pembayaran
 transactionSchema.index({ jenis_pembayaran: 1, status_pembayaran: 1 });
 transactionSchema.index({ cod_cabang_id: 1, status_pembayaran: 1 });
 transactionSchema.index({ 'created_by.cabang_id': 1, jenis_pembayaran: 1, status_pembayaran: 1 });
+
+// 🚀 Optimasi aggregate analytics berbasis rentang tanggal + jenis_masalah
+// (traffic, per-cabang, routes-top, customers-top pakai $match createdAt + jenis_masalah)
+transactionSchema.index({ createdAt: -1, jenis_masalah: 1 });
+
+// 🚀 Optimasi /wajib-setor cashAgg: $match createdAt + jenis_pembayaran + created_by.cabang_id
+transactionSchema.index({ createdAt: -1, jenis_pembayaran: 1, 'created_by.cabang_id': 1 });
+
+// 🚀 Optimasi /wajib-setor asalAgg & lastMileAgg: $match pembayaran_dikonfirmasi_pada + jenis_pembayaran + status_pembayaran
+transactionSchema.index({ pembayaran_dikonfirmasi_pada: -1, jenis_pembayaran: 1, status_pembayaran: 1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);

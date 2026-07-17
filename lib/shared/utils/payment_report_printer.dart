@@ -46,7 +46,12 @@ class PaymentReportPrinter {
               return pw.Column(
                 children: [
                   _buildHeader(hiraFont, title, monthName, year, headerColor, cabangName),
-                  pw.SizedBox(height: 16),
+                  if (!isCOD) ...[
+                    pw.SizedBox(height: 10),
+                    _buildTempoSummaryWidget(data),
+                    pw.SizedBox(height: 12),
+                  ] else
+                    pw.SizedBox(height: 16),
                   _buildTable(firstBatch, startIndex: 0, isCOD: isCOD),
                   pw.SizedBox(height: 12),
                   _buildFooter(),
@@ -143,6 +148,7 @@ class PaymentReportPrinter {
     final headerColor = isCOD ? PdfColors.amber800 : PdfColors.green800;
     final summaryColor = isCOD ? PdfColors.amber100 : PdfColors.green100;
     final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final dateFmt = DateFormat('dd/MM/yyyy');
 
     final totalLunas = data.where((r) => r['status_pembayaran'] == 'paid').length;
     final totalNominal = data.fold<int>(0, (sum, r) => sum + ((r['biaya_kirim'] as num?)?.toInt() ?? 0));
@@ -153,8 +159,8 @@ class PaymentReportPrinter {
         children: [
           _headerCell('No', 0.3),
           _headerCell('No. Resi', 1.8),
-          _headerCell('Pengirim', 1.6),
-          _headerCell('Penerima', 1.6),
+          _headerCell(isCOD ? 'Pengirim' : 'Nama Cabang', 1.6),
+          _headerCell(isCOD ? 'Penerima' : 'Jatuh Tempo', 1.6),
           _headerCell('Nominal', 1.2),
           _headerCell('Status', 0.8),
         ],
@@ -167,14 +173,24 @@ class PaymentReportPrinter {
       final isPaid = row['status_pembayaran'] == 'paid';
       final nominal = row['biaya_kirim'] as num? ?? 0;
 
+      String col3, col4;
+      if (isCOD) {
+        col3 = row['pengirim'] as String? ?? '-';
+        col4 = row['penerima'] as String? ?? '-';
+      } else {
+        col3 = row['cabang_name'] as String? ?? '-';
+        final jatuh = row['jatuh_tempo'] as DateTime?;
+        col4 = jatuh != null ? dateFmt.format(jatuh) : '-';
+      }
+
       rows.add(
         pw.TableRow(
           decoration: pw.BoxDecoration(color: isEven ? PdfColors.grey50 : PdfColors.white),
           children: [
             _dataCell('${startIndex + i + 1}', 0.3, align: pw.TextAlign.center),
             _dataCell(row['no_resi'] as String? ?? '-', 1.8),
-            _dataCell(row['pengirim'] as String? ?? '-', 1.6),
-            _dataCell(row['penerima'] as String? ?? '-', 1.6),
+            _dataCell(col3, 1.6),
+            _dataCell(col4, 1.6, align: isCOD ? pw.TextAlign.left : pw.TextAlign.center),
             _dataCell(currencyFmt.format(nominal), 1.2, align: pw.TextAlign.right),
             _dataCell(
               isPaid ? 'Lunas' : 'Belum Lunas',
@@ -260,6 +276,54 @@ class PaymentReportPrinter {
     return v is num ? v : 0;
   }
 
+  static pw.Widget _buildTempoSummaryWidget(List<Map<String, dynamic>> data) {
+    final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final totalNominal = data.fold<int>(0, (s, r) => s + ((r['biaya_kirim'] as num?)?.toInt() ?? 0));
+    final totalLunas = data
+        .where((r) => r['status_pembayaran'] == 'paid')
+        .fold<int>(0, (s, r) => s + ((r['biaya_kirim'] as num?)?.toInt() ?? 0));
+    final totalBelumLunas = totalNominal - totalLunas;
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.green50,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+        border: pw.Border.all(color: PdfColors.green200),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Total Nominal Tempo', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+              pw.SizedBox(height: 2),
+              pw.Text(currencyFmt.format(totalNominal), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.green800)),
+            ],
+          ),
+          pw.SizedBox(width: 28),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Total Lunas', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+              pw.SizedBox(height: 2),
+              pw.Text(currencyFmt.format(totalLunas), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+            ],
+          ),
+          pw.SizedBox(width: 28),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Total Belum Lunas', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+              pw.SizedBox(height: 2),
+              pw.Text(currencyFmt.format(totalBelumLunas), style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.red700)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _buildLegend() {
     final colorCash = PdfColor.fromInt(0xFF10B981);
     final colorCod = PdfColor.fromInt(0xFF6366F1);
@@ -273,6 +337,42 @@ class PaymentReportPrinter {
         pw.SizedBox(width: 14),
         _buildLegendItem('Tempo (Lunas)', colorTempo),
       ],
+    );
+  }
+
+  static pw.Widget _buildLegendWithSummary(num totalCash, num totalCod, num totalTempo, num totalAll) {
+    final colorCash = PdfColor.fromInt(0xFF10B981);
+    final colorCod = PdfColor.fromInt(0xFF6366F1);
+    final colorTempo = PdfColor.fromInt(0xFFF59E0B);
+    final currencyFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.indigo50,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Row(
+        children: [
+          _buildLegendItem('Cash', colorCash),
+          pw.SizedBox(width: 6),
+          pw.Text(currencyFmt.format(totalCash), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: colorCash)),
+          pw.SizedBox(width: 12),
+          _buildLegendItem('COD', colorCod),
+          pw.SizedBox(width: 6),
+          pw.Text(currencyFmt.format(totalCod), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: colorCod)),
+          pw.SizedBox(width: 12),
+          _buildLegendItem('Tempo', colorTempo),
+          pw.SizedBox(width: 6),
+          pw.Text(currencyFmt.format(totalTempo), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: colorTempo)),
+          pw.SizedBox(width: 16),
+          pw.Container(width: 1, height: 16, color: PdfColors.grey300),
+          pw.SizedBox(width: 12),
+          pw.Text('Total Nasional:', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+          pw.SizedBox(width: 4),
+          pw.Text(currencyFmt.format(totalAll), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo800)),
+        ],
+      ),
     );
   }
 
@@ -360,7 +460,7 @@ class PaymentReportPrinter {
         decoration: pw.BoxDecoration(color: summaryColor),
         children: [
           _dataCell('', 0.3),
-          _dataCell('TOTAL NASIONAL', 1.8, fontWeight: pw.FontWeight.bold),
+          _dataCell('TOTAL', 1.8, fontWeight: pw.FontWeight.bold),
           _dataCell(currencyFmt.format(totalCash), 1.2, align: pw.TextAlign.right, fontWeight: pw.FontWeight.bold),
           _dataCell(currencyFmt.format(totalCod), 1.2, align: pw.TextAlign.right, fontWeight: pw.FontWeight.bold),
           _dataCell(currencyFmt.format(totalTempo), 1.2, align: pw.TextAlign.right, fontWeight: pw.FontWeight.bold),
@@ -396,6 +496,15 @@ class PaymentReportPrinter {
     final monthName = months[month - 1];
     final accentColor = PdfColors.indigo700;
 
+    // Hitung total nasional dari data
+    num totalCash = 0, totalCod = 0, totalTempo = 0, totalAll = 0;
+    for (final row in data) {
+      totalCash += _numVal(row, 'cash');
+      totalCod += _numVal(row, 'cod_total');
+      totalTempo += _numVal(row, 'tempo');
+      totalAll += _numVal(row, 'total');
+    }
+
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async {
         final doc = pw.Document();
@@ -412,8 +521,8 @@ class PaymentReportPrinter {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   _buildHeader(hiraFont, 'REKONSILIASI SETORAN PER CABANG', monthName, year, accentColor, null),
-                  pw.SizedBox(height: 12),
-                  _buildLegend(),
+                  pw.SizedBox(height: 10),
+                  _buildLegendWithSummary(totalCash, totalCod, totalTempo, totalAll),
                   pw.SizedBox(height: 12),
                   _buildRekonsiliasiTable(data.sublist(0, listLimit)),
                   pw.SizedBox(height: 16),

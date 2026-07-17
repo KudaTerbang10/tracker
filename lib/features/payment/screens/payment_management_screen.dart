@@ -139,17 +139,46 @@ class _PaymentManagementScreenState
     required int year,
   }) async {
     final jenis = isCOD ? 'cod' : 'tempo';
-    final data = list
-        .map(
-          (t) => {
-            'no_resi': t.noResi,
-            'pengirim': t.pengirimName,
-            'penerima': t.penerimaName,
-            'biaya_kirim': t.biayaKirim,
-            'status_pembayaran': t.statusPembayaran,
-          },
-        )
-        .toList();
+
+    List<Map<String, dynamic>> data;
+
+    if (isCOD) {
+      data = list
+          .map(
+            (t) => {
+              'no_resi': t.noResi,
+              'pengirim': t.pengirimName,
+              'penerima': t.penerimaName,
+              'biaya_kirim': t.biayaKirim,
+              'status_pembayaran': t.statusPembayaran,
+            },
+          )
+          .toList();
+    } else {
+      // Tempo: tambah cabang_name & jatuh_tempo, sort unpaid asc → paid asc
+      data = list
+          .map(
+            (t) => {
+              'no_resi': t.noResi,
+              'pengirim': t.pengirimName,
+              'cabang_name': t.createdBy['cabang_name']?.toString() ?? '',
+              'biaya_kirim': t.biayaKirim,
+              'status_pembayaran': t.statusPembayaran,
+              'jatuh_tempo': t.createdAt.add(Duration(days: t.tempoHari)),
+            },
+          )
+          .toList();
+
+      // Sort: unpaid first (by jatuh_tempo asc), then paid (by jatuh_tempo asc)
+      data.sort((a, b) {
+        final aPaid = a['status_pembayaran'] == 'paid';
+        final bPaid = b['status_pembayaran'] == 'paid';
+        if (aPaid != bPaid) return aPaid ? 1 : -1;
+        final aDate = a['jatuh_tempo'] as DateTime;
+        final bDate = b['jatuh_tempo'] as DateTime;
+        return aDate.compareTo(bDate);
+      });
+    }
 
     final user = ref.read(authProvider).user;
     String? cabangName;

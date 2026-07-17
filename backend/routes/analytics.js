@@ -361,8 +361,7 @@ router.get('/driver-performance', auth, rbac('super_admin'), async (req, res) =>
     const data = await Manifest.aggregate([
       {
         $match: {
-          status: 'selesai',
-          completed_at: { $gte: startDate, $lte: endDate },
+          createdAt: { $gte: startDate, $lte: endDate },
           'driver.user_id': { $exists: true, $ne: null },
         },
       },

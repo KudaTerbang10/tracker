@@ -7,7 +7,6 @@ import '../../../data/models/transaction.dart';
 import '../../../data/models/user.dart';
 import '../../../data/repositories/transaction_repository.dart';
 import '../../../shared/widgets/status_badge.dart';
-import '../../../shared/widgets/tracking_timeline.dart';
 import '../../../shared/widgets/resi_copy_button.dart';
 import '../../../shared/widgets/barcode_scanner_dialog.dart';
 import '../../../shared/widgets/transaction_detail_sheet.dart';
@@ -482,6 +481,39 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
       );
     }
 
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 800;
+
+    if (isWide) {
+      final gridWidth = (screenWidth - 24 - 24) / 3;
+      final double itemHeight = 135.0;
+      final double childAspectRatio = gridWidth / itemHeight;
+
+      return GridView.builder(
+        controller: _superAdminScrollC,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: _superAdminItems.length +
+            (_superAdminPage <= _superAdminTotalPages ? 1 : 0),
+        itemBuilder: (_, i) {
+          if (i == _superAdminItems.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          }
+          return _buildItemCard(_superAdminItems[i], dateFmt, canDelete: false);
+        },
+      );
+    }
+
     return ListView.builder(
       controller: _superAdminScrollC,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -554,6 +586,28 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                 ),
               ],
             ),
+          );
+        }
+
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isWide = screenWidth >= 800;
+
+        if (isWide) {
+          final gridWidth = (screenWidth - 24 - 24) / 3;
+          final double itemHeight = 135.0;
+          final double childAspectRatio = gridWidth / itemHeight;
+
+          return GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: childAspectRatio,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: list.length,
+            itemBuilder: (_, i) =>
+                _buildItemCard(list[i], dateFmt, canDelete: true),
           );
         }
 
@@ -720,25 +774,66 @@ class _TransactionListScreenState extends ConsumerState<TransactionListScreen>
                   onRefresh: () async {
                     _resetHistory();
                   },
-                  child: ListView.builder(
-                    controller: _historyScrollC,
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                    itemCount:
-                        _historyItems.length +
-                        (_historyPage <= _historyTotalPages ? 1 : 0),
-                    itemBuilder: (_, i) {
-                      if (i == _historyItems.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                  child: Builder(
+                    builder: (context) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final isWide = screenWidth >= 800;
+
+                      if (isWide) {
+                        final gridWidth = (screenWidth - 24 - 24) / 3;
+                        final double itemHeight = 135.0;
+                        final double childAspectRatio = gridWidth / itemHeight;
+
+                        return GridView.builder(
+                          controller: _historyScrollC,
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: childAspectRatio,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
                           ),
+                          itemCount: _historyItems.length +
+                              (_historyPage <= _historyTotalPages ? 1 : 0),
+                          itemBuilder: (_, i) {
+                            if (i == _historyItems.length) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              );
+                            }
+                            return _buildItemCard(
+                              _historyItems[i],
+                              dateFmt,
+                              canDelete: false,
+                            );
+                          },
                         );
                       }
-                      return _buildItemCard(
-                        _historyItems[i],
-                        dateFmt,
-                        canDelete: false,
+
+                      return ListView.builder(
+                        controller: _historyScrollC,
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                        itemCount:
+                            _historyItems.length +
+                            (_historyPage <= _historyTotalPages ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (i == _historyItems.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            );
+                          }
+                          return _buildItemCard(
+                            _historyItems[i],
+                            dateFmt,
+                            canDelete: false,
+                          );
+                        },
                       );
                     },
                   ),
@@ -1534,47 +1629,4 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
   }
 }
 
-class _InfoCell extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  const _InfoCell({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 20, color: AppTheme.primary),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: Color(0xFF0F172A),
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -52,6 +52,21 @@ class CabangLokasi {
   }
 
   bool get hasCoords => latitude != null && longitude != null;
+
+  Map<String, dynamic> toMap() => {
+        'cabang_id': cabangId,
+        'kode': kode,
+        'name': name,
+        'address': address,
+        'phone': phone,
+        'kota': kota,
+        'lokasi': latitude != null && longitude != null
+            ? {
+                'type': 'Point',
+                'coordinates': [longitude, latitude],
+              }
+            : null,
+      };
 }
 
 class CabangTerdekat {
@@ -111,6 +126,11 @@ class CabangLokasiService {
           .toList();
       if (list.isNotEmpty) {
         _cabangs = list;
+        // Simpan ke cache & terapkan ke layanan terkait (OngkirService dll)
+        await HiveCache.saveCabangs(
+          list.map((c) => c.toMap()).toList(),
+        );
+        updateFromHive();
       }
     } catch (_) {
       // Abaikan, data Hive/JSON sudah cukup

@@ -51,6 +51,9 @@ class _PaymentManagementScreenState
   List<Map<String, dynamic>> get _codDrivers {
     final seen = <String, Map<String, dynamic>>{};
     for (final t in _codList) {
+      // COD walk-in (diambil di cabang, bukan diantar driver) tidak ditagih
+      // ke driver — uangnya milik cabang last mile.
+      if (t.isCodWalkIn) continue;
       if (t.driverUserId == null || t.namaDriver == null) continue;
       final d = seen.putIfAbsent(
         t.driverUserId!,
@@ -438,7 +441,8 @@ class _PaymentManagementScreenState
         .where(
           (t) =>
               t.driverUserId == driverId &&
-              t.statusPembayaran == 'unpaid',
+              t.statusPembayaran == 'unpaid' &&
+              !t.isCodWalkIn,
         )
         .toList();
     if (targets.isEmpty) return;
@@ -554,6 +558,8 @@ class _PaymentManagementScreenState
           }
           if (_codDriverId != null && t.driverUserId != _codDriverId)
             return false;
+          // Walk-in tidak ditampilkan di bawah filter driver tertentu
+          if (_codDriverId != null && t.isCodWalkIn) return false;
           return true;
         }).toList()..sort((a, b) {
           if (a.statusPembayaran == 'unpaid' && b.statusPembayaran != 'unpaid')
@@ -1239,7 +1245,27 @@ class _PaymentManagementScreenState
                           ),
                       ],
                     ),
-                    if (isCOD && tx.namaDriver != null) ...[
+                    if (isCOD && tx.isCodWalkIn) ...[
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Walk-in Cabang',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1D4ED8),
+                          ),
+                        ),
+                      ),
+                    ] else if (isCOD && tx.namaDriver != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'Driver: ${tx.namaDriver}',

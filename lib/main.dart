@@ -18,21 +18,17 @@ void main() async {
 }
 
 Future<void> _bootstrapSync() async {
-  final now = DateTime.now();
-  final lastSynced = HiveCache.getLastSynced();
-  final needFullSync = lastSynced == null || now.difference(lastSynced).inHours >= 24;
-
   final sync = SyncRepository();
+  // Cabang selalu di-sync agar perubahan di manajemen cabang (mis. "Jakarta Pusat"
+  // -> "Jakarta") langsung masuk ke HP, bukan cuma saat full sync 24 jam.
   final futures = <Future>[
     if (HiveCache.getDrivers().isEmpty) sync.syncDrivers(),
-    if (needFullSync) sync.syncCabangs(),
+    sync.syncCabangs(),
   ];
   await Future.wait(futures);
 
   // Refresh cabang dulu agar OngkirService.availableCities pakai data terbaru
-  if (needFullSync) {
-    CabangLokasiService.updateFromHive();
-  }
+  CabangLokasiService.updateFromHive();
 
   // Tarif selalu sync via endpoint publik — tarif terbaru dari admin
   // akan tersedia untuk user public tanpa perlu login.

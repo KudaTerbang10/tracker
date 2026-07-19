@@ -65,6 +65,8 @@
 
 # flutter-web
 - Avoid `LayoutBuilder` inside `AlertDialog` — it causes assertion failures on Flutter (both `_debugDuringDeviceUpdate` on web and "does not support returning intrinsic dimensions" via `performLayout()`). Use `Builder` + `MediaQuery.of(context).size.width` as the stable alternative. Confidence: 0.80
+- For Flutter web apps using browser APIs that require secure context (geolocation, clipboard/copy, camera/barcode scanner via getUserMedia): Serve over HTTPS (not HTTP), as mobile browsers (Chrome/Edge) block these APIs on non-HTTPS origins except localhost. HTTP-only deployment is only sufficient for features that do not require these browser APIs. Confidence: 0.70
+- For Flutter web API calls: Use relative paths (e.g., `/api`) instead of absolute URLs with host/port (e.g., `http://$host:5000/api`), since nginx already proxies `/api/` to the backend. This makes the web app production-ready with any domain/port and keeps LAN functionality working. Confidence: 0.55
 
 # dialog-buttons
 - For confirmation dialogs with two side-by-side buttons (confirm + cancel): Use `Row` with `Expanded(flex: 6)` for the confirm button (left, 60%) and `Expanded(flex: 4)` for the cancel button (right, 40%), with `SizedBox(width: 12)` between them. Confirm button is an `ElevatedButton`, cancel button is an `OutlinedButton`. Confidence: 0.75

@@ -8,7 +8,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.810Z",
     "updatedAt": "2026-06-15T07:30:06.056Z",
-    "kota": "Tangerang Selatan",
+    "kota": "Tangerang",
     "lokasi": {
       "type": "Point",
       "coordinates": [

@@ -37,6 +37,12 @@ router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => 
 
     const no_resi = await generateResi(kodeGerai);
 
+    // COD walk-in yang dibuat admin cabang: cabang pembuat = last mile
+    // penerima COD, sehingga muncul di manajemen pembayaran COD cabang tsb.
+    const cod_cabang_id = pembayaran === 'cod' && req.user.role === 'admin_cabang'
+      ? req.user.cabang_id
+      : null;
+
     const transaction = new Transaction({
       no_resi,
       kode_gerai: kodeGerai,
@@ -55,6 +61,7 @@ router.post('/', auth, rbac('admin_cabang', 'super_admin'), async (req, res) => 
       jenis_pembayaran: pembayaran,
       status_pembayaran: statusPembayaran,
       tempo_hari: tempoHari,
+      cod_cabang_id,
       tracking_logs: [{
         status: 'diterima_cabang',
         deskripsi: `Paket diterima di ${lokasi.nama}`,
@@ -245,6 +252,12 @@ router.post('/batch-status', auth, async (req, res) => {
           log.nama_penerima = namaPenerimaFinal;
           log.deskripsi = `Paket telah diterima oleh ${namaPenerimaFinal}${catatan ? ` (${catatan})` : ''}`;
           setFields.nama_penerima_akhir = namaPenerimaFinal;
+
+          // COD diambil walk-in di cabang ini → cabang penerima = last mile aktual
+          // yang berhak konfirmasi lunas COD (bukan cabang asal pengirim).
+          if (tx.jenis_pembayaran === 'cod' && userLokasi?.cabang_id) {
+            setFields.cod_cabang_id = userLokasi.cabang_id;
+          }
 
           // Jika serah terima retur (gagal_kirim diterima oleh pengirim walk-in), auto selesai
           if (tx.jenis_masalah === 'gagal_kirim') {

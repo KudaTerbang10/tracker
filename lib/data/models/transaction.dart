@@ -130,6 +130,13 @@ class Transaction {
   String get codLabel =>
       jenisPembayaran == 'cod' ? formatThousands(codNominal) : '';
 
+  /// COD diambil walk-in di cabang (tidak diantar driver ke alamat penerima).
+  /// Ditandai dari tujuan_selanjutnya berupa cabang, bukan penerima.
+  bool get isCodWalkIn =>
+      jenisPembayaran == 'cod' &&
+      (tujuanSelanjutnya == null ||
+          tujuanSelanjutnya!['tipe'] != 'penerima');
+
   static String formatThousands(double value) {
     return value
         .toStringAsFixed(0)

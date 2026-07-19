@@ -80,8 +80,9 @@ class OngkirService {
     final key = '${asalKota.toLowerCase()}|${tujuanKota.toLowerCase()}';
     final t = _tariffs![key];
     if (t == null) return null;
-    final min = t['min'] as int;
-    final perkg = t['perkg'] as int;
+    // Pakai num + toInt() agar aman baik di native (int) maupun web (double dari JS)
+    final min = (t['min'] as num).toInt();
+    final perkg = (t['perkg'] as num).toInt();
     final est = t['est'] as String;
     final extra = (berat - 5).clamp(0, double.infinity).ceil();
     final total = min + extra * perkg;

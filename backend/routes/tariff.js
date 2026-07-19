@@ -7,7 +7,7 @@ const router = express.Router();
 
 const publicRateLimitMap = new Map();
 const PUBLIC_WINDOW = 300_000;
-const PUBLIC_MAX = 1;
+const PUBLIC_MAX = 60;
 
 function getPublicRateLimit(ip) {
   const now = Date.now();

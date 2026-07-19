@@ -8,7 +8,12 @@ class ApiConstants {
   /// Bisa dioverride dengan mengisi [customBaseUrl] sebelumnya.
   static String get baseUrl {
     if (customBaseUrl.isNotEmpty) return customBaseUrl;
-    if (kIsWeb) return 'http://localhost:5000/api';
+    if (kIsWeb) {
+      // Pakai relative path '/api' agar selalu di-serve oleh origin yang sama.
+      // Di Docker/nginx, location /api/ sudah di-proxy ke backend, sehingga
+      // tidak peduli domain/port (LAN maupun production HTTPS).
+      return '/api';
+    }
     if (defaultTargetPlatform == TargetPlatform.android)
       return 'http://10.10.10.135:5000/api';
     return 'http://localhost:5000/api';

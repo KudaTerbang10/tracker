@@ -42,3 +42,4 @@ See [domain/taste.md](domain/taste.md)
 
 # payment
 - For the payment management screen (manajemen pembayaran): The "Cetak Laporan" (print report) button should be context-sensitive to the active tab — printing COD report when on the COD tab, and Tempo report when on the Tempo tab. Confidence: 0.70
+- For COD payment management (setoran): Walk-in COD transactions (customer picks up directly at cabang) must NOT be tagged to any driver's setoran/deposit — only COD transactions delivered by a driver (via driver assignment) should appear as driver setoran. Confidence: 0.70

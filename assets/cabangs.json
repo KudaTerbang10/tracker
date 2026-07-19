@@ -170,7 +170,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:11:15.240Z",
-    "kota": "Jakarta Barat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -332,7 +332,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:19:14.221Z",
-    "kota": "Jakarta Barat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -350,7 +350,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:14:37.030Z",
-    "kota": "Jakarta Timur",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -368,7 +368,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:15:50.806Z",
-    "kota": "Jakarta Pusat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -422,7 +422,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:10:53.066Z",
-    "kota": "Jakarta Barat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -440,7 +440,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:20:37.863Z",
-    "kota": "Jakarta Timur",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -458,7 +458,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:18:35.446Z",
-    "kota": "Jakarta Pusat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -476,7 +476,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:19:33.494Z",
-    "kota": "Jakarta Utara",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -494,7 +494,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:58:44.692Z",
-    "kota": "Jakarta Pusat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -512,7 +512,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:01:42.985Z",
-    "kota": "Jakarta Barat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [
@@ -746,7 +746,7 @@
     "is_active": true,
     "createdAt": "2026-06-11T16:41:46.812Z",
     "updatedAt": "2026-06-15T07:29:26.316Z",
-    "kota": "Jakarta Pusat",
+    "kota": "Jakarta",
     "lokasi": {
       "type": "Point",
       "coordinates": [

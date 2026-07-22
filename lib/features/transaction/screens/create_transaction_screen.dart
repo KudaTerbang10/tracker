@@ -322,22 +322,7 @@ class _CreateTransactionScreenState
     _penerimaNameC.addListener(_formatPenerimaName);
     _pengirimPhoneC.addListener(_formatPengirimPhone);
     _penerimaPhoneC.addListener(_formatPenerimaPhone);
-    _pengirimAddrC.addListener(_formatPengirimAddr);
-    _penerimaAddrC.addListener(_formatPenerimaAddr);
     _penerimaKecC.addListener(_formatPenerimaKec);
-  }
-
-  void _formatPengirimAddr() {
-    if (_isFormattingAddr) return;
-    _isFormattingAddr = true;
-    final formatted = _formatAddress(_pengirimAddrC.text);
-    if (formatted != _pengirimAddrC.text) {
-      _pengirimAddrC.text = formatted;
-      _pengirimAddrC.selection = TextSelection.collapsed(
-        offset: formatted.length,
-      );
-    }
-    _isFormattingAddr = false;
   }
 
   void _formatPenerimaKec() {
@@ -355,19 +340,6 @@ class _CreateTransactionScreenState
     if (formatted != text) {
       _penerimaKecC.text = formatted;
       _penerimaKecC.selection = TextSelection.collapsed(
-        offset: formatted.length,
-      );
-    }
-    _isFormattingAddr = false;
-  }
-
-  void _formatPenerimaAddr() {
-    if (_isFormattingAddr) return;
-    _isFormattingAddr = true;
-    final formatted = _formatAddress(_penerimaAddrC.text);
-    if (formatted != _penerimaAddrC.text) {
-      _penerimaAddrC.text = formatted;
-      _penerimaAddrC.selection = TextSelection.collapsed(
         offset: formatted.length,
       );
     }
@@ -449,13 +421,18 @@ class _CreateTransactionScreenState
         .map((w) {
           if (w.isEmpty) return w;
           final lower = w.toLowerCase();
-          if (lower == 'rt' || lower == 'rw') return lower.toUpperCase();
+          // RT / RW / RT. / RW. sebagai kata utuh (2 huruf, optional titik) -> Rt / Rw
+          if (RegExp(r'^(rt|rw)\.?$').hasMatch(lower)) {
+            return lower[0].toUpperCase() + lower[1];
+          }
           final match = RegExp(
-            r'^(rt|rw)(\d+)$',
+            r'^(rt|rw)\.?(\d+)$',
             caseSensitive: false,
           ).firstMatch(w);
-          if (match != null)
-            return '${match.group(1)!.toUpperCase()}${match.group(2)}';
+          if (match != null) {
+            // rt001 / rw05 / rt.001 -> Rt001 / Rw05 (huruf awal kapital, angka tetap)
+            return '${match.group(1)![0].toUpperCase()}${match.group(2)}';
+          }
           // biarkan ALL UPPERCASE (PT, CV, dll), title-case-kan sisanya
           if (!w.contains(RegExp(r'[a-z]'))) return w;
           return w[0].toUpperCase() + w.substring(1).toLowerCase();
@@ -471,8 +448,6 @@ class _CreateTransactionScreenState
     _penerimaNameC.removeListener(_formatPenerimaName);
     _pengirimPhoneC.removeListener(_formatPengirimPhone);
     _penerimaPhoneC.removeListener(_formatPenerimaPhone);
-    _pengirimAddrC.removeListener(_formatPengirimAddr);
-    _penerimaAddrC.removeListener(_formatPenerimaAddr);
     _penerimaKecC.removeListener(_formatPenerimaKec);
     _pengirimNameC.dispose();
     _pengirimPhoneC.dispose();

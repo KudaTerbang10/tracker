@@ -28,8 +28,8 @@ class CabangLokasi {
 
   factory CabangLokasi.fromMap(Map<String, dynamic> json) {
     double? lat, lng;
-    final lokasi = json['lokasi'] as Map<String, dynamic>?;
-    if (lokasi != null && lokasi['type'] == 'Point') {
+    final lokasi = json['lokasi'];
+    if (lokasi is Map && lokasi['type'] == 'Point') {
       final coords = lokasi['coordinates'] as List<dynamic>?;
       if (coords != null && coords.length == 2) {
         lng = (coords[0] as num).toDouble();
@@ -105,7 +105,7 @@ class CabangLokasiService {
     final json = await rootBundle.loadString('assets/cabangs.json');
     final list = jsonDecode(json) as List<dynamic>;
     _cabangs = list
-        .map((e) => CabangLokasi.fromMap(e as Map<String, dynamic>))
+        .map((e) => CabangLokasi.fromMap(Map<String, dynamic>.from(e as Map)))
         .toList();
     _initialized = true;
 

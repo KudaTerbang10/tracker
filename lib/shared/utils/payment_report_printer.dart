@@ -1,19 +1,10 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:printing/printing.dart';
+﻿import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
+import 'logo_svg_helper.dart';
 
 class PaymentReportPrinter {
-  static pw.Font? _cachedHiraFont;
-
-  static Future<pw.Font> _getHiraFont() async {
-    if (_cachedHiraFont != null) return _cachedHiraFont!;
-    final data = await rootBundle.load('assets/pics/hiralogo.ttf');
-    _cachedHiraFont = pw.Font.ttf(data);
-    return _cachedHiraFont!;
-  }
-
   static Future<void> printReport({
     required int month,
     required int year,
@@ -21,7 +12,7 @@ class PaymentReportPrinter {
     required String jenis,
     String? cabangName,
   }) async {
-    final hiraFont = await _getHiraFont();
+    final logoWidget = await logoSvg(height: 55);
     final isCOD = jenis == 'cod';
     final title = isCOD
         ? 'LAPORAN COD'
@@ -49,7 +40,7 @@ class PaymentReportPrinter {
             build: (pw.Context context) {
               return pw.Column(
                 children: [
-                  _buildHeader(hiraFont, title, monthName, year, headerColor, cabangName),
+                  _buildHeader(logoWidget, title, monthName, year, headerColor, cabangName),
                   if (!isCOD) ...[
                     pw.SizedBox(height: 10),
                     _buildTempoSummaryWidget(data),
@@ -79,7 +70,7 @@ class PaymentReportPrinter {
                 build: (pw.Context context) {
                   return pw.Column(
                     children: [
-                      _buildHeader(hiraFont, title, monthName, year, headerColor, cabangName),
+                      _buildHeader(logoWidget, title, monthName, year, headerColor, cabangName),
                       pw.SizedBox(height: 16),
                       _buildTable(pageData, startIndex: start, isCOD: isCOD),
                       pw.SizedBox(height: 12),
@@ -97,27 +88,20 @@ class PaymentReportPrinter {
     );
   }
 
-  static pw.Widget _buildHeader(pw.Font hiraFont, String title, String monthName, int year, PdfColor accentColor, String? cabangName) {
+  static pw.Widget _buildHeader(pw.Widget logo, String title, String monthName, int year, PdfColor accentColor, String? cabangName) {
     return pw.Column(
       children: [
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(
-              String.fromCharCode(0xe000),
-              style: pw.TextStyle(
-                font: hiraFont,
-                fontSize: 40,
-                color: PdfColors.red700,
-              ),
-            ),
+            logo,
             pw.SizedBox(width: 12),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'HIRA EXPRESS',
+                    'YULIS CARGO',
                     style: pw.TextStyle(
                       fontSize: 18,
                       fontWeight: pw.FontWeight.bold,
@@ -492,7 +476,7 @@ class PaymentReportPrinter {
     required int year,
     required List<Map<String, dynamic>> data,
   }) async {
-    final hiraFont = await _getHiraFont();
+    final logoWidget = await logoSvg(height: 55);
     final months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
@@ -524,7 +508,7 @@ class PaymentReportPrinter {
               return pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(hiraFont, 'REKONSILIASI SETORAN PER CABANG', monthName, year, accentColor, null),
+                  _buildHeader(logoWidget, 'REKONSILIASI SETORAN PER CABANG', monthName, year, accentColor, null),
                   pw.SizedBox(height: 10),
                   _buildLegendWithSummary(totalCash, totalCod, totalTempo, totalAll),
                   pw.SizedBox(height: 12),
@@ -551,7 +535,7 @@ class PaymentReportPrinter {
                   return pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(hiraFont, 'REKONSILIASI SETORAN PER CABANG', monthName, year, accentColor, null),
+                      _buildHeader(logoWidget, 'REKONSILIASI SETORAN PER CABANG', monthName, year, accentColor, null),
                       pw.SizedBox(height: 12),
                       _buildLegend(),
                       pw.SizedBox(height: 12),

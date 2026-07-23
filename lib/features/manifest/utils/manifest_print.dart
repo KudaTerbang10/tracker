@@ -1,28 +1,18 @@
-import 'dart:async';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
+﻿import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../../../core/utils/datetime_utils.dart';
 import '../../../data/models/manifest.dart';
 import '../../../data/models/transaction.dart';
-
-pw.Font? _cachedHiraFont;
-
-Future<pw.Font> _getHiraFont() async {
-  if (_cachedHiraFont != null) return _cachedHiraFont!;
-  final data = await rootBundle.load('assets/pics/hiralogo.ttf');
-  _cachedHiraFont = pw.Font.ttf(data);
-  return _cachedHiraFont!;
-}
+import '../../../shared/utils/logo_svg_helper.dart';
 
 Future<void> printManifestA4(Manifest m) async {
   final txs = m.transactions ?? <Transaction>[];
   final fmtDate = DateFormat('dd/MM/yyyy HH:mm', 'id_ID');
   final now = fmtDate.format(toJakarta(DateTime.now()));
 
-  final hiraFont = await _getHiraFont();
+  final logoWidget = await logoSvg(height: 65);
 
   final pdf = pw.Document();
 
@@ -34,21 +24,14 @@ Future<void> printManifestA4(Manifest m) async {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(
-              String.fromCharCode(0xe000),
-              style: pw.TextStyle(
-                font: hiraFont,
-                fontSize: 60,
-                color: PdfColors.red,
-              ),
-            ),
+            logoWidget,
             pw.SizedBox(width: 12),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'HIRA EXPRESS',
+                    'YULIS CARGO',
                     style: pw.TextStyle(
                       fontSize: 18,
                       fontWeight: pw.FontWeight.bold,
@@ -281,7 +264,7 @@ Future<void> printManifest80mm(Manifest m) async {
   final tglBuat = fmtDate.format(toJakarta(m.createdAt));
   final tglCetak = fmtDate.format(toJakarta(DateTime.now()));
 
-  final hiraFont = await _getHiraFont();
+  final logoWidget80 = await logoSvg(height: 22);
 
   final totalBerat = txs.fold(
     0.0,
@@ -306,14 +289,7 @@ Future<void> printManifest80mm(Manifest m) async {
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text(
-              String.fromCharCode(0xe000),
-              style: pw.TextStyle(
-                font: hiraFont,
-                fontSize: 16,
-                color: PdfColors.red,
-              ),
-            ),
+            logoWidget80,
             pw.Expanded(child: pw.SizedBox()),
             pw.Text(
               'MANIFEST PENGIRIMAN',

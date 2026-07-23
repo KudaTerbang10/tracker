@@ -29,9 +29,9 @@ class AuthRepository {
 
   Future<User> login(String email, String password) async {
     final res = await _api.post(ApiConstants.login, data: { 'email': email, 'password': password });
-    final data = res.data as Map<String, dynamic>;
+    final data = Map<String, dynamic>.from(res.data as Map);
     await AuthLocal.saveToken(data['token'] as String);
-    final user = User.fromJson(data['user'] as Map<String, dynamic>);
+    final user = User.fromJson(Map<String, dynamic>.from(data['user'] as Map));
     _currentUser = user;
     unawaited(_autoSyncOnLogin());
     return user;
@@ -39,7 +39,7 @@ class AuthRepository {
 
   Future<User> getMe() async {
     final res = await _api.get(ApiConstants.me);
-    final data = res.data as Map<String, dynamic>;
+    final data = Map<String, dynamic>.from(res.data as Map);
     final user = User.fromJson(data);
     _currentUser = user;
     return user;

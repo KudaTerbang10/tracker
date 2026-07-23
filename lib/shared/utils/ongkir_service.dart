@@ -54,7 +54,7 @@ class OngkirService {
       return;
     }
     final json = await rootBundle.loadString('assets/tariff.json');
-    _tariffs = jsonDecode(json) as Map<String, dynamic>;
+    _tariffs = Map<String, dynamic>.from(jsonDecode(json) as Map);
   }
 
   static void updateFromHive() {

@@ -53,7 +53,7 @@ class Manifest {
           .toList();
     }
     if (json['progress'] != null) {
-      selesai = (json['progress'] as Map<String, dynamic>)['selesai'] as int?;
+      selesai = (Map<String, dynamic>.from(json['progress'] as Map))['selesai'] as int?;
     }
 
     return Manifest(
@@ -85,14 +85,16 @@ class Manifest {
   String get tujuanTipe => tujuan['tipe'] as String? ?? '';
   String get tujuanNama => tujuan['nama'] as String? ?? '';
   double? get tujuanLng {
-    final lokasi = tujuan['lokasi'] as Map<String, dynamic>?;
-    final coords = lokasi?['coordinates'] as List<dynamic>?;
+    final lokasi = tujuan['lokasi'];
+    if (lokasi is! Map) return null;
+    final coords = lokasi['coordinates'] as List<dynamic>?;
     if (coords != null && coords.length >= 2) return (coords[0] as num).toDouble();
     return null;
   }
   double? get tujuanLat {
-    final lokasi = tujuan['lokasi'] as Map<String, dynamic>?;
-    final coords = lokasi?['coordinates'] as List<dynamic>?;
+    final lokasi = tujuan['lokasi'];
+    if (lokasi is! Map) return null;
+    final coords = lokasi['coordinates'] as List<dynamic>?;
     if (coords != null && coords.length >= 2) return (coords[1] as num).toDouble();
     return null;
   }

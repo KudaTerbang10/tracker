@@ -1,24 +1,10 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
+﻿import 'package:flutter/foundation.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'logo_svg_helper.dart';
 
 class LabelPrinter {
-  static pw.Font? _cachedHiraFont;
-
-  static Future<pw.Font> _loadHiraFont() async {
-    if (_cachedHiraFont != null) return _cachedHiraFont!;
-    try {
-      final data = await rootBundle.load('assets/pics/hiralogo.ttf');
-      _cachedHiraFont = pw.Font.ttf(data);
-      return _cachedHiraFont!;
-    } catch (e) {
-      debugPrint('LabelPrinter: Gagal load font hiralogo.ttf: $e');
-      return pw.Font.helvetica();
-    }
-  }
-
   static Future<void> printBarcodeLabel({
     required String data,
     Map<String, dynamic>? pengirim,
@@ -31,7 +17,7 @@ class LabelPrinter {
   }) async {
     try {
       final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
-      final hiraFont = await _loadHiraFont();
+      final logoWidget = await logoSvg(height: 28);
 
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async {
@@ -65,7 +51,7 @@ class LabelPrinter {
                                   ),
                                   pw.SizedBox(width: 4),
                                   pw.Text(
-                                    'Hira Express',
+                                    'Yulis Cargo',
                                     style: const pw.TextStyle(
                                       fontSize: 13,
                                       fontWeight: pw.FontWeight.bold,
@@ -88,7 +74,7 @@ class LabelPrinter {
                                 ],
                               )
                             : pw.Text(
-                                'Hira Express',
+                                'Yulis Cargo',
                                 style: const pw.TextStyle(
                                   fontSize: 13,
                                   fontWeight: pw.FontWeight.bold,
@@ -160,10 +146,7 @@ class LabelPrinter {
                                 ),
                                 pw.SizedBox(height: 6),
                                 pw.Center(
-                                  child: pw.Text(
-                                    String.fromCharCode(0xe000),
-                                    style: pw.TextStyle(font: hiraFont, fontSize: 25),
-                                  ),
+                                  child: logoWidget,
                                 ),
                               ],
                             ),
@@ -253,7 +236,7 @@ class LabelPrinter {
   }) async {
     try {
       final jumlahKoli = (paket?['jumlah_koli'] as num?)?.toInt() ?? 1;
-      final hiraFont = await _loadHiraFont();
+      final logoWidget = await logoSvg(height: 28);
 
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async {
@@ -287,7 +270,7 @@ class LabelPrinter {
                                   ),
                                   pw.SizedBox(width: 4),
                                   pw.Text(
-                                    'Hira Express',
+                                    'Yulis Cargo',
                                     style: const pw.TextStyle(
                                       fontSize: 13,
                                       fontWeight: pw.FontWeight.bold,
@@ -310,7 +293,7 @@ class LabelPrinter {
                                 ],
                               )
                             : pw.Text(
-                                'Hira Express',
+                                'Yulis Cargo',
                                 style: const pw.TextStyle(
                                   fontSize: 13,
                                   fontWeight: pw.FontWeight.bold,
@@ -384,10 +367,7 @@ class LabelPrinter {
                                 ),
                                 pw.SizedBox(height: 6),
                                 pw.Center(
-                                  child: pw.Text(
-                                    String.fromCharCode(0xe000),
-                                    style: pw.TextStyle(font: hiraFont, fontSize: 25),
-                                  ),
+                                  child: logoWidget,
                                 ),
                               ],
                             ),

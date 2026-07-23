@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -113,10 +113,10 @@ class _LandingScreenState extends State<LandingScreen> {
       elevation: 1,
       title: Row(
         children: [
-          Image.asset('assets/pics/hiralogo.webp', width: 32, height: 32),
+          Image.asset('assets/pics/yulislogo.webp', width: 38, height: 38),
           const SizedBox(width: 8),
           const Flexible(
-            child: Text('Hira Express', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 18), overflow: TextOverflow.ellipsis),
+            child: Text('Yulis Cargo', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 18), overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -177,9 +177,9 @@ class _LandingScreenState extends State<LandingScreen> {
             const Padding(
               padding: EdgeInsets.all(24.0),
               child: Row(children: [
-                Image(image: AssetImage('assets/pics/hiralogo.webp'), width: 40, height: 40),
+                Image(image: AssetImage('assets/pics/yulislogo.webp'), width: 48, height: 48),
                 SizedBox(width: 12),
-                Text('Hira Express', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
+                Text('Yulis Cargo', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
               ]),
             ),
             const Divider(height: 1),

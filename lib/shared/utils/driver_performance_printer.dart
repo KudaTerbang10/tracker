@@ -1,25 +1,16 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:printing/printing.dart';
+﻿import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'logo_svg_helper.dart';
 
 class DriverPerformancePrinter {
-  static pw.Font? _cachedHiraFont;
-
-  static Future<pw.Font> _getHiraFont() async {
-    if (_cachedHiraFont != null) return _cachedHiraFont!;
-    final data = await rootBundle.load('assets/pics/hiralogo.ttf');
-    _cachedHiraFont = pw.Font.ttf(data);
-    return _cachedHiraFont!;
-  }
-
   static Future<void> printReport({
     required int month,
     required int year,
     required List<Map<String, dynamic>> data,
     required String type,
   }) async {
-    final hiraFont = await _getHiraFont();
+    final logoWidget = await logoSvg(height: 55);
 
     final doc = pw.Document();
     final months = [
@@ -40,7 +31,7 @@ class DriverPerformancePrinter {
         build: (pw.Context context) {
           return pw.Column(
             children: [
-              _buildHeader(hiraFont, title, monthName, year),
+              _buildHeader(logoWidget, title, monthName, year),
               pw.SizedBox(height: 16),
               _buildTable(firstBatch, type),
               pw.SizedBox(height: 12),
@@ -64,7 +55,7 @@ class DriverPerformancePrinter {
             build: (pw.Context context) {
               return pw.Column(
                 children: [
-                  _buildHeader(hiraFont, title, monthName, year),
+                  _buildHeader(logoWidget, title, monthName, year),
                   pw.SizedBox(height: 16),
                   _buildTable(pageData, type, startIndex: start),
                   pw.SizedBox(height: 12),
@@ -82,27 +73,20 @@ class DriverPerformancePrinter {
     );
   }
 
-  static pw.Widget _buildHeader(pw.Font hiraFont, String title, String monthName, int year) {
+  static pw.Widget _buildHeader(pw.Widget logo, String title, String monthName, int year) {
     return pw.Column(
       children: [
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(
-              String.fromCharCode(0xe000),
-              style: pw.TextStyle(
-                font: hiraFont,
-                fontSize: 40,
-                color: PdfColors.red700,
-              ),
-            ),
+            logo,
             pw.SizedBox(width: 12),
             pw.Expanded(
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'HIRA EXPRESS',
+                    'YULIS CARGO',
                     style: pw.TextStyle(
                       fontSize: 18,
                       fontWeight: pw.FontWeight.bold,

@@ -1,26 +1,17 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:intl/intl.dart';
+﻿import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../core/constants/api_constants.dart';
 import '../../data/models/transaction.dart';
+import 'logo_svg_helper.dart';
 
 class InvoicePrinter {
-  static pw.Font? _cachedHiraFont;
-
-  static Future<pw.Font> _getHiraFont() async {
-    if (_cachedHiraFont != null) return _cachedHiraFont!;
-    final data = await rootBundle.load('assets/pics/hiralogo.ttf');
-    _cachedHiraFont = pw.Font.ttf(data);
-    return _cachedHiraFont!;
-  }
-
   static Future<void> printInvoice(
     Transaction tx, {
     String? dicetakOleh,
   }) async {
-    final hiraFont = await _getHiraFont();
+    final logoWidget = await logoSvg(height: 60);
     final currencyFmt = NumberFormat.currency(
       locale: 'id_ID',
       symbol: 'Rp ',
@@ -58,21 +49,14 @@ class InvoicePrinter {
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        String.fromCharCode(0xe000),
-                        style: pw.TextStyle(
-                          font: hiraFont,
-                          fontSize: 44,
-                          color: PdfColors.red700,
-                        ),
-                      ),
+                      logoWidget,
                       pw.SizedBox(width: 12),
                       pw.Expanded(
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             pw.Text(
-                              'HIRA EXPRESS',
+                              'YULIS CARGO',
                               style: pw.TextStyle(
                                 fontSize: 18,
                                 fontWeight: pw.FontWeight.bold,
@@ -326,7 +310,7 @@ class InvoicePrinter {
                         ),
                       ),
                       pw.Text(
-                        'HIRA Express - ${tx.noResi}',
+                        'YULIS CARGO - ${tx.noResi}',
                         style: pw.TextStyle(
                           fontSize: 8,
                           color: PdfColors.grey600,

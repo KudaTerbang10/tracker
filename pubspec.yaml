@@ -1,5 +1,5 @@
-name: tracker
-description: "Aplikasi Ekspedisi Tracker"
+﻿name: yulis_cargo
+description: "Aplikasi Ekspedisi Yulis Cargo"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -41,24 +41,20 @@ flutter:
     - assets/pics/
     - assets/tariff.json
     - assets/cabangs.json
-  fonts:
-    - family: hiralogo
-      fonts:
-        - asset: assets/pics/hiralogo.ttf
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "hiralogo_fg.png"
-  image_path_android: "hiralogo_icon.png"
+  image_path: "yulislogo_fg.png"
+  image_path_android: "yulislogo_icon.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "hiralogo_fg.png"
+  adaptive_icon_foreground: "yulislogo_fg.png"
   remove_alpha_ios: true
   ios_background_color: "#FFFFFF"
 
 flutter_native_splash:
   color: "#FFFFFF"
-  image: "assets/pics/hiralogo.png"
+  image: "assets/pics/yulislogo.png"
   android: true
   ios: true
   web: false

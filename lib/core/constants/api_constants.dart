@@ -9,9 +9,11 @@ class ApiConstants {
   static String get baseUrl {
     if (customBaseUrl.isNotEmpty) return customBaseUrl;
     if (kIsWeb) {
-      // Pakai relative path '/api' agar selalu di-serve oleh origin yang sama.
-      // Di Docker/nginx, location /api/ sudah di-proxy ke backend, sehingga
-      // tidak peduli domain/port (LAN maupun production HTTPS).
+      if (kDebugMode) {
+        // flutter run -d chrome → langsung ke localhost:5000
+        return 'http://localhost:5000/api';
+      }
+      // Production build → relative /api, di-proxy nginx
       return '/api';
     }
     if (defaultTargetPlatform == TargetPlatform.android)
@@ -36,6 +38,7 @@ class ApiConstants {
   static const String health = '/health';
   static const String tariffs = '/tariffs';
   static const String tariffsPublic = '/tariffs/public';
+  static const String driversTestLogins = '/drivers/test-logins';
   static const String manifests = '/manifests';
   static const String recentContacts = '/transactions/recent-contacts';
 }

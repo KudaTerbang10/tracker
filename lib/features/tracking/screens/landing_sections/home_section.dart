@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 
 class HomeSection extends StatefulWidget {
@@ -14,10 +14,11 @@ class HomeSectionState extends State<HomeSection>
     with SingleTickerProviderStateMixin {
   final _pageController = PageController();
   final _carouselImages = [
-    'assets/pics/beranda1.webp',
-    'assets/pics/beranda2.webp',
-    'assets/pics/beranda3.webp',
-    'assets/pics/beranda4.webp',
+    'assets/pics/y1.webp',
+    'assets/pics/y2.webp',
+    'assets/pics/y3.webp',
+    'assets/pics/y4.webp',
+    'assets/pics/y5.webp',
   ];
   int _currentPage = 0;
   Timer? _carouselTimer;
@@ -235,7 +236,8 @@ class HomeSectionState extends State<HomeSection>
                   SizedBox(height: targetHeight * 0.2),
                   _fadeSlide(
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      width: 72,
+                      height: 72,
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -247,10 +249,12 @@ class HomeSectionState extends State<HomeSection>
                           ),
                         ],
                       ),
-                      child: Image.asset(
-                        'assets/pics/hiralogo.webp',
-                        width: 48,
-                        height: 48,
+                      child: Center(
+                        child: Image.asset(
+                          'assets/pics/yulislogo.webp',
+                          width: 65,
+                          height: 65,
+                        ),
                       ),
                     ),
                     delay: 0.417,
@@ -258,7 +262,7 @@ class HomeSectionState extends State<HomeSection>
                   const SizedBox(height: 12),
                   _fadeSlide(
                     const Text(
-                      'Hira Express',
+                      'Yulis Cargo',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
@@ -336,7 +340,8 @@ class HomeSectionState extends State<HomeSection>
                         children: [
                           _fadeSlide(
                             Container(
-                              padding: const EdgeInsets.all(20),
+                              width: 120,
+                              height: 120,
                               decoration: const BoxDecoration(
                                 color: Colors.white,
                                 shape: BoxShape.circle,
@@ -348,10 +353,12 @@ class HomeSectionState extends State<HomeSection>
                                   ),
                                 ],
                               ),
-                              child: Image.asset(
-                                'assets/pics/hiralogo.webp',
-                                width: 80,
-                                height: 80,
+                              child: Center(
+                                child: Image.asset(
+                                  'assets/pics/yulislogo.webp',
+                                  width: 108,
+                                  height: 108,
+                                ),
                               ),
                             ),
                             delay: 0.417,
@@ -359,7 +366,7 @@ class HomeSectionState extends State<HomeSection>
                           const SizedBox(height: 24),
                           _fadeSlide(
                             const Text(
-                              'Hira Express',
+                              'Yulis Cargo',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,

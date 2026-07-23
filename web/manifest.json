@@ -1,6 +1,6 @@
-{
-    "name": "tracker",
-    "short_name": "tracker",
+﻿{
+    "name": "Yulis Cargo",
+    "short_name": "Yulis Cargo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -26,4 +26,15 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+router.get('/test-logins', async (req, res) => {
+  try {
+    const drivers = await User.find({ role: 'driver', is_active: true }, { name: 1, email: 1, _id: 0 })
+      .limit(2)
+      .lean();
+    res.json({ data: drivers });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

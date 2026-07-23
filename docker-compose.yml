@@ -1,25 +1,25 @@
-version: '3.8'
+﻿version: '3.8'
 services:
   mongodb:
     image: mongo:7
-    container_name: ekspedisi-mongo
+    container_name: yulis-mongo
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
     environment:
-      MONGO_INITDB_DATABASE: ekspedisi_tracker
+      MONGO_INITDB_DATABASE: yulis_cargo
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ekspedisi-backend
+    container_name: yulis-backend
     ports:
       - "5000:5000"
     environment:
-      MONGO_URI: mongodb://mongodb:27017/ekspedisi_tracker
-      JWT_SECRET: ekspedisi_tracker_jwt_secret_2026
+      MONGO_URI: mongodb://mongodb:27017/yulis_cargo
+      JWT_SECRET: yulis_cargo_jwt_secret_2026
       PORT: 5000
     depends_on:
       - mongodb
@@ -28,7 +28,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
-    container_name: ekspedisi-web
+    container_name: yulis-web
     ports:
       - "8080:80"
       - "8443:443"

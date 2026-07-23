@@ -29,7 +29,7 @@ class User {
     password: json['password'] as String? ?? '',
     role: json['role'] as String,
     cabangId: json['cabang_id'] as String?,
-    lokasi: json['lokasi'] as Map<String, dynamic>?,
+    lokasi: json['lokasi'] is Map ? Map<String, dynamic>.from(json['lokasi'] as Map) : null,
     isActive: json['is_active'] as bool? ?? true,
   );
 

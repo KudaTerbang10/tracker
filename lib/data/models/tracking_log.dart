@@ -23,9 +23,9 @@ class TrackingLog {
     status: json['status'] as String,
     deskripsi: json['deskripsi'] as String? ?? '',
     pelaku: Map<String, dynamic>.from(json['pelaku'] as Map),
-    lokasi: json['lokasi'] as Map<String, dynamic>?,
-    driverDitugaskan: json['driver_ditugaskan'] as Map<String, dynamic>?,
-    tujuan: json['tujuan'] as Map<String, dynamic>?,
+    lokasi: json['lokasi'] is Map ? Map<String, dynamic>.from(json['lokasi'] as Map) : null,
+    driverDitugaskan: json['driver_ditugaskan'] is Map ? Map<String, dynamic>.from(json['driver_ditugaskan'] as Map) : null,
+    tujuan: json['tujuan'] is Map ? Map<String, dynamic>.from(json['tujuan'] as Map) : null,
     namaPenerima: json['nama_penerima'] as String?,
     timestamp: DateTime.parse(json['timestamp'] as String),
   );

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
@@ -209,9 +209,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 8, right: 10),
               child: Image.asset(
-                'assets/pics/hiralogo.webp',
-                width: 32,
-                height: 32,
+                'assets/pics/yulislogo.webp',
+                width: 38,
+                height: 38,
               ),
             ),
             Text(
@@ -437,7 +437,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Hira Express',
+                          'Yulis Cargo',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: const Color(0xFF64748B)),
                         ),

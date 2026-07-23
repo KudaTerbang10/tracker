@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -16,6 +18,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passC = TextEditingController();
   final _passFocus = FocusNode();
   bool _obscure = true;
+  List<Map<String, dynamic>> _testDrivers = [];
+  bool _loadingDrivers = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTestDrivers();
+  }
+
+  Future<void> _fetchTestDrivers() async {
+    try {
+      final dio = Dio(BaseOptions(
+        baseUrl: ApiConstants.baseUrl,
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+      ));
+      final res = await dio.get(ApiConstants.driversTestLogins);
+      final data = res.data['data'] as List<dynamic>;
+      if (mounted) {
+        setState(() {
+          _testDrivers = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+          _loadingDrivers = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingDrivers = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -264,9 +296,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               children: [
                                 Expanded(
                                   child: _buildTestButton(
-                                    label: 'Tangerang Selatan',
-                                    email: 'tng@ekspedisi.id',
-                                    password: 'cabang123',
+                                    label: 'Bandung',
+                                    email: 'bdo@yulis.com',
+                                    password: 'admin123',
                                     color: const Color(0xFF2563EB),
                                     icon: Icons.store_outlined,
                                     isLoading: isLoading,
@@ -275,9 +307,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: _buildTestButton(
-                                    label: 'Bogor',
-                                    email: 'bgo@ekspedisi.id',
-                                    password: 'cabang123',
+                                    label: 'Surabaya',
+                                    email: 'sby@yulis.com',
+                                    password: 'admin123',
                                     color: const Color(0xFF2563EB),
                                     icon: Icons.store_outlined,
                                     isLoading: isLoading,
@@ -298,31 +330,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ),
                             ),
                             const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildTestButton(
-                                    label: 'Hendra',
-                                    email: 'driver@ekspedisi.id',
-                                    password: 'driver123',
-                                    color: const Color(0xFF059669),
-                                    icon: Icons.directions_car_outlined,
-                                    isLoading: isLoading,
+                            if (_loadingDrivers)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            else if (_testDrivers.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  'Tidak ada driver terdaftar',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF94A3B8),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildTestButton(
-                                    label: 'Budi',
-                                    email: 'driver2@ekspedisi.id',
-                                    password: 'kicawmania',
-                                    color: const Color(0xFF059669),
-                                    icon: Icons.directions_car_outlined,
-                                    isLoading: isLoading,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              )
+                            else
+                              Row(
+                                children: _testDrivers.map((d) {
+                                  final label = d['name'] as String? ?? 'Driver';
+                                  final email = d['email'] as String? ?? '';
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        right: _testDrivers.last == d ? 0 : 4,
+                                      ),
+                                      child: _buildTestButton(
+                                        label: label,
+                                        email: email,
+                                        password: 'driver123',
+                                        color: const Color(0xFF059669),
+                                        icon: Icons.directions_car_outlined,
+                                        isLoading: isLoading,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
                           ],
                         ),
                       ),

@@ -511,6 +511,26 @@ class _TrackingMapState extends State<TrackingMap> {
       if (_destName.isEmpty) _destName = tx.penerimaName;
     }
 
+    // Untuk diterima_cabang: marker harus menunjuk ke cabang tujuan (bukan asal)
+    if (tx.statusSaatIni == 'diterima_cabang') {
+      if (_dest != null) {
+        _origin = _dest;
+        _originName = _destName;
+      } else {
+        // Fallback: cari dari tracking log diterima_cabang terakhir
+        for (final log in tx.trackingLogs.reversed) {
+          if (log.status == 'diterima_cabang' && log.lokasiName.isNotEmpty) {
+            final c = CabangLokasiService.findByName(log.lokasiName);
+            if (c != null && c.latitude != null && c.longitude != null) {
+              _origin = LatLng(c.latitude!, c.longitude!);
+              _originName = log.lokasiName;
+            }
+            break;
+          }
+        }
+      }
+    }
+
     // Untuk gagal_kirim: cari posisi cabang terakhir tempat barang berada
     if (tx.statusSaatIni == 'gagal_kirim') {
       for (final log in tx.trackingLogs.reversed) {

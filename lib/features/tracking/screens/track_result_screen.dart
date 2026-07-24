@@ -441,20 +441,23 @@ class _TrackingMapState extends State<TrackingMap> {
     await CabangLokasiService.init();
     final tx = widget.tx;
 
-    // Cari origin: titik terakhir paket discan (keluar_cabang = cabang keberangkatan)
+    // 1. Posisi terkini: diterima_cabang terakhir (cabang tempat scan datang terakhir)
     for (final log in tx.trackingLogs.reversed) {
-      if (log.status == 'keluar_cabang' && log.lokasiName.isNotEmpty) {
+      if (log.status == 'diterima_cabang' && log.lokasiName.isNotEmpty) {
         final c = CabangLokasiService.findByName(log.lokasiName);
         if (c != null && c.latitude != null && c.longitude != null) {
-          _origin = LatLng(c.latitude!, c.longitude!);
-          _originName = log.lokasiName;
+          _currentCabang = LatLng(c.latitude!, c.longitude!);
+          _currentCabangName = log.lokasiName;
         }
         break;
       }
     }
 
-    // Fallback: pakai diterima_cabang pertama
-    if (_origin == null) {
+    // 2. Origin = posisi terkini (cabang terakhir), fallback ke diterima_cabang pertama
+    if (_currentCabang != null) {
+      _origin = _currentCabang;
+      _originName = _currentCabangName;
+    } else {
       for (final log in tx.trackingLogs) {
         if (log.status == 'diterima_cabang' && log.lokasiName.isNotEmpty) {
           final c = CabangLokasiService.findByName(log.lokasiName);
@@ -467,7 +470,7 @@ class _TrackingMapState extends State<TrackingMap> {
       }
     }
 
-    // Cari tujuan dari tracking_log keluar_cabang/proses_kirim
+    // 3. Cari tujuan dari tracking_log keluar_cabang/proses_kirim terakhir
     for (final log in tx.trackingLogs.reversed) {
       if ((log.status == 'keluar_cabang' || log.status == 'proses_kirim') &&
           log.tujuan != null) {
@@ -511,6 +514,7 @@ class _TrackingMapState extends State<TrackingMap> {
       if (_destName.isEmpty) _destName = tx.penerimaName;
     }
 
+    // Untuk diterima_cabang: posisi terkini sudah didapat di #1
     // Untuk gagal_kirim: cari posisi cabang terakhir tempat barang berada
     if (tx.statusSaatIni == 'gagal_kirim') {
       for (final log in tx.trackingLogs.reversed) {
@@ -549,7 +553,69 @@ class _TrackingMapState extends State<TrackingMap> {
     final points = <LatLng>[];
     final markers = <Marker>[];
 
-    if (isGagalKirim && _currentCabang != null) {
+    if (isDiterimaCabang && _currentCabang != null) {
+      points.add(_currentCabang!);
+      markers.add(
+        Marker(
+          point: _currentCabang!,
+          width: 160,
+          height: 90,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 160,
+                child: Text(
+                  'Cabang $_currentCabangName',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF97316),
+                    shadows: [Shadow(color: Colors.white, blurRadius: 3)],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF97316),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.store_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF97316),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'DI CABANG',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (isGagalKirim && _currentCabang != null) {
       points.add(_currentCabang!);
       markers.add(
         Marker(
@@ -614,7 +680,6 @@ class _TrackingMapState extends State<TrackingMap> {
     } else if (_origin != null) {
       points.add(_origin!);
       // Origin marker
-      final cabangColor = isDiterimaCabang ? const Color(0xFFF97316) : const Color(0xFF2563EB);
       markers.add(
         Marker(
           point: _origin!,
@@ -626,26 +691,26 @@ class _TrackingMapState extends State<TrackingMap> {
               SizedBox(
                 width: 120,
                 child: Text(
-                  isDiterimaCabang ? 'Cabang $_originName' : _originName,
+                  _originName,
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: cabangColor,
+                    color: Color(0xFF2563EB),
                     shadows: [Shadow(color: Colors.white, blurRadius: 3)],
                   ),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  color: cabangColor,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2563EB),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  isDiterimaCabang ? Icons.store_rounded : Icons.flag_rounded,
+                child: const Icon(
+                  Icons.flag_rounded,
                   color: Colors.white,
                   size: 14,
                 ),
@@ -913,8 +978,8 @@ class _TrackingMapState extends State<TrackingMap> {
                       ),
                 initialCenter: isDiterima && _dest != null
                     ? _dest!
-                    : isDiterimaCabang && _origin != null
-                        ? _origin!
+                    : isDiterimaCabang && _currentCabang != null
+                        ? _currentCabang!
                         : isGagalKirim && _currentCabang != null
                             ? _currentCabang!
                             : const LatLng(0, 0),

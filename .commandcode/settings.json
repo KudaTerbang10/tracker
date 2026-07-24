@@ -1,3 +1,11 @@
 {
-  "tasteLearning": true
+  "tasteLearning": true,
+  "permissions": {
+    "allow": [
+      "Shell(flutter:*)",
+      "Shell(dart:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
 }
